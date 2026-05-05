@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -554,7 +554,7 @@ function Sidebar(props: {
             onClick={() => props.onSelect(p.id)}
             title={tildeify(p.path, props.home)}
           >
-            <ProjectIcon path={p.path} active={p.id === props.activeId} />
+            <ProjectIcon name={p.name} path={p.path} active={p.id === props.activeId} />
             <span className="name">{p.name}</span>
             <button
               className="remove"
@@ -594,14 +594,34 @@ function Sidebar(props: {
   );
 }
 
-function ProjectIcon({ path, active }: { path: string; active?: boolean }) {
+function hashString(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function ProjectIcon({ name, path, active }: { name: string; path: string; active?: boolean }) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
   const src = `/api/project-favicon?cwd=${encodeURIComponent(path)}`;
+  const fallback = useMemo(() => {
+    const label = (name || path.split("/").filter(Boolean).at(-1) || "?").replace(/^[._-]+/, "").charAt(0).toUpperCase() || "?";
+    const hue = hashString(path || name) % 360;
+    return {
+      label,
+      style: {
+        ["--project-hue" as string]: String(hue),
+      } as CSSProperties,
+    };
+  }, [name, path]);
 
   return (
     <>
       {status !== "loaded" && (
-        <span className={`project-icon-placeholder ${active ? "active" : ""}`} />
+        <span className={`project-icon-placeholder ${active ? "active" : ""}`} style={fallback.style} aria-hidden="true">
+          {fallback.label}
+        </span>
       )}
       <img
         src={src}
