@@ -22,6 +22,7 @@ export const prompts = sqliteTable("prompts", {
   worktreePath: text("worktree_path"),
   tmuxSession: text("tmux_session"),
   error: text("error"),
+  isArchived: integer("is_archived", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   launchedAt: integer("launched_at", { mode: "timestamp_ms" }),

@@ -15,6 +15,17 @@ export async function hasSession(name: string): Promise<boolean> {
   }
 }
 
+export async function killSession(name: string): Promise<void> {
+  try {
+    if (await hasSession(name)) {
+      await exec("tmux", ["kill-session", "-t", name]);
+    }
+  } catch (e) {
+    if (e instanceof ExecError) return; // Session already gone
+    throw e;
+  }
+}
+
 export async function newSession(name: string, cwd: string): Promise<void> {
   await exec("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
 }

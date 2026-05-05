@@ -36,3 +36,16 @@ export async function listWorktrees(repoPath: string): Promise<string[]> {
     return [];
   }
 }
+
+export async function removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
+  try {
+    await exec("git", ["-C", repoPath, "worktree", "remove", worktreePath]);
+  } catch (e) {
+    // If worktree is already gone or invalid, try to prune
+    try {
+      await exec("git", ["-C", repoPath, "worktree", "prune"]);
+    } catch {
+      // Ignore prune errors
+    }
+  }
+}

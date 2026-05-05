@@ -1,21 +1,29 @@
 import type { APIRoute } from "astro";
-import { deletePrompt, getPrompt, updatePrompt } from "~/lib/server/store.js";
+import { getPrompt, updatePrompt } from "~/lib/server/store.js";
+import { cleanupPromptById } from "~/lib/server/cleanup.js";
 
 export const prerender = false;
 
 export const PATCH: APIRoute = async ({ params, request }) => {
   const id = params.id!;
   if (!getPrompt(id)) return Response.json({ error: "not found" }, { status: 404 });
-  const body = (await request.json().catch(() => ({}))) as { text?: string };
+  const body = (await request.json().catch(() => ({}))) as { text?: string; isArchived?: boolean };
   const patch: Record<string, unknown> = {};
   if (typeof body.text === "string") patch.text = body.text;
+  if (typeof body.isArchived === "boolean") patch.isArchived = body.isArchived;
   const prompt = updatePrompt(id, patch as never);
   return Response.json({ prompt });
 };
 
 export const DELETE: APIRoute = async ({ params }) => {
   const id = params.id!;
-  if (!getPrompt(id)) return Response.json({ error: "not found" }, { status: 404 });
-  deletePrompt(id);
-  return Response.json({ ok: true });
+  const prompt = getPrompt(id);
+  if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
+  try {
+    await cleanupPromptById(id);
+    return Response.json({ ok: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return Response.json({ error: msg }, { status: 500 });
+  }
 };

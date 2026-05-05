@@ -33,6 +33,7 @@ type Prompt = {
   worktreePath?: string | null;
   tmuxSession?: string | null;
   error?: string | null;
+  isArchived?: boolean | null;
   launchedAt?: number | null;
 };
 
@@ -62,13 +63,24 @@ export default function Board() {
   const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor),
   );
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+    // Run health check on mount
+    void api("/api/health-check", { method: "POST" }).catch(() => {});
+    // Then every 30 seconds
+    const interval = setInterval(() => {
+      void api("/api/health-check", { method: "POST" }).catch(() => {});
+      void refresh();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -166,6 +178,24 @@ export default function Board() {
     }
   }
 
+  async function archivePrompt(id: string) {
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function unarchivePrompt(id: string) {
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "DELETE" });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function launch(id: string, target: Column) {
     if (target === "PROMPTS") return;
     const url = target === "RUN_IN_PLACE" ? `/api/prompts/${id}/run-in-place` : `/api/prompts/${id}/run-in-worktree`;
@@ -230,7 +260,11 @@ export default function Board() {
 
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const projectPrompts = useMemo(
-    () => prompts.filter((p) => p.projectId === activeProjectId),
+    () => prompts.filter((p) => p.projectId === activeProjectId && !p.isArchived),
+    [prompts, activeProjectId],
+  );
+  const archivedPrompts = useMemo(
+    () => prompts.filter((p) => p.projectId === activeProjectId && p.isArchived),
     [prompts, activeProjectId],
   );
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
@@ -276,6 +310,7 @@ export default function Board() {
                     prompts={projectPrompts.filter((p) => p.column === col.id)}
                     onDelete={deletePrompt}
                     onEdit={editPrompt}
+                    onArchive={archivePrompt}
                     home={home}
                     activeId={activeDragId}
                     overId={overId}
@@ -295,6 +330,40 @@ export default function Board() {
                 {dragging ? <div className="overlay-card">{truncate(dragging.text, 140)}</div> : null}
               </DragOverlay>
             </DndContext>
+
+            {archivedPrompts.length > 0 && (
+              <div className="archived-section">
+                <button
+                  className="archived-toggle"
+                  onClick={() => setShowArchived(!showArchived)}
+                >
+                  {showArchived ? "▼" : "▶"} Archived ({archivedPrompts.length})
+                </button>
+                {showArchived && (
+                  <div className="archived-list">
+                    {archivedPrompts.map((p) => (
+                      <div key={p.id} className="archived-item">
+                        <div className="archived-text">{p.text}</div>
+                        <button
+                          className="icon-btn sm"
+                          onClick={() => unarchivePrompt(p.id)}
+                          title="Restore archived prompt"
+                        >
+                          restore
+                        </button>
+                        <button
+                          className="icon-btn danger sm"
+                          onClick={() => deletePrompt(p.id)}
+                          title="Delete archived prompt permanently"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>
@@ -417,6 +486,7 @@ function ColumnView(props: {
   prompts: Prompt[];
   onDelete: (id: string) => void;
   onEdit: (id: string, text: string) => void;
+  onArchive: (id: string) => void;
   composer: React.ReactNode;
   home: string;
   activeId?: string | null;
@@ -444,7 +514,7 @@ function ColumnView(props: {
           {props.prompts.map((p, i) => (
             <div key={p.id}>
               {showIndicator && overIndex === i && <div className="drop-indicator" />}
-              <Card prompt={p} onDelete={props.onDelete} onEdit={props.onEdit} home={props.home} />
+              <Card prompt={p} onDelete={props.onDelete} onEdit={props.onEdit} onArchive={props.onArchive} home={props.home} />
             </div>
           ))}
           {showIndicator && (overIndex === -1 || overIndex >= itemIds.length) && <div className="drop-indicator" />}
@@ -570,7 +640,7 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
   );
 }
 
-function Card({ prompt, onDelete, onEdit, home }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, text: string) => void; home: string }) {
+function Card({ prompt, onDelete, onEdit, onArchive, home }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, text: string) => void; onArchive: (id: string) => void; home: string }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const {
@@ -674,13 +744,24 @@ function Card({ prompt, onDelete, onEdit, home }: { prompt: Prompt; onDelete: (i
           </button>
         )}
         <button
+          className="icon-btn"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onArchive(prompt.id);
+          }}
+          title="Archive prompt"
+        >
+          archive
+        </button>
+        <button
           className="icon-btn danger"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onDelete(prompt.id);
           }}
-          title="Delete prompt"
+          title="Delete prompt and cleanup resources"
         >
           delete
         </button>
