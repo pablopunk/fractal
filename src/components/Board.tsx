@@ -27,6 +27,7 @@ type Prompt = {
   worktreePath?: string | null;
   tmuxSession?: string | null;
   error?: string | null;
+  isArchived?: boolean | null;
   launchedAt?: number | null;
 };
 
@@ -51,13 +52,24 @@ export default function Board() {
   const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor),
   );
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+    // Run health check on mount
+    void api("/api/health-check", { method: "POST" }).catch(() => {});
+    // Then every 30 seconds
+    const interval = setInterval(() => {
+      void api("/api/health-check", { method: "POST" }).catch(() => {});
+      void refresh();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function refresh() {
     try {
@@ -121,6 +133,24 @@ export default function Board() {
     }
   }
 
+  async function archivePrompt(id: string) {
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function unarchivePrompt(id: string) {
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "DELETE" });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function launch(id: string, target: Column) {
     if (target === "PROMPTS") return;
     const url = target === "RUN_IN_PLACE" ? `/api/prompts/${id}/run-in-place` : `/api/prompts/${id}/run-in-worktree`;
@@ -150,7 +180,11 @@ export default function Board() {
 
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const projectPrompts = useMemo(
-    () => prompts.filter((p) => p.projectId === activeProjectId),
+    () => prompts.filter((p) => p.projectId === activeProjectId && !p.isArchived),
+    [prompts, activeProjectId],
+  );
+  const archivedPrompts = useMemo(
+    () => prompts.filter((p) => p.projectId === activeProjectId && p.isArchived),
     [prompts, activeProjectId],
   );
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
@@ -194,6 +228,7 @@ export default function Board() {
                     title={col.title}
                     prompts={projectPrompts.filter((p) => p.column === col.id)}
                     onDelete={deletePrompt}
+                    onArchive={archivePrompt}
                     composer={
                       col.id === "PROMPTS" ? (
                         <Composer
@@ -210,6 +245,40 @@ export default function Board() {
                 {dragging ? <div className="overlay-card">{truncate(dragging.text, 140)}</div> : null}
               </DragOverlay>
             </DndContext>
+
+            {archivedPrompts.length > 0 && (
+              <div className="archived-section">
+                <button
+                  className="archived-toggle"
+                  onClick={() => setShowArchived(!showArchived)}
+                >
+                  {showArchived ? "▼" : "▶"} Archived ({archivedPrompts.length})
+                </button>
+                {showArchived && (
+                  <div className="archived-list">
+                    {archivedPrompts.map((p) => (
+                      <div key={p.id} className="archived-item">
+                        <div className="archived-text">{p.text}</div>
+                        <button
+                          className="icon-btn sm"
+                          onClick={() => unarchivePrompt(p.id)}
+                          title="Restore archived prompt"
+                        >
+                          restore
+                        </button>
+                        <button
+                          className="icon-btn danger sm"
+                          onClick={() => deletePrompt(p.id)}
+                          title="Delete archived prompt permanently"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>
@@ -310,6 +379,7 @@ function ColumnView(props: {
   title: string;
   prompts: Prompt[];
   onDelete: (id: string) => void;
+  onArchive: (id: string) => void;
   composer: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: props.id });
@@ -326,7 +396,7 @@ function ColumnView(props: {
           </div>
         )}
         {props.prompts.map((p) => (
-          <Card key={p.id} prompt={p} onDelete={props.onDelete} />
+          <Card key={p.id} prompt={p} onDelete={props.onDelete} onArchive={props.onArchive} />
         ))}
       </div>
       {props.composer}
@@ -357,7 +427,7 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
   );
 }
 
-function Card({ prompt, onDelete }: { prompt: Prompt; onDelete: (id: string) => void }) {
+function Card({ prompt, onDelete, onArchive }: { prompt: Prompt; onDelete: (id: string) => void; onArchive: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: prompt.id });
   const isLaunched = !!prompt.launchedAt;
   return (
@@ -387,13 +457,24 @@ function Card({ prompt, onDelete }: { prompt: Prompt; onDelete: (id: string) => 
           </button>
         )}
         <button
+          className="icon-btn"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onArchive(prompt.id);
+          }}
+          title="Archive prompt"
+        >
+          archive
+        </button>
+        <button
           className="icon-btn danger"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onDelete(prompt.id);
           }}
-          title="Delete prompt"
+          title="Delete prompt and cleanup resources"
         >
           delete
         </button>
