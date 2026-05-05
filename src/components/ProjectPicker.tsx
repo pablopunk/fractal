@@ -6,7 +6,7 @@ type Item = {
   absolute: string;
   name: string;
   parent: string; // tildeified parent for display
-  group: "recent" | "folders";
+  group: "recent" | "folders" | "manual";
 };
 
 type Project = { id: string; name: string; path: string };
@@ -24,8 +24,8 @@ export type ProjectPickerProps = {
  * roots configured on the server (default: ~/src and ~/src/maze) and fuzzy
  * filtered by the input. Already-added projects appear on top.
  *
- * Pressing Enter on free text (e.g. an absolute path that isn't in the list)
- * still attempts to add it.
+ * Free-form paths are also supported, so repos outside the suggestion roots
+ * (e.g. ~/.pi) can still be added directly.
  */
 export default function ProjectPicker(props: ProjectPickerProps) {
   const [input, setInput] = useState("");
@@ -69,7 +69,21 @@ export default function ProjectPicker(props: ProjectPickerProps) {
     const folderFiltered = q
       ? fuzzysort.go(q, folders, { keys: ["name", "absolute"], limit: 50 }).map((r) => r.obj)
       : folders.slice(0, 50);
-    return [...recentFiltered, ...folderFiltered];
+
+    const out = [...recentFiltered, ...folderFiltered];
+    if (q) {
+      const normalized = normalizeInputPath(q, home);
+      const alreadyListed = out.some((item) => item.absolute === normalized || item.absolute === q);
+      if (!alreadyListed) {
+        out.unshift({
+          absolute: q,
+          name: basename(normalized),
+          parent: `Add ${tildeify(parentOf(normalized), home)}`,
+          group: "manual",
+        });
+      }
+    }
+    return out;
   }, [suggestions, input, props.recentProjects, home]);
 
   useEffect(() => {
@@ -104,6 +118,8 @@ export default function ProjectPicker(props: ProjectPickerProps) {
   const recent = items.filter((i) => i.group === "recent");
   const folders = items.filter((i) => i.group === "folders");
   const groups: { id: Item["group"]; title: string; items: Item[] }[] = [];
+  const manual = items.filter((i) => i.group === "manual");
+  if (manual.length) groups.push({ id: "manual", title: "Add by path", items: manual });
   if (recent.length) groups.push({ id: "recent", title: "Recent", items: recent });
   if (folders.length) groups.push({ id: "folders", title: "Projects", items: folders });
 
@@ -177,4 +193,12 @@ function parentOf(p: string): string {
   const i = p.lastIndexOf("/");
   if (i <= 0) return "/";
   return p.slice(0, i);
+}
+
+function normalizeInputPath(input: string, home: string): string {
+  const v = input.trim();
+  if (!v) return v;
+  if (v === "~") return home || v;
+  if (v.startsWith("~/") && home) return home + v.slice(1);
+  return v;
 }

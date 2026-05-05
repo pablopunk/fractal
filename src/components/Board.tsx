@@ -18,6 +18,18 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  Check,
+  ChevronLeft,
+  Copy,
+  FolderKanban,
+  FolderRoot,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import ProjectPicker from "./ProjectPicker.js";
 
 type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
@@ -37,11 +49,11 @@ type Prompt = {
   launchedAt?: number | null;
 };
 
-const COLUMNS: { id: Column; title: string }[] = [
-  { id: "PROMPTS", title: "Prompts" },
-  { id: "RUN_IN_PLACE", title: "Run in place" },
-  { id: "RUN_IN_WORKTREE", title: "Run in worktree" },
-  { id: "ARCHIVED", title: "Archived" },
+const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
+  { id: "RUN_IN_PLACE", title: "Run in place", icon: Play },
+  { id: "RUN_IN_WORKTREE", title: "Run in worktree", icon: FolderKanban },
+  { id: "ARCHIVED", title: "DONE", icon: Check },
 ];
 
 const COLLAPSED_KEY = "fractal:collapsedColumns";
@@ -54,14 +66,25 @@ function loadCollapsed(): Record<Column, boolean> {
   } catch { return def; }
 }
 
+class ApiError extends Error {
+  status: number;
+  body: unknown;
+  constructor(status: number, message: string, body: unknown) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function api<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new ApiError(res.status, (json as { error?: string }).error ?? `HTTP ${res.status}`, json);
   return json as T;
 }
 
 function getProjectIdFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
   return new URLSearchParams(window.location.search).get("project");
 }
 
@@ -69,7 +92,7 @@ export default function Board() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [home, setHome] = useState<string>("");
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => getProjectIdFromUrl());
   const [composer, setComposer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -77,6 +100,7 @@ export default function Board() {
   const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed());
   const [pendingDeletePromptId, setPendingDeletePromptId] = useState<string | null>(null);
   const [pendingDeleteChanges, setPendingDeleteChanges] = useState<string[] | null>(null);
+  const [archiveBlockedMessage, setArchiveBlockedMessage] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -104,6 +128,12 @@ export default function Board() {
     }
     window.history.replaceState({}, "", url.toString());
   }, [activeProjectId]);
+
+  useEffect(() => {
+    const onPopState = () => setActiveProjectId(getProjectIdFromUrl());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   useEffect(() => {
     const platform = (window as typeof window & { electron?: { platform?: string } }).electron?.platform;
@@ -222,6 +252,11 @@ export default function Board() {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const body = e.body as { detail?: string } | undefined;
+        setArchiveBlockedMessage(body?.detail ?? e.message);
+        return;
+      }
       setError(e instanceof Error ? e.message : String(e));
     }
   }
@@ -367,6 +402,7 @@ export default function Board() {
                       key={col.id}
                       id={col.id}
                       title={col.title}
+                      icon={col.icon}
                       prompts={colPrompts}
                       onDelete={deletePrompt}
                       onEdit={editPrompt}
@@ -421,6 +457,18 @@ export default function Board() {
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button className="btn ghost" onClick={() => { setPendingDeletePromptId(null); setPendingDeleteChanges(null); }}>Cancel</button>
                     <button className="btn danger" onClick={() => void deletePrompt(pendingDeletePromptId, true)}>Delete & Discard Changes</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {archiveBlockedMessage && (
+              <div className="modal-overlay" onClick={() => setArchiveBlockedMessage(null)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <h2>Can't mark this worktree as done yet</h2>
+                  <p>{archiveBlockedMessage}</p>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button className="btn" onClick={() => setArchiveBlockedMessage(null)}>OK</button>
                   </div>
                 </div>
               </div>
@@ -489,7 +537,7 @@ function Sidebar(props: {
               onSelect={props.onAdd}
               autoFocus
               openUpward
-              placeholder="search projects…"
+              placeholder="search projects or paste a path…"
             />
             <button className="btn ghost block sm" style={{ marginTop: 6 }} onClick={() => props.setShowPicker(false)}>
               Cancel
@@ -530,12 +578,12 @@ function EmptyState(props: { projects: Project[]; onAdd: (path: string) => void 
     <div className="empty">
       <div className="empty-card">
         <h1>Add your first project</h1>
-        <p>Pick a git repo from <code style={{ fontFamily: "var(--font-mono)" }}>~/src</code> or <code style={{ fontFamily: "var(--font-mono)" }}>~/src/maze</code> to start a board.</p>
+        <p>Pick a git repo from <code style={{ fontFamily: "var(--font-mono)" }}>~/src</code> or <code style={{ fontFamily: "var(--font-mono)" }}>~/src/maze</code>, or paste any repo path like <code style={{ fontFamily: "var(--font-mono)" }}>~/.pi</code>, to start a board.</p>
         <ProjectPicker
           recentProjects={props.projects}
           onSelect={props.onAdd}
           autoFocus
-          placeholder="search projects…"
+          placeholder="search projects or paste a path…"
         />
       </div>
     </div>
@@ -545,6 +593,7 @@ function EmptyState(props: { projects: Project[]; onAdd: (path: string) => void 
 function ColumnView(props: {
   id: Column;
   title: string;
+  icon: React.ComponentType<{ className?: string }>;
   prompts: Prompt[];
   onDelete: (id: string) => void;
   onEdit: (id: string, text: string) => void;
@@ -565,6 +614,8 @@ function ColumnView(props: {
   const isOverColumn = props.overId === props.id || itemIds.includes(props.overId ?? "");
   const showIndicator = props.activeId && dragIndex === -1 && isOverColumn;
 
+  const Icon = props.icon;
+
   if (props.collapsed) {
     return (
       <div
@@ -573,6 +624,7 @@ function ColumnView(props: {
         title={`Expand ${props.title}`}
       >
         <div ref={setNodeRef} className="column-collapsed-inner">
+          <Icon className="column-icon collapsed" />
           <span className="column-collapsed-title">{props.title}</span>
           {props.prompts.length > 0 && (
             <span className="count-chip">{props.prompts.length}</span>
@@ -585,9 +637,10 @@ function ColumnView(props: {
   return (
     <div className={`column ${isOverColumn ? "drop-active" : ""}`}>
       <div className="column-head" style={{ cursor: "pointer" }} onClick={props.onToggleCollapse}>
+        <Icon className="column-icon" />
         <span className="column-title">{props.title}</span>
         <span className="count-chip">{props.prompts.length}</span>
-        <span className="column-collapse-icon">‹</span>
+        <ChevronLeft className="column-collapse-icon" />
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className="column-body">
@@ -725,8 +778,14 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
       <div className="composer-actions">
         <span className="hint">{dragOver ? "drop image to insert path" : "⇧↵ for newline · drop image to attach"}</span>
         <div style={{ flex: 1 }} />
-        <button className="btn primary sm" onClick={props.onSubmit} disabled={!props.value.trim()}>
-          Add prompt
+        <button
+          className="btn primary sm composer-submit"
+          onClick={props.onSubmit}
+          disabled={!props.value.trim()}
+          aria-label="Add prompt"
+          title="Add prompt"
+        >
+          <Plus size={16} />
         </button>
       </div>
     </div>
@@ -820,8 +879,9 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
             setIsEditing(true);
           }}
           title="Edit prompt"
+          aria-label="Edit prompt"
         >
-          edit
+          <Pencil size={14} />
         </button>
         {prompt.tmuxSession && (
           <button
@@ -832,8 +892,9 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
               void navigator.clipboard?.writeText(`tmux attach -t ${prompt.tmuxSession}`);
             }}
             title="Copy tmux attach command"
+            aria-label="Copy tmux attach command"
           >
-            copy attach
+            <Copy size={14} />
           </button>
         )}
         {isArchivedCol ? (
@@ -841,18 +902,20 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
             className="icon-btn"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onUnarchive(prompt.id); }}
-            title="Restore prompt"
+            title="Move prompt out of DONE"
+            aria-label="Move prompt out of DONE"
           >
-            restore
+            <Undo2 size={14} />
           </button>
         ) : (
           <button
             className="icon-btn"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onArchive(prompt.id); }}
-            title="Archive prompt"
+            title="Mark prompt as done"
+            aria-label="Mark prompt as done"
           >
-            archive
+            <Check size={14} />
           </button>
         )}
         <button
@@ -863,8 +926,9 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
             onDelete(prompt.id);
           }}
           title="Delete prompt and cleanup resources"
+          aria-label="Delete prompt and cleanup resources"
         >
-          delete
+          <Trash2 size={14} />
         </button>
       </div>
     </div>

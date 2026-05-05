@@ -1,5 +1,7 @@
 import type { APIRoute } from "astro";
-import { getPrompt, updatePrompt } from "~/lib/server/store.js";
+import { getPrompt, getProject, updatePrompt } from "~/lib/server/store.js";
+import { hasPullRequest, isBranchMerged } from "~/lib/server/git.js";
+import { killSession } from "~/lib/server/tmux.js";
 
 export const prerender = false;
 
@@ -11,6 +13,36 @@ export const POST: APIRoute = async ({ params }) => {
   const id = params.id!;
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
+
+  if (prompt.runMode === "worktree" && prompt.branch && prompt.projectId) {
+    const project = getProject(prompt.projectId);
+    if (project) {
+      const [merged, hasPr] = await Promise.all([
+        isBranchMerged(project.path, prompt.branch),
+        hasPullRequest(project.path, prompt.branch),
+      ]);
+
+      if (!merged && !hasPr) {
+        return Response.json(
+          {
+            error: "This worktree can't be marked as done yet.",
+            detail: "Merge it into the default branch or create a GitHub PR first.",
+          },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
+  // Close tmux session for any task type once all requirements are met
+  if (prompt.tmuxSession) {
+    try {
+      await killSession(prompt.tmuxSession);
+    } catch (e) {
+      // Log but don't fail if session killing fails
+      console.error(`Failed to kill tmux session ${prompt.tmuxSession}:`, e);
+    }
+  }
 
   const updated = updatePrompt(id, { isArchived: true } as never);
   return Response.json({ prompt: updated });
