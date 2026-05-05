@@ -124,14 +124,32 @@ a { color: inherit; }
   color: var(--text);
   border-color: var(--border);
 }
-.project-item .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-faint);
+.project-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
   flex: none;
+  display: block;
 }
-.project-item.active .dot { background: var(--accent); }
+.project-icon.active {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.project-icon.hidden {
+  display: none;
+}
+.project-icon-placeholder {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--text-faint);
+  flex: none;
+  display: block;
+  box-sizing: border-box;
+}
+.project-icon-placeholder.active {
+  border-color: var(--accent);
+}
 .project-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .project-item .remove {
   opacity: 0;
@@ -340,6 +358,11 @@ a { color: inherit; }
   flex-direction: column;
   gap: 8px;
   background: var(--surface);
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.composer.drag-over {
+  border-top-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 6%, var(--surface));
 }
 .composer textarea {
   resize: none;
@@ -367,6 +390,8 @@ a { color: inherit; }
 }
 .card:hover { border-color: var(--border-strong); }
 .card:active { cursor: grabbing; }
+.card.locked { cursor: default; }
+.card.locked:active { cursor: default; }
 .card .text {
   white-space: pre-wrap;
   word-break: break-word;
@@ -433,6 +458,19 @@ a { color: inherit; }
 .icon-btn.danger:hover { color: var(--danger); }
 
 .dragging { opacity: 0.35; }
+
+/* Drop indicator — shows where dragged card will land */
+.drop-indicator {
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin: 4px 0;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
 .overlay-card {
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
@@ -494,6 +532,21 @@ a { color: inherit; }
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+}
+
+/* ---------- macOS hiddenInset traffic lights ---------- */
+
+.macos .sidebar-head {
+  justify-content: flex-end;
+  -webkit-app-region: drag;
+}
+.macos .topbar {
+  -webkit-app-region: drag;
+}
+.macos .topbar button,
+.macos .topbar input,
+.macos .topbar textarea {
+  -webkit-app-region: no-drag;
 }
 
 /* ---------- Misc ---------- */

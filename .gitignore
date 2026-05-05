@@ -5,3 +5,7 @@ dist
 .env.*
 *.log
 .DS_Store
+
+# Electron
+release/
+*.blockmap
