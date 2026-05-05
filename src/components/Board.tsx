@@ -227,7 +227,7 @@ export default function Board() {
         body: JSON.stringify({ force }),
       });
       const json = await res.json().catch(() => ({})) as { error?: string; hasUncommitted?: boolean; changes?: string[] };
-      
+
       if (!res.ok) {
         // If 409 Conflict, show confirmation dialog
         if (res.status === 409 && json.hasUncommitted) {
@@ -237,7 +237,7 @@ export default function Board() {
         }
         throw new Error(json.error ?? `HTTP ${res.status}`);
       }
-      
+
       setPrompts((p) => p.filter((x) => x.id !== id));
       setPendingDeletePromptId(null);
       setPendingDeleteChanges(null);
@@ -826,7 +826,7 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
       <textarea
         ref={textareaRef}
         className="input"
-        placeholder="Describe a task for pi…"
+        placeholder="Describe a task for pi and/or drop images…"
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -849,7 +849,7 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
           aria-label="Add prompt"
           title="Add prompt"
         >
-          <Plus size={16} />
+          Add
         </button>
       </div>
     </div>
@@ -929,19 +929,6 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
       {...listeners}
     >
       <div className="text">{prompt.text}</div>
-      <div className="card-meta">
-        <button
-          className="model-badge"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(prompt.id, { modelProfile: prompt.modelProfile === "fast" ? "smart" : "fast" });
-          }}
-          title="Toggle model profile"
-        >
-          {prompt.modelProfile === "fast" ? <><Zap size={11} /> Fast</> : <><Brain size={11} /> Smart</>}
-        </button>
-      </div>
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isLaunched) && (
         <div className="card-meta">
           {isLaunched && <span className="tag accent">running</span>}
@@ -953,66 +940,79 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       <div className="card-actions">
         <button
-          className="icon-btn"
+          className="model-badge"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            setEditText(prompt.text);
-            setEditModelProfile(prompt.modelProfile ?? "smart");
-            setIsEditing(true);
+            onEdit(prompt.id, { modelProfile: prompt.modelProfile === "fast" ? "smart" : "fast" });
           }}
-          title="Edit prompt"
-          aria-label="Edit prompt"
+          title="Toggle model profile"
         >
-          <Pencil size={14} />
+          {prompt.modelProfile === "fast" ? <><Zap size={11} /> Fast</> : <><Brain size={11} /> Smart</>}
         </button>
-        {prompt.tmuxSession && (
+        <div className="card-actions-group">
           <button
             className="icon-btn"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              void navigator.clipboard?.writeText(`tmux attach -t ${prompt.tmuxSession}`);
+              setEditText(prompt.text);
+              setEditModelProfile(prompt.modelProfile ?? "smart");
+              setIsEditing(true);
             }}
-            title="Copy tmux attach command"
-            aria-label="Copy tmux attach command"
+            title="Edit prompt"
+            aria-label="Edit prompt"
           >
-            <Copy size={14} />
+            <Pencil size={14} />
           </button>
-        )}
-        {isArchivedCol ? (
+          {prompt.tmuxSession && (
+            <button
+              className="icon-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                void navigator.clipboard?.writeText(`tmux attach -t ${prompt.tmuxSession}`);
+              }}
+              title="Copy tmux attach command"
+              aria-label="Copy tmux attach command"
+            >
+              <Copy size={14} />
+            </button>
+          )}
+          {isArchivedCol ? (
+            <button
+              className="icon-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onUnarchive(prompt.id); }}
+              title="Move prompt out of DONE"
+              aria-label="Move prompt out of DONE"
+            >
+              <Undo2 size={14} />
+            </button>
+          ) : (
+            <button
+              className="icon-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onArchive(prompt.id); }}
+              title="Mark prompt as done"
+              aria-label="Mark prompt as done"
+            >
+              <Check size={14} />
+            </button>
+          )}
           <button
-            className="icon-btn"
+            className="icon-btn danger"
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onUnarchive(prompt.id); }}
-            title="Move prompt out of DONE"
-            aria-label="Move prompt out of DONE"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(prompt.id);
+            }}
+            title="Delete prompt and cleanup resources"
+            aria-label="Delete prompt and cleanup resources"
           >
-            <Undo2 size={14} />
+            <Trash2 size={14} />
           </button>
-        ) : (
-          <button
-            className="icon-btn"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onArchive(prompt.id); }}
-            title="Mark prompt as done"
-            aria-label="Mark prompt as done"
-          >
-            <Check size={14} />
-          </button>
-        )}
-        <button
-          className="icon-btn danger"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(prompt.id);
-          }}
-          title="Delete prompt and cleanup resources"
-          aria-label="Delete prompt and cleanup resources"
-        >
-          <Trash2 size={14} />
-        </button>
+        </div>
       </div>
     </div>
   );
