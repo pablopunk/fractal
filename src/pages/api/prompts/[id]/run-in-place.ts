@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
-import { getProject, getPrompt, updatePrompt } from "~/lib/server/store.js";
+import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/store.js";
+import { resolvePromptModel } from "~/lib/server/pi.js";
 import { launchInPlace } from "~/lib/server/worktree.js";
 
 export const prerender = false;
@@ -11,11 +12,13 @@ export const POST: APIRoute = async ({ params }) => {
   const project = getProject(prompt.projectId);
   if (!project) return Response.json({ error: "project missing" }, { status: 404 });
   try {
+    const model = resolvePromptModel(prompt.modelProfile ?? "smart", getSettings());
     const result = await launchInPlace({
       projectPath: project.path,
       projectName: project.name,
       promptId: prompt.id,
       prompt: prompt.text,
+      model,
     });
     const updated = updatePrompt(id, {
       column: "RUN_IN_PLACE",

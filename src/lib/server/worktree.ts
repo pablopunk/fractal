@@ -20,10 +20,11 @@ export async function launchInPlace(opts: {
   projectName: string;
   promptId: string;
   prompt: string;
+  model?: string;
 }): Promise<LaunchInPlaceResult> {
   const session = sanitizeSessionName(`fractal-${opts.projectName}-${opts.promptId.slice(0, 6)}`);
   await ensureSession(session, opts.projectPath);
-  await spawnPi(session, opts.prompt);
+  await spawnPi(session, opts.prompt, opts.model);
   return { tmuxSession: session };
 }
 
@@ -32,6 +33,7 @@ export async function launchInWorktree(opts: {
   projectName: string;
   promptId: string;
   prompt: string;
+  model?: string;
 }): Promise<LaunchInWorktreeResult> {
   const repoName = await getRepoName(opts.projectPath);
   const branch = slugifyPrompt(opts.prompt, opts.promptId.slice(0, 6));
@@ -43,6 +45,6 @@ export async function launchInWorktree(opts: {
   }
   const session = sanitizeSessionName(`fractal-${repoName}-${branchTail}`);
   await ensureSession(session, worktreePath);
-  await spawnPi(session, opts.prompt);
+  await spawnPi(session, opts.prompt, opts.model);
   return { branch, worktreePath, tmuxSession: session };
 }

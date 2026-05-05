@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Brain,
   Check,
   ChevronLeft,
   Copy,
@@ -29,16 +30,20 @@ import {
   Plus,
   Trash2,
   Undo2,
+  Zap,
 } from "lucide-react";
 import ProjectPicker from "./ProjectPicker.js";
+import ModelPicker from "./ModelPicker.js";
 
 type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
 
 type Project = { id: string; name: string; path: string };
+type ModelProfile = "fast" | "smart";
 type Prompt = {
   id: string;
   projectId: string;
   text: string;
+  modelProfile: ModelProfile;
   column: Column;
   runMode?: "in_place" | "worktree" | null;
   branch?: string | null;
@@ -48,6 +53,8 @@ type Prompt = {
   isArchived?: boolean | null;
   launchedAt?: number | null;
 };
+type AppSettings = { fastModel: string; smartModel: string };
+type PiModel = { id: string; provider: string; model: string };
 
 const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
@@ -94,6 +101,9 @@ export default function Board() {
   const [home, setHome] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => getProjectIdFromUrl());
   const [composer, setComposer] = useState("");
+  const [composerModelProfile, setComposerModelProfile] = useState<ModelProfile>("smart");
+  const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "" });
+  const [models, setModels] = useState<PiModel[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
@@ -150,9 +160,10 @@ export default function Board() {
 
   async function refresh() {
     try {
-      const data = await api<{ home: string; projects: Project[]; prompts: Prompt[] }>("/api/state");
+      const data = await api<{ home: string; projects: Project[]; prompts: Prompt[]; settings: AppSettings }>("/api/state");
       setProjects(data.projects);
       setPrompts(data.prompts);
+      setSettings(data.settings ?? { fastModel: "", smartModel: "" });
       setHome(data.home ?? "");
       setActiveProjectId((cur) => {
         const urlId = getProjectIdFromUrl();
@@ -199,7 +210,7 @@ export default function Board() {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/projects/${activeProjectId}/prompts`, {
         method: "POST",
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, modelProfile: composerModelProfile }),
       });
       setPrompts((p) => [...p, prompt]);
       setComposer("");
@@ -235,11 +246,11 @@ export default function Board() {
     }
   }
 
-  async function editPrompt(id: string, text: string) {
+  async function editPrompt(id: string, patch: { text?: string; modelProfile?: ModelProfile }) {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(patch),
       });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
     } catch (e) {
@@ -349,6 +360,24 @@ export default function Board() {
     void launch(activeId, target);
   }
 
+  async function saveSettings(patch: Partial<AppSettings>) {
+    try {
+      const { settings: next } = await api<{ settings: AppSettings }>("/api/settings", {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      setSettings(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  useEffect(() => {
+    void api<{ models: PiModel[] }>("/api/models")
+      .then((data) => setModels(data.models ?? []))
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, []);
+
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const projectPrompts = useMemo(
     () => prompts.filter((p) => p.projectId === activeProjectId && !p.isArchived),
@@ -389,6 +418,16 @@ export default function Board() {
                 <span className="path" title={activeProject.path}>{tildeify(activeProject.path, home)}</span>
               </div>
               <div className="topbar-spacer" />
+              <div className="model-tabs">
+                <div className="model-tab">
+                  <span className="model-tab-label"><Zap size={11} /> Fast</span>
+                  <ModelPicker models={models} value={settings.fastModel} onChange={(v) => void saveSettings({ fastModel: v })} />
+                </div>
+                <div className="model-tab">
+                  <span className="model-tab-label"><Brain size={11} /> Smart</span>
+                  <ModelPicker models={models} value={settings.smartModel} onChange={(v) => void saveSettings({ smartModel: v })} />
+                </div>
+              </div>
             </div>
 
             <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
@@ -420,6 +459,8 @@ export default function Board() {
                             value={composer}
                             onChange={setComposer}
                             onSubmit={addPrompt}
+                            modelProfile={composerModelProfile}
+                            onModelProfileChange={setComposerModelProfile}
                           />
                         ) : null
                       }
@@ -596,7 +637,7 @@ function ColumnView(props: {
   icon: React.ComponentType<{ className?: string }>;
   prompts: Prompt[];
   onDelete: (id: string) => void;
-  onEdit: (id: string, text: string) => void;
+  onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   composer: React.ReactNode;
@@ -705,7 +746,7 @@ function getDroppedImagePaths(dt: DataTransfer): string[] {
     .filter((path) => path && IMAGE_RE.test(path));
 }
 
-function Composer(props: { value: string; onChange: (v: string) => void; onSubmit: () => void }) {
+function Composer(props: { value: string; onChange: (v: string) => void; onSubmit: () => void; modelProfile: ModelProfile; onModelProfileChange: (v: ModelProfile) => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragDepth = useRef(0);
   const [dragOver, setDragOver] = useState(false);
@@ -776,7 +817,10 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
         }}
       />
       <div className="composer-actions">
-        <span className="hint">{dragOver ? "drop image to insert path" : "⇧↵ for newline · drop image to attach"}</span>
+        <div className="profile-toggle">
+          <button className={`profile-tab ${props.modelProfile === "fast" ? "active" : ""}`} type="button" onClick={() => props.onModelProfileChange("fast")}><Zap size={11} /> Fast</button>
+          <button className={`profile-tab ${props.modelProfile === "smart" ? "active" : ""}`} type="button" onClick={() => props.onModelProfileChange("smart")}><Brain size={11} /> Smart</button>
+        </div>
         <div style={{ flex: 1 }} />
         <button
           className="btn primary sm composer-submit"
@@ -792,9 +836,10 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
   );
 }
 
-function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, text: string) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; home: string; isArchivedCol?: boolean }) {
+function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
+  const [editModelProfile, setEditModelProfile] = useState<ModelProfile>(prompt.modelProfile ?? "smart");
   const {
     attributes,
     listeners,
@@ -820,28 +865,32 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
               e.preventDefault();
-              onEdit(prompt.id, editText);
+              onEdit(prompt.id, { text: editText, modelProfile: editModelProfile });
               setIsEditing(false);
             }
             if (e.key === "Escape") {
               setIsEditing(false);
               setEditText(prompt.text);
+              setEditModelProfile(prompt.modelProfile ?? "smart");
             }
           }}
           autoFocus
         />
+        <div className="profile-toggle" style={{ marginTop: 8, marginBottom: 8 }}>
+          <button className={`profile-tab ${editModelProfile === "fast" ? "active" : ""}`} type="button" onClick={() => setEditModelProfile("fast")}><Zap size={11} /> Fast</button>
+          <button className={`profile-tab ${editModelProfile === "smart" ? "active" : ""}`} type="button" onClick={() => setEditModelProfile("smart")}><Brain size={11} /> Smart</button>
+        </div>
         <div className="card-actions" style={{ opacity: 1 }}>
-          <span className="hint" style={{ color: "var(--text-faint)", fontSize: 11, fontFamily: "var(--font-mono)" }}>↵ to save · shift+↵ for newline · esc to cancel</span>
           <div style={{ flex: 1 }} />
           <button
             className="btn ghost sm"
-            onClick={() => { setIsEditing(false); setEditText(prompt.text); }}
+            onClick={() => { setIsEditing(false); setEditText(prompt.text); setEditModelProfile(prompt.modelProfile ?? "smart"); }}
           >
             Cancel
           </button>
           <button
             className="btn primary sm"
-            onClick={() => { onEdit(prompt.id, editText); setIsEditing(false); }}
+            onClick={() => { onEdit(prompt.id, { text: editText, modelProfile: editModelProfile }); setIsEditing(false); }}
             disabled={!editText.trim()}
           >
             Save
@@ -860,6 +909,19 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
       {...listeners}
     >
       <div className="text">{prompt.text}</div>
+      <div className="card-meta">
+        <button
+          className="model-badge"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(prompt.id, { modelProfile: prompt.modelProfile === "fast" ? "smart" : "fast" });
+          }}
+          title="Toggle model profile"
+        >
+          {prompt.modelProfile === "fast" ? <><Zap size={11} /> Fast</> : <><Brain size={11} /> Smart</>}
+        </button>
+      </div>
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isLaunched) && (
         <div className="card-meta">
           {isLaunched && <span className="tag accent">running</span>}
@@ -876,6 +938,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
           onClick={(e) => {
             e.stopPropagation();
             setEditText(prompt.text);
+            setEditModelProfile(prompt.modelProfile ?? "smart");
             setIsEditing(true);
           }}
           title="Edit prompt"

@@ -12,9 +12,9 @@ export const GET: APIRoute = async ({ params }) => {
 export const POST: APIRoute = async ({ params, request }) => {
   const id = params.id!;
   if (!getProject(id)) return Response.json({ error: "not found" }, { status: 404 });
-  const body = (await request.json().catch(() => ({}))) as { text?: string };
+  const body = (await request.json().catch(() => ({}))) as { text?: string; modelProfile?: "fast" | "smart" };
   const text = body.text?.trim();
   if (!text) return Response.json({ error: "text required" }, { status: 400 });
-  const prompt = createPrompt({ projectId: id, text });
+  const prompt = createPrompt({ projectId: id, text, modelProfile: body.modelProfile });
   return Response.json({ prompt });
 };

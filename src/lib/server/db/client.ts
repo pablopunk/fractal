@@ -46,16 +46,30 @@ function ensureSchema(sqlite: Database.Database) {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       text TEXT NOT NULL,
+      model_profile TEXT NOT NULL DEFAULT 'smart',
       column TEXT NOT NULL DEFAULT 'PROMPTS',
       run_mode TEXT,
       branch TEXT,
       worktree_path TEXT,
       tmux_session TEXT,
       error TEXT,
+      is_archived INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       launched_at INTEGER
     );
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS idx_prompts_project ON prompts(project_id);
   `);
+
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN model_profile TEXT NOT NULL DEFAULT 'smart';");
+  } catch {}
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;");
+  } catch {}
 }

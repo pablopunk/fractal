@@ -14,6 +14,7 @@ export const prompts = sqliteTable("prompts", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   text: text("text").notNull(),
+  modelProfile: text("model_profile", { enum: ["smart", "fast"] }).notNull().default("smart"),
   column: text("column", { enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE"] })
     .notNull()
     .default("PROMPTS"),
@@ -28,7 +29,15 @@ export const prompts = sqliteTable("prompts", {
   launchedAt: integer("launched_at", { mode: "timestamp_ms" }),
 });
 
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export type Project = typeof projects.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
+export type Setting = typeof settings.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type NewPrompt = typeof prompts.$inferInsert;
+export type NewSetting = typeof settings.$inferInsert;
