@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getPrompt, updatePrompt } from "~/lib/server/store.js";
-import { cleanupPromptById } from "~/lib/server/cleanup.js";
+import { cleanupPromptById, checkCleanupSafety } from "~/lib/server/cleanup.js";
 
 export const prerender = false;
 
@@ -15,12 +15,31 @@ export const PATCH: APIRoute = async ({ params, request }) => {
   return Response.json({ prompt });
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ params, request }) => {
   const id = params.id!;
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
+  
+  const body = (await request.json().catch(() => ({}))) as { force?: boolean };
+  const force = body.force === true;
+
   try {
-    await cleanupPromptById(id);
+    // Check for uncommitted changes first
+    if (!force) {
+      const safety = await checkCleanupSafety(prompt);
+      if (!safety.canDelete) {
+        return Response.json(
+          { 
+            error: "Worktree has uncommitted changes",
+            hasUncommitted: safety.hasUncommitted,
+            changes: safety.changes,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    await cleanupPromptById(id, force);
     return Response.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

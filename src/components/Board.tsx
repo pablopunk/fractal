@@ -20,7 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import ProjectPicker from "./ProjectPicker.js";
 
-type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE";
+type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
 
 type Project = { id: string; name: string; path: string };
 type Prompt = {
@@ -41,7 +41,18 @@ const COLUMNS: { id: Column; title: string }[] = [
   { id: "PROMPTS", title: "Prompts" },
   { id: "RUN_IN_PLACE", title: "Run in place" },
   { id: "RUN_IN_WORKTREE", title: "Run in worktree" },
+  { id: "ARCHIVED", title: "Archived" },
 ];
+
+const COLLAPSED_KEY = "fractal:collapsedColumns";
+function loadCollapsed(): Record<Column, boolean> {
+  const def = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, ARCHIVED: true } as Record<Column, boolean>;
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(COLLAPSED_KEY) : null;
+    if (!raw) return def;
+    return { ...def, ...JSON.parse(raw) };
+  } catch { return def; }
+}
 
 async function api<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
@@ -63,7 +74,9 @@ export default function Board() {
   const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed());
+  const [pendingDeletePromptId, setPendingDeletePromptId] = useState<string | null>(null);
+  const [pendingDeleteChanges, setPendingDeleteChanges] = useState<string[] | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -96,6 +109,14 @@ export default function Board() {
     const platform = (window as typeof window & { electron?: { platform?: string } }).electron?.platform;
     if (platform === "darwin") document.documentElement.classList.add("macos");
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed)); } catch {}
+  }, [collapsed]);
+
+  function toggleCollapse(id: Column) {
+    setCollapsed((c) => ({ ...c, [id]: !c[id] }));
+  }
 
   async function refresh() {
     try {
@@ -157,10 +178,28 @@ export default function Board() {
     }
   }
 
-  async function deletePrompt(id: string) {
+  async function deletePrompt(id: string, force = false) {
     try {
-      await api(`/api/prompts/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/prompts/${id}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ force }),
+      });
+      const json = await res.json().catch(() => ({})) as { error?: string; hasUncommitted?: boolean; changes?: string[] };
+      
+      if (!res.ok) {
+        // If 409 Conflict, show confirmation dialog
+        if (res.status === 409 && json.hasUncommitted) {
+          setPendingDeletePromptId(id);
+          setPendingDeleteChanges(json.changes ?? []);
+          return;
+        }
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+      
       setPrompts((p) => p.filter((x) => x.id !== id));
+      setPendingDeletePromptId(null);
+      setPendingDeleteChanges(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -229,6 +268,15 @@ export default function Board() {
     const overPrompt = prompts.find((p) => p.id === overId);
 
     if (overPrompt) {
+      // archived <-> non-archived via card target
+      if (overPrompt.isArchived && !activePrompt.isArchived) {
+        void archivePrompt(activeId);
+        return;
+      }
+      if (!overPrompt.isArchived && activePrompt.isArchived) {
+        void unarchivePrompt(activeId);
+        return;
+      }
       if (activePrompt.column === overPrompt.column) {
         // Reordering within the same column (UI only)
         const colPrompts = projectPrompts.filter((p) => p.column === activePrompt.column);
@@ -253,6 +301,14 @@ export default function Board() {
 
     // Dropped on a column
     const target = overId as Column;
+    if (target === "ARCHIVED") {
+      if (!activePrompt.isArchived) void archivePrompt(activeId);
+      return;
+    }
+    if (activePrompt.isArchived) {
+      void unarchivePrompt(activeId);
+      return;
+    }
     if (activePrompt.column === target) return;
     if (activePrompt.column !== "PROMPTS") return; // V1: only launch from backlog
     void launch(activeId, target);
@@ -302,68 +358,74 @@ export default function Board() {
 
             <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
               <div className="board">
-                {COLUMNS.map((col) => (
-                  <ColumnView
-                    key={col.id}
-                    id={col.id}
-                    title={col.title}
-                    prompts={projectPrompts.filter((p) => p.column === col.id)}
-                    onDelete={deletePrompt}
-                    onEdit={editPrompt}
-                    onArchive={archivePrompt}
-                    home={home}
-                    activeId={activeDragId}
-                    overId={overId}
-                    composer={
-                      col.id === "PROMPTS" ? (
-                        <Composer
-                          value={composer}
-                          onChange={setComposer}
-                          onSubmit={addPrompt}
-                        />
-                      ) : null
-                    }
-                  />
-                ))}
+                {COLUMNS.map((col) => {
+                  const colPrompts = col.id === "ARCHIVED"
+                    ? archivedPrompts
+                    : projectPrompts.filter((p) => p.column === col.id);
+                  return (
+                    <ColumnView
+                      key={col.id}
+                      id={col.id}
+                      title={col.title}
+                      prompts={colPrompts}
+                      onDelete={deletePrompt}
+                      onEdit={editPrompt}
+                      onArchive={archivePrompt}
+                      onUnarchive={unarchivePrompt}
+                      home={home}
+                      activeId={activeDragId}
+                      overId={overId}
+                      collapsed={!!collapsed[col.id]}
+                      onToggleCollapse={() => toggleCollapse(col.id)}
+                      isArchivedCol={col.id === "ARCHIVED"}
+                      composer={
+                        col.id === "PROMPTS" ? (
+                          <Composer
+                            value={composer}
+                            onChange={setComposer}
+                            onSubmit={addPrompt}
+                          />
+                        ) : null
+                      }
+                    />
+                  );
+                })}
               </div>
               <DragOverlay dropAnimation={null}>
                 {dragging ? <div className="overlay-card">{truncate(dragging.text, 140)}</div> : null}
               </DragOverlay>
             </DndContext>
 
-            {archivedPrompts.length > 0 && (
-              <div className="archived-section">
-                <button
-                  className="archived-toggle"
-                  onClick={() => setShowArchived(!showArchived)}
-                >
-                  {showArchived ? "▼" : "▶"} Archived ({archivedPrompts.length})
-                </button>
-                {showArchived && (
-                  <div className="archived-list">
-                    {archivedPrompts.map((p) => (
-                      <div key={p.id} className="archived-item">
-                        <div className="archived-text">{p.text}</div>
-                        <button
-                          className="icon-btn sm"
-                          onClick={() => unarchivePrompt(p.id)}
-                          title="Restore archived prompt"
-                        >
-                          restore
-                        </button>
-                        <button
-                          className="icon-btn danger sm"
-                          onClick={() => deletePrompt(p.id)}
-                          title="Delete archived prompt permanently"
-                        >
-                          ×
-                        </button>
-                      </div>
+            {/* Confirm deletion with uncommitted changes */}
+            {pendingDeletePromptId && pendingDeleteChanges && (
+              <div className="modal-overlay" onClick={() => { setPendingDeletePromptId(null); setPendingDeleteChanges(null); }}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <h2>Confirm deletion</h2>
+                  <p>This worktree has uncommitted changes:</p>
+                  <div className="changes-list" style={{
+                    maxHeight: 200,
+                    overflowY: "auto",
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: 4,
+                    padding: 8,
+                    fontSize: 12,
+                    fontFamily: "var(--font-mono)",
+                    marginBottom: 16,
+                  }}>
+                    {pendingDeleteChanges.map((line, i) => (
+                      <div key={i} style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{line}</div>
                     ))}
                   </div>
-                )}
+                  <p style={{ color: "var(--text-faint)", fontSize: 12 }}>Are you sure you want to delete this prompt and discard these changes?</p>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button className="btn ghost" onClick={() => { setPendingDeletePromptId(null); setPendingDeleteChanges(null); }}>Cancel</button>
+                    <button className="btn danger" onClick={() => void deletePrompt(pendingDeletePromptId, true)}>Delete & Discard Changes</button>
+                  </div>
+                </div>
               </div>
             )}
+
           </>
         )}
       </main>
@@ -487,10 +549,14 @@ function ColumnView(props: {
   onDelete: (id: string) => void;
   onEdit: (id: string, text: string) => void;
   onArchive: (id: string) => void;
+  onUnarchive: (id: string) => void;
   composer: React.ReactNode;
   home: string;
   activeId?: string | null;
   overId?: string | null;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  isArchivedCol?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: props.id });
   const itemIds = props.prompts.map((p) => p.id);
@@ -498,11 +564,30 @@ function ColumnView(props: {
   const overIndex = props.overId ? itemIds.indexOf(props.overId) : -1;
   const isOverColumn = props.overId === props.id || itemIds.includes(props.overId ?? "");
   const showIndicator = props.activeId && dragIndex === -1 && isOverColumn;
+
+  if (props.collapsed) {
+    return (
+      <div
+        className={`column column-collapsed ${isOverColumn ? "drop-active" : ""}`}
+        onClick={props.onToggleCollapse}
+        title={`Expand ${props.title}`}
+      >
+        <div ref={setNodeRef} className="column-collapsed-inner">
+          <span className="column-collapsed-title">{props.title}</span>
+          {props.prompts.length > 0 && (
+            <span className="count-chip">{props.prompts.length}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`column ${isOverColumn ? "drop-active" : ""}`}>
-      <div className="column-head">
+      <div className="column-head" style={{ cursor: "pointer" }} onClick={props.onToggleCollapse}>
         <span className="column-title">{props.title}</span>
         <span className="count-chip">{props.prompts.length}</span>
+        <span className="column-collapse-icon">‹</span>
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className="column-body">
@@ -514,7 +599,15 @@ function ColumnView(props: {
           {props.prompts.map((p, i) => (
             <div key={p.id}>
               {showIndicator && overIndex === i && <div className="drop-indicator" />}
-              <Card prompt={p} onDelete={props.onDelete} onEdit={props.onEdit} onArchive={props.onArchive} home={props.home} />
+              <Card
+                prompt={p}
+                onDelete={props.onDelete}
+                onEdit={props.onEdit}
+                onArchive={props.onArchive}
+                onUnarchive={props.onUnarchive}
+                home={props.home}
+                isArchivedCol={props.isArchivedCol}
+              />
             </div>
           ))}
           {showIndicator && (overIndex === -1 || overIndex >= itemIds.length) && <div className="drop-indicator" />}
@@ -640,7 +733,7 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
   );
 }
 
-function Card({ prompt, onDelete, onEdit, onArchive, home }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, text: string) => void; onArchive: (id: string) => void; home: string }) {
+function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, text: string) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const {
@@ -743,17 +836,25 @@ function Card({ prompt, onDelete, onEdit, onArchive, home }: { prompt: Prompt; o
             copy attach
           </button>
         )}
-        <button
-          className="icon-btn"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onArchive(prompt.id);
-          }}
-          title="Archive prompt"
-        >
-          archive
-        </button>
+        {isArchivedCol ? (
+          <button
+            className="icon-btn"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onUnarchive(prompt.id); }}
+            title="Restore prompt"
+          >
+            restore
+          </button>
+        ) : (
+          <button
+            className="icon-btn"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onArchive(prompt.id); }}
+            title="Archive prompt"
+          >
+            archive
+          </button>
+        )}
         <button
           className="icon-btn danger"
           onPointerDown={(e) => e.stopPropagation()}

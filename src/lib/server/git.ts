@@ -37,6 +37,27 @@ export async function listWorktrees(repoPath: string): Promise<string[]> {
   }
 }
 
+export async function hasUncommittedChanges(worktreePath: string): Promise<boolean> {
+  try {
+    const { stdout } = await exec("git", ["-C", worktreePath, "status", "--porcelain"]);
+    return stdout.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function getUncommittedChanges(worktreePath: string): Promise<string[]> {
+  try {
+    const { stdout } = await exec("git", ["-C", worktreePath, "status", "--porcelain"]);
+    return stdout
+      .trim()
+      .split("\n")
+      .filter((l) => l.length > 0);
+  } catch {
+    return [];
+  }
+}
+
 export async function removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
   try {
     await exec("git", ["-C", repoPath, "worktree", "remove", worktreePath]);
