@@ -7,6 +7,24 @@ const path = require("node:path");
 const net = require("node:net");
 const { pathToFileURL } = require("node:url");
 const { homedir } = require("node:os");
+const { createWriteStream } = require("node:fs");
+
+const logFile = path.join(homedir(), ".fractal", "fractal.log");
+const logStream = createWriteStream(logFile, { flags: "a" });
+const originalLog = console.log;
+const originalError = console.error;
+
+console.log = function(...args) {
+  const msg = args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
+  logStream.write(`[${new Date().toISOString()}] ${msg}\n`);
+  originalLog.apply(console, args);
+};
+
+console.error = function(...args) {
+  const msg = args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
+  logStream.write(`[${new Date().toISOString()}] ERROR: ${msg}\n`);
+  originalError.apply(console, args);
+};
 
 let mainWindow = null;
 let serverPromise = null;
