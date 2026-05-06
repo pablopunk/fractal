@@ -17,6 +17,7 @@ publish:
     owner: pablopunk
     repo: fractal
 mac:
+  icon: icon.icns
   category: public.app-category.developer-tools
   target:
     - target: dmg
