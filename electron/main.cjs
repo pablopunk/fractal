@@ -1,7 +1,7 @@
 /* Electron main process — boots the Astro Node server in-process and shows it
  * in a BrowserWindow. Plain CommonJS to avoid ESM/Electron edge cases.
  */
-const { app, BrowserWindow, shell, Menu, dialog } = require("electron");
+const { app, BrowserWindow, shell, Menu, dialog, nativeImage } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const net = require("node:net");
@@ -293,6 +293,15 @@ function buildMenu() {
 }
 
 app.whenReady().then(() => {
+  // Set dock icon in dev mode (packaged builds use electron-builder.yml icon)
+  if (process.platform === "darwin" && app.dock) {
+    try {
+      const iconPath = path.join(__dirname, "..", "build", "icon.png");
+      app.dock.setIcon(nativeImage.createFromPath(iconPath));
+    } catch {
+      /* ignore if icon missing */
+    }
+  }
   buildMenu();
   configureAutoUpdater();
   void createWindow();
