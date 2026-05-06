@@ -51,7 +51,6 @@ That script will:
 5. build/sign/notarize the macOS arm64 app locally
 6. create the GitHub release if missing
 7. upload:
-   - `Fractal-<version>-arm64.dmg`
    - `Fractal-<version>-arm64.zip`
    - `latest-mac.yml`
    - `*.blockmap`
@@ -59,6 +58,10 @@ That script will:
 ## GitHub Actions
 
 GitHub Actions only runs a **sanity-check unsigned build** on tags. It is not responsible for signing, notarization, or publishing releases.
+
+## Why zip-only
+
+Fractal uses macOS zip builds because `electron-updater` needs the zip payload and `latest-mac.yml`. A DMG is mainly for human-friendly installation, not for updater mechanics.
 
 ## Verify signing locally
 

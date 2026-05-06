@@ -51,7 +51,7 @@ git push origin "$TAG"
 echo "Building signed/notarized macOS arm64 release..."
 mise exec -- pnpm run dist:mac:arm64
 
-if ! ls release/Fractal-"$VERSION"-arm64.dmg release/Fractal-"$VERSION"-arm64.zip release/latest-mac.yml >/dev/null 2>&1; then
+if ! ls release/Fractal-"$VERSION"-arm64.zip release/latest-mac.yml >/dev/null 2>&1; then
   echo "Error: expected release artifacts for $VERSION were not produced." >&2
   exit 1
 fi
@@ -65,10 +65,8 @@ fi
 
 echo "Uploading artifacts..."
 gh release upload "$TAG" \
-  release/Fractal-"$VERSION"-arm64.dmg \
   release/Fractal-"$VERSION"-arm64.zip \
   release/latest-mac.yml \
-  release/Fractal-"$VERSION"-arm64.dmg.blockmap \
   release/Fractal-"$VERSION"-arm64.zip.blockmap \
   --clobber
 

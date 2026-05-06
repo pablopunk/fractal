@@ -25,4 +25,4 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: |
           mise exec -- pnpm run build
-          mise exec -- pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --arm64 --publish never
+          mise exec -- pnpm exec electron-builder --config electron-builder.yml --mac zip --arm64 --publish never
