@@ -6,6 +6,10 @@ dist
 *.log
 .DS_Store
 
+# Keep examples, ignore real env files
+!.env.example
+!.env.release.example
+
 # Electron
 release/
 *.blockmap

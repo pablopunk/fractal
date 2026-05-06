@@ -1,13 +1,21 @@
 /* Electron main process — boots the Astro Node server in-process and shows it
  * in a BrowserWindow. Plain CommonJS to avoid ESM/Electron edge cases.
  */
-const { app, BrowserWindow, shell, Menu } = require("electron");
+const { app, BrowserWindow, shell, Menu, dialog } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const net = require("node:net");
 const { pathToFileURL } = require("node:url");
 
 let mainWindow = null;
 let serverPromise = null;
+let updateCheckInFlight = false;
+let updateDownloadInFlight = false;
+let updateStartupTimer = null;
+let updatePollTimer = null;
+
+const AUTO_UPDATE_STARTUP_DELAY_MS = 15_000;
+const AUTO_UPDATE_POLL_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 // Allow only one instance.
 if (!app.requestSingleInstanceLock()) {
@@ -38,6 +46,127 @@ function ensureUserPath() {
   } catch {
     /* best effort */
   }
+}
+
+function clearUpdateTimers() {
+  if (updateStartupTimer) {
+    clearTimeout(updateStartupTimer);
+    updateStartupTimer = null;
+  }
+  if (updatePollTimer) {
+    clearInterval(updatePollTimer);
+    updatePollTimer = null;
+  }
+}
+
+function canUseAutoUpdates() {
+  return process.platform === "darwin" && app.isPackaged;
+}
+
+async function checkForUpdates(trigger = "manual") {
+  if (!canUseAutoUpdates() || updateCheckInFlight || updateDownloadInFlight) return;
+  updateCheckInFlight = true;
+  try {
+    console.info(`[fractal-updater] checking for updates (${trigger})`);
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    console.error("[fractal-updater] update check failed", error);
+    if (trigger === "manual") {
+      await dialog.showMessageBox({
+        type: "warning",
+        title: "Update check failed",
+        message: "Fractal could not check for updates.",
+        detail: error instanceof Error ? error.message : String(error),
+        buttons: ["OK"],
+      });
+    }
+  } finally {
+    updateCheckInFlight = false;
+  }
+}
+
+function configureAutoUpdater() {
+  if (!canUseAutoUpdates()) {
+    console.info("[fractal-updater] disabled (development build or unsupported platform)");
+    return;
+  }
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on("checking-for-update", () => {
+    console.info("[fractal-updater] checking for update");
+  });
+
+  autoUpdater.on("update-available", async (info) => {
+    if (updateDownloadInFlight) return;
+    const { response } = await dialog.showMessageBox({
+      type: "info",
+      title: "Update available",
+      message: `Fractal ${info.version} is available.`,
+      detail: "Do you want to download it now?",
+      buttons: ["Download", "Later"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    if (response !== 0) return;
+
+    updateDownloadInFlight = true;
+    try {
+      await autoUpdater.downloadUpdate();
+    } catch (error) {
+      console.error("[fractal-updater] update download failed", error);
+      await dialog.showMessageBox({
+        type: "warning",
+        title: "Download failed",
+        message: "Fractal could not download the update.",
+        detail: error instanceof Error ? error.message : String(error),
+        buttons: ["OK"],
+      });
+    } finally {
+      updateDownloadInFlight = false;
+    }
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    console.info("[fractal-updater] no updates available");
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    console.info(`[fractal-updater] download progress ${Math.floor(progress.percent)}%`);
+  });
+
+  autoUpdater.on("update-downloaded", async (info) => {
+    const { response } = await dialog.showMessageBox({
+      type: "info",
+      title: "Update ready",
+      message: `Fractal ${info.version} has been downloaded.`,
+      detail: "Restart Fractal now to install the update?",
+      buttons: ["Restart and Install", "Later"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    if (response === 0) {
+      autoUpdater.quitAndInstall();
+    }
+  });
+
+  autoUpdater.on("error", (error) => {
+    console.error("[fractal-updater] updater error", error);
+  });
+
+  updateStartupTimer = setTimeout(() => {
+    updateStartupTimer = null;
+    void checkForUpdates("startup");
+  }, AUTO_UPDATE_STARTUP_DELAY_MS);
+  updateStartupTimer.unref?.();
+
+  updatePollTimer = setInterval(() => {
+    void checkForUpdates("poll");
+  }, AUTO_UPDATE_POLL_INTERVAL_MS);
+  updatePollTimer.unref?.();
 }
 
 async function findFreePort() {
@@ -91,20 +220,49 @@ async function createWindow() {
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.on("closed", () => {
+    if (mainWindow && mainWindow.isDestroyed()) {
+      mainWindow = null;
+    }
+  });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
   });
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const allowedPrefix = rendererUrl || `http://127.0.0.1:${port}`;
+    if (url !== allowedPrefix && !url.startsWith(`${allowedPrefix}/`)) {
+      event.preventDefault();
+      void shell.openExternal(url);
+    }
+  });
   await mainWindow.loadURL(rendererUrl || `http://127.0.0.1:${port}`);
 }
 
-
 function buildMenu() {
   const isMac = process.platform === "darwin";
+  const fractalMenu = {
+    label: app.name,
+    submenu: [
+      { role: "about" },
+      { type: "separator" },
+      {
+        label: "Check for Updates…",
+        click: () => void checkForUpdates("menu"),
+      },
+      { type: "separator" },
+      { role: "services" },
+      { type: "separator" },
+      { role: "hide" },
+      { role: "hideOthers" },
+      { role: "unhide" },
+      { type: "separator" },
+      { role: "quit" },
+    ],
+  };
+
   const template = [
-    ...(isMac
-      ? [{ role: "appMenu" }]
-      : []),
+    ...(isMac ? [fractalMenu] : []),
     { role: "editMenu" },
     {
       role: "viewMenu",
@@ -121,16 +279,30 @@ function buildMenu() {
       ],
     },
     { role: "windowMenu" },
+    {
+      role: "help",
+      submenu: [
+        {
+          label: "Check for Updates…",
+          click: () => void checkForUpdates("menu"),
+        },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 app.whenReady().then(() => {
   buildMenu();
+  configureAutoUpdater();
   void createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
+});
+
+app.on("before-quit", () => {
+  clearUpdateTimers();
 });
 
 app.on("window-all-closed", () => {

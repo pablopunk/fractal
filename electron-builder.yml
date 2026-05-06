@@ -1,0 +1,35 @@
+appId: com.pablopunk.fractal
+productName: Fractal
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - electron/**
+  - package.json
+  - '!**/*.map'
+  - '!node_modules/**/{test,tests,__tests__,docs,example,examples}/**'
+asar: true
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+publish:
+  - provider: github
+    owner: pablopunk
+    repo: fractal
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - arm64
+    - target: zip
+      arch:
+        - arm64
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  artifactName: '${productName}-${version}-${arch}.${ext}'
+dmg:
+  artifactName: '${productName}-${version}-${arch}.${ext}'
+electronUpdaterCompatibility: '>=2.16'

@@ -1,6 +1,8 @@
 {
   "name": "fractal",
   "version": "0.0.1",
+  "description": "A personal agent coordinator desktop app",
+  "author": "Pablo Varela",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -13,15 +15,14 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx ./scripts/migrate.ts",
     "db:push": "drizzle-kit push",
-    "rebuild:electron": "electron-builder install-app-deps",
-    "rebuild:node": "pnpm rebuild",
-    "electron": "pnpm exec electron .",
-    "electron:dev": "concurrently -k \"pnpm dev\" \"pnpm exec wait-on tcp:127.0.0.1:7666 && ELECTRON_RENDERER_URL=http://127.0.0.1:7666 pnpm exec electron .\"",
-    "electron:dev:build": "pnpm rebuild:electron && astro build && pnpm exec electron .",
-    "dist": "pnpm rebuild:electron && astro build && electron-builder --publish never",
-    "dist:mac": "pnpm rebuild:electron && astro build && electron-builder --mac --publish never",
-    "dist:win": "pnpm rebuild:electron && astro build && electron-builder --win --publish never",
-    "dist:linux": "pnpm rebuild:electron && astro build && electron-builder --linux --publish never"
+    "rebuild:electron": "mise exec -- pnpm exec electron-builder install-app-deps",
+    "rebuild:node": "mise exec -- pnpm rebuild",
+    "electron": "mise exec -- pnpm exec electron .",
+    "electron:dev": "concurrently -k \"mise exec -- pnpm dev\" \"mise exec -- pnpm exec wait-on tcp:127.0.0.1:7666 && ELECTRON_RENDERER_URL=http://127.0.0.1:7666 mise exec -- pnpm exec electron .\"",
+    "electron:dev:build": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron .",
+    "dist": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --arm64 --publish never",
+    "dist:mac": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --arm64 --publish never",
+    "dist:mac:arm64": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --arm64 --publish never"
   },
   "dependencies": {
     "@astrojs/node": "^10.0.6",
@@ -32,6 +33,7 @@
     "astro": "^6.2.2",
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
+    "electron-updater": "^6.6.2",
     "fuzzysort": "^3.1.0",
     "lucide-react": "^1.14.0",
     "react": "^19.0.0",
@@ -57,60 +59,5 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.0",
     "wait-on": "^9.0.5"
-  },
-  "build": {
-    "appId": "dev.fractal.app",
-    "productName": "Fractal",
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
-    "files": [
-      "dist/**",
-      "electron/**",
-      "package.json",
-      "!**/*.map",
-      "!node_modules/**/{test,tests,__tests__,docs,example,examples}/**"
-    ],
-    "asar": true,
-    "asarUnpack": [
-      "**/node_modules/better-sqlite3/**"
-    ],
-    "mac": {
-      "target": [
-        {
-          "target": "zip",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "identity": "-",
-      "category": "public.app-category.developer-tools"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "zip",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "signAndEditExecutable": false
-    },
-    "linux": {
-      "target": [
-        {
-          "target": "tar.gz",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "category": "Development"
-    }
   }
 }
