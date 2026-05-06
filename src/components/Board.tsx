@@ -626,7 +626,7 @@ function ProjectIcon({ name, path, active }: { name: string; path: string; activ
       <img
         src={src}
         alt=""
-        className={`project-icon ${active ? "active" : ""} ${status === "loaded" ? "" : "hidden"}`}
+        className={`project-icon ${status === "loaded" ? "loaded" : ""} ${active ? "active" : ""} ${status === "loaded" ? "" : "hidden"}`}
         onLoad={() => setStatus("loaded")}
         onError={() => setStatus("error")}
       />
