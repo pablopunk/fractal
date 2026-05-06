@@ -44,6 +44,10 @@ else
   git tag "$TAG"
 fi
 
+echo "Pushing branch and tag..."
+git push origin "$(git branch --show-current)"
+git push origin "$TAG"
+
 echo "Building signed/notarized macOS arm64 release..."
 mise exec -- pnpm run dist:mac:arm64
 
