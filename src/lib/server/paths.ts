@@ -6,6 +6,11 @@ export const FRACTAL_HOME = process.env.FRACTAL_HOME ?? join(homedir(), ".fracta
 export const FRACTAL_DB_PATH = process.env.FRACTAL_DB_PATH ?? join(FRACTAL_HOME, "fractal.db");
 export const WORKTREES_ROOT = process.env.FRACTAL_WORKTREES ?? join(homedir(), ".worktrees", "fractal");
 
+if (process.env.FRACTAL_BOOT) {
+  console.log(`[fractal-paths] FRACTAL_HOME=${FRACTAL_HOME}`);
+  console.log(`[fractal-paths] FRACTAL_DB_PATH=${FRACTAL_DB_PATH}`);
+}
+
 export function ensureDir(path: string): void {
   mkdirSync(path, { recursive: true });
 }

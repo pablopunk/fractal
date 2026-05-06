@@ -192,11 +192,16 @@ async function startAstroServer() {
     process.env.PORT = String(port);
     process.env.FRACTAL_HOME = fractalHome;
     process.env.FRACTAL_DB_PATH = path.join(fractalHome, "fractal.db");
+    process.env.FRACTAL_BOOT = "1";
+    console.log(`[fractal-boot] setting FRACTAL_HOME=${fractalHome}`);
+    console.log(`[fractal-boot] setting FRACTAL_DB_PATH=${path.join(fractalHome, "fractal.db")}`);
 
     // Astro Node standalone entry. When the app is asar'd, dist/ is inside
     // the asar (read-only) — that's fine, the server only reads from there.
     const entry = path.join(__dirname, "..", "dist", "server", "entry.mjs");
+    console.log(`[fractal-boot] importing server entry: ${entry}`);
     await import(pathToFileURL(entry).href);
+    console.log(`[fractal-boot] server started successfully`);
     return port;
   })();
   return serverPromise;

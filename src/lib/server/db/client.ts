@@ -8,6 +8,7 @@ let _sqlite: Database.Database | null = null;
 
 export function getDb() {
   if (_db) return _db;
+  console.log(`[fractal-db] opening database at: ${FRACTAL_DB_PATH}`);
   const sqlite = new Database(FRACTAL_DB_PATH);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("synchronous = NORMAL");
@@ -17,6 +18,7 @@ export function getDb() {
   ensureSchema(sqlite);
   _sqlite = sqlite;
   _db = drizzle(sqlite, { schema });
+  console.log(`[fractal-db] database initialized successfully`);
   return _db;
 }
 
