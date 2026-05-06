@@ -92,8 +92,12 @@ class ApiError extends Error {
 
 async function api<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, (json as { error?: string }).error ?? `HTTP ${res.status}`, json);
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : {};
+  if (!res.ok) {
+    const body = json as { error?: string; message?: string };
+    throw new ApiError(res.status, body.error ?? body.message ?? text ?? `${res.status} ${res.statusText}`, json);
+  }
   return json as T;
 }
 
