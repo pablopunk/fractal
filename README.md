@@ -7,7 +7,8 @@
 <p align="center">
   <img src="https://github.com/pablopunk/fractal/blob/main/resources/icon.icon/Assets/icon.png?raw=true" width="200" />
   <br/>
-  <span>The app with the ugliest icon you'll ever see</span>
+  <span><i>The app with the ugliest icon you'll ever see</i></span>
+  <br/>
+  <br/>
+  <span><img src="https://cdn-icons-png.flaticon.com/512/9205/9205302.png" width="12" /> <a href="https://github.com/pablopunk/fractal/releases">Get the latest release</a></span>
 </p>
-
-Download the latest release from the [releases page](https://github.com/pablopunk/fractal/releases).
