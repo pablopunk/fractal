@@ -39,14 +39,18 @@ if [[ "$current_version" != "$VERSION" ]]; then
 fi
 
 if git rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "Error: tag $TAG already exists locally." >&2
-  exit 1
+  echo "Tag $TAG already exists locally; reusing it."
+else
+  git tag "$TAG"
 fi
-
-git tag "$TAG"
 
 echo "Building signed/notarized macOS arm64 release..."
 mise exec -- pnpm run dist:mac:arm64
+
+if ! ls release/Fractal-"$VERSION"-arm64.dmg release/Fractal-"$VERSION"-arm64.zip release/latest-mac.yml >/dev/null 2>&1; then
+  echo "Error: expected release artifacts for $VERSION were not produced." >&2
+  exit 1
+fi
 
 if gh release view "$TAG" >/dev/null 2>&1; then
   echo "GitHub release $TAG already exists; uploading artifacts with --clobber"
@@ -56,6 +60,12 @@ else
 fi
 
 echo "Uploading artifacts..."
-gh release upload "$TAG" release/*.dmg release/*.zip release/*.yml release/*.blockmap --clobber
+gh release upload "$TAG" \
+  release/Fractal-"$VERSION"-arm64.dmg \
+  release/Fractal-"$VERSION"-arm64.zip \
+  release/latest-mac.yml \
+  release/Fractal-"$VERSION"-arm64.dmg.blockmap \
+  release/Fractal-"$VERSION"-arm64.zip.blockmap \
+  --clobber
 
 echo "Done: https://github.com/pablopunk/fractal/releases/tag/$TAG"
