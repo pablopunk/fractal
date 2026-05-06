@@ -1,7 +1,8 @@
 import type { APIRoute } from "astro";
 import { getPrompt, getProject, updatePrompt } from "~/lib/server/store.js";
-import { hasPullRequest, isBranchMerged } from "~/lib/server/git.js";
+import { hasPullRequest, isBranchMerged, removeWorktree } from "~/lib/server/git.js";
 import { killSession } from "~/lib/server/tmux.js";
+import { existsSync } from "node:fs";
 
 export const prerender = false;
 
@@ -14,10 +15,13 @@ export const POST: APIRoute = async ({ params }) => {
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
 
+  let merged = false;
+  let hasPr = false;
+
   if (prompt.runMode === "worktree" && prompt.branch && prompt.projectId) {
     const project = getProject(prompt.projectId);
     if (project) {
-      const [merged, hasPr] = await Promise.all([
+      [merged, hasPr] = await Promise.all([
         isBranchMerged(project.path, prompt.branch),
         hasPullRequest(project.path, prompt.branch),
       ]);
@@ -41,6 +45,19 @@ export const POST: APIRoute = async ({ params }) => {
     } catch (e) {
       // Log but don't fail if session killing fails
       console.error(`Failed to kill tmux session ${prompt.tmuxSession}:`, e);
+    }
+  }
+
+  // Clean up worktree if branch has been merged
+  if (prompt.runMode === "worktree" && prompt.worktreePath && prompt.projectId && merged) {
+    const project = getProject(prompt.projectId);
+    if (project && existsSync(prompt.worktreePath)) {
+      try {
+        await removeWorktree(project.path, prompt.worktreePath);
+      } catch (e) {
+        // Log but don't fail if worktree removal fails
+        console.error(`Failed to remove worktree ${prompt.worktreePath}:`, e);
+      }
     }
   }
 
