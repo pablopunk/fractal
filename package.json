@@ -1,6 +1,6 @@
 {
   "name": "fractal",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "A personal agent coordinator desktop app",
   "author": "Pablo Varela",
   "private": true,
@@ -57,7 +57,6 @@
     "drizzle-kit": "^0.31.10",
     "electron": "^41.5.0",
     "electron-builder": "^26.8.1",
-
     "tsx": "^4.19.2",
     "typescript": "^5.7.0",
     "wait-on": "^9.0.5"
