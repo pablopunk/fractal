@@ -6,6 +6,7 @@ const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const net = require("node:net");
 const { pathToFileURL } = require("node:url");
+const { homedir } = require("node:os");
 
 let mainWindow = null;
 let serverPromise = null;
@@ -186,11 +187,11 @@ async function startAstroServer() {
   ensureUserPath();
   serverPromise = (async () => {
     const port = await findFreePort();
-    const userData = app.getPath("userData");
+    const fractalHome = path.join(homedir(), ".fractal");
     process.env.HOST = "127.0.0.1";
     process.env.PORT = String(port);
-    process.env.FRACTAL_HOME = userData;
-    process.env.FRACTAL_DB_PATH = path.join(userData, "fractal.db");
+    process.env.FRACTAL_HOME = fractalHome;
+    process.env.FRACTAL_DB_PATH = path.join(fractalHome, "fractal.db");
 
     // Astro Node standalone entry. When the app is asar'd, dist/ is inside
     // the asar (read-only) — that's fine, the server only reads from there.
