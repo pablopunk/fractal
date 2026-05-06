@@ -7,7 +7,9 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
   useDroppable,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -64,6 +66,11 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
 ];
 
 const COLLAPSED_KEY = "fractal:collapsedColumns";
+const columnAwareCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
+};
+
 function loadCollapsed(): Record<Column, boolean> {
   const def = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, ARCHIVED: true } as Record<Column, boolean>;
   try {
@@ -430,7 +437,7 @@ export default function Board() {
               </div>
             </div>
 
-            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
               <div className="board">
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
