@@ -1,8 +1,7 @@
 import { existsSync } from "node:fs";
-import { dirname } from "node:path";
 import { deletePrompt, getPrompt, listPrompts, getProject, updatePrompt } from "./store.js";
 import { killSession } from "./tmux.js";
-import { removeWorktree, getRepoName, hasUncommittedChanges, getUncommittedChanges } from "./git.js";
+import { removeWorktree, hasUncommittedChanges, getUncommittedChanges } from "./git.js";
 import type { Prompt } from "./db/schema.js";
 
 export type CleanupCheckResult = {

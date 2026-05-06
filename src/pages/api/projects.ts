@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { resolve } from "node:path";
 import { createProject, getProjectByPath, listProjects } from "~/lib/server/store.js";
-import { isGitRepo, getRepoName } from "~/lib/server/git.js";
+import { getRepoName } from "~/lib/server/git.js";
 
 export const prerender = false;
 
