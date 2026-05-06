@@ -646,7 +646,7 @@ function EmptyState(props: { projects: Project[]; onAdd: (path: string) => void 
     <div className="empty">
       <div className="empty-card">
         <h1>Add your first project</h1>
-        <p>Pick a git repo from <code style={{ fontFamily: "var(--font-mono)" }}>~/src</code> or <code style={{ fontFamily: "var(--font-mono)" }}>~/src/maze</code>, or paste any repo path like <code style={{ fontFamily: "var(--font-mono)" }}>~/.pi</code>, to start a board.</p>
+        <p>Choose from the list of recent projects or paste a path to a new project.</p>
         <ProjectPicker
           recentProjects={props.projects}
           onSelect={props.onAdd}
