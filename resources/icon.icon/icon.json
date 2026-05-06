@@ -1,18 +1,19 @@
 {
   "fill" : {
-    "automatic-gradient" : "srgb:0.11564,0.01074,0.00000,1.00000"
+    "solid" : "srgb:0.00000,0.00000,0.00000,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
-          "image-name" : "fr.png",
-          "name" : "fr",
+          "blend-mode" : "plus-darker",
+          "image-name" : "ChatGPT Image May 6, 2026, 03_00_51 PM.png",
+          "name" : "ChatGPT Image May 6, 2026, 03_00_51 PM",
           "position" : {
-            "scale" : 0.92,
+            "scale" : 1.66,
             "translation-in-points" : [
-              -137.41638350201663,
-              -220.99271012811104
+              -169.91912238317147,
+              -226.00789273578795
             ]
           }
         }
