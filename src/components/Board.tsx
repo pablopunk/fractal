@@ -420,7 +420,9 @@ export default function Board() {
         )}
 
         {!activeProject ? (
-          <EmptyState projects={projects} onAdd={addProject} />
+          <div className="empty-wrapper">
+            <EmptyState projects={projects} onAdd={addProject} />
+          </div>
         ) : (
           <>
             <div className="topbar">

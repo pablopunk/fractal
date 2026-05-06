@@ -412,6 +412,12 @@ a { color: inherit; }
 
 /* ---------- Empty state ---------- */
 
+.empty-wrapper {
+  grid-row: 1 / -1;
+  min-height: 0;
+  overflow: auto;
+}
+
 .empty {
   height: 100%;
   display: grid;
