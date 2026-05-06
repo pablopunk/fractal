@@ -8,8 +8,8 @@
   --border: #24242b;
   --border-strong: #34343c;
   --text: #ededf0;
-  --text-muted: #8b8b94;
-  --text-faint: #565660;
+  --text-muted: #c4c4cc;
+  --text-faint: #909099;
   --accent: #ff6a3d;
   --accent-soft: rgba(255, 106, 61, 0.12);
   --success: #34d399;
@@ -135,6 +135,11 @@ a { color: inherit; }
   object-fit: contain;
   flex: none;
   display: block;
+}
+.project-icon.loaded {
+  width: 14px;
+  height: 14px;
+  margin: 2px;
 }
 .project-icon.active {
   box-shadow: 0 0 0 2px var(--accent);
