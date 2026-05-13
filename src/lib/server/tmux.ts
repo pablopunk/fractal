@@ -48,14 +48,6 @@ export async function sendKeys(name: string, command: string): Promise<void> {
   await exec("tmux", ["send-keys", "-t", name, command, "Enter"]);
 }
 
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
-/** Spawn `pi` with a single-arg prompt. Quotes args safely for the shell. */
-export async function spawnPi(sessionName: string, prompt: string, model?: string): Promise<void> {
-  const parts = ["pi"];
-  if (model) parts.push("--model", shellQuote(model));
-  parts.push(shellQuote(prompt));
-  await sendKeys(sessionName, parts.join(" "));
+export async function spawnCommand(sessionName: string, command: string): Promise<void> {
+  await sendKeys(sessionName, command);
 }

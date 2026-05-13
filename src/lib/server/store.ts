@@ -2,17 +2,22 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "./db/client.js";
 import { projects, prompts, settings, type Project, type Prompt } from "./db/schema.js";
+import { DEFAULT_AGENT_PRESETS, type AgentPreset } from "./agents.js";
 
 export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE";
 export type ModelProfile = "smart" | "fast";
 export type AppSettings = {
   fastModel: string;
   smartModel: string;
+  agentPresets: AgentPreset[];
+  defaultPresetId: string;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
   fastModel: "",
   smartModel: "",
+  agentPresets: DEFAULT_AGENT_PRESETS,
+  defaultPresetId: "pi",
 };
 
 export function listProjects(): Project[] {
@@ -53,13 +58,14 @@ export function getPrompt(id: string): Prompt | undefined {
   return getDb().select().from(prompts).where(eq(prompts.id, id)).get();
 }
 
-export function createPrompt(input: { projectId: string; text: string; modelProfile?: ModelProfile }): Prompt {
+export function createPrompt(input: { projectId: string; text: string; modelProfile?: ModelProfile; presetId?: string }): Prompt {
   const now = new Date();
   const row = {
     id: randomUUID(),
     projectId: input.projectId,
     text: input.text,
     modelProfile: input.modelProfile ?? "smart",
+    presetId: input.presetId ?? "pi",
     column: "PROMPTS" as const,
     createdAt: now,
     updatedAt: now,
@@ -87,6 +93,10 @@ export function getSettings(): AppSettings {
   for (const row of rows) {
     if (row.key === "fastModel") out.fastModel = row.value;
     if (row.key === "smartModel") out.smartModel = row.value;
+    if (row.key === "agentPresets") {
+      try { out.agentPresets = JSON.parse(row.value); } catch {}
+    }
+    if (row.key === "defaultPresetId") out.defaultPresetId = row.value;
   }
   return out;
 }
@@ -95,9 +105,10 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
   const now = new Date();
   const next = { ...getSettings(), ...patch };
   for (const [key, value] of Object.entries(next)) {
-    getDb().insert(settings).values({ key, value, updatedAt: now }).onConflictDoUpdate({
+    const storedValue = typeof value === "string" ? value : JSON.stringify(value);
+    getDb().insert(settings).values({ key, value: storedValue, updatedAt: now }).onConflictDoUpdate({
       target: settings.key,
-      set: { value, updatedAt: now },
+      set: { value: storedValue, updatedAt: now },
     }).run();
   }
   return getSettings();

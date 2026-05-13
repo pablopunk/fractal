@@ -49,6 +49,7 @@ function ensureSchema(sqlite: Database.Database) {
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       text TEXT NOT NULL,
       model_profile TEXT NOT NULL DEFAULT 'smart',
+      preset_id TEXT NOT NULL DEFAULT 'pi',
       column TEXT NOT NULL DEFAULT 'PROMPTS',
       run_mode TEXT,
       branch TEXT,
@@ -73,5 +74,8 @@ function ensureSchema(sqlite: Database.Database) {
   } catch {}
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;");
+  } catch {}
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN preset_id TEXT NOT NULL DEFAULT 'pi';");
   } catch {}
 }

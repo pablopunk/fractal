@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { getSettings, updateSettings } from "~/lib/server/store.js";
+import { getSettings, updateSettings, type AppSettings } from "~/lib/server/store.js";
 
 export const prerender = false;
 
@@ -8,6 +8,6 @@ export const GET: APIRoute = async () => {
 };
 
 export const PATCH: APIRoute = async ({ request }) => {
-  const body = await request.json().catch(() => ({})) as { fastModel?: string; smartModel?: string };
+  const body = await request.json().catch(() => ({})) as Partial<AppSettings>;
   return Response.json({ settings: updateSettings(body) });
 };

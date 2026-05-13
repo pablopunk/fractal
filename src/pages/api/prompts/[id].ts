@@ -7,11 +7,12 @@ export const prerender = false;
 export const PATCH: APIRoute = async ({ params, request }) => {
   const id = params.id!;
   if (!getPrompt(id)) return Response.json({ error: "not found" }, { status: 404 });
-  const body = (await request.json().catch(() => ({}))) as { text?: string; isArchived?: boolean; modelProfile?: "fast" | "smart" };
+  const body = (await request.json().catch(() => ({}))) as { text?: string; isArchived?: boolean; modelProfile?: "fast" | "smart"; presetId?: string };
   const patch: Record<string, unknown> = {};
   if (typeof body.text === "string") patch.text = body.text;
   if (typeof body.isArchived === "boolean") patch.isArchived = body.isArchived;
   if (body.modelProfile === "fast" || body.modelProfile === "smart") patch.modelProfile = body.modelProfile;
+  if (typeof body.presetId === "string") patch.presetId = body.presetId;
   const prompt = updatePrompt(id, patch as never);
   return Response.json({ prompt });
 };

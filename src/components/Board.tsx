@@ -21,7 +21,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Brain,
   Check,
   ChevronLeft,
   Copy,
@@ -33,21 +32,23 @@ import {
 
   Trash2,
   Undo2,
-  Zap,
 } from "lucide-react";
 import ProjectPicker from "./ProjectPicker.js";
 import ModelPicker from "./ModelPicker.js";
+import PresetPicker from "./PresetPicker.js";
 import TerminalPane from "./TerminalPane.js";
 
 type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
 
 type Project = { id: string; name: string; path: string };
 type ModelProfile = "fast" | "smart";
+type AgentPreset = { id: string; name: string; kind: "pi" | "claude" | "custom"; binary: string; argsTemplate: string; model?: string; promptTemplate?: string };
 type Prompt = {
   id: string;
   projectId: string;
   text: string;
   modelProfile: ModelProfile;
+  presetId: string;
   column: Column;
   runMode?: "in_place" | "worktree" | null;
   branch?: string | null;
@@ -58,8 +59,8 @@ type Prompt = {
   launchedAt?: number | null;
   isRunning?: boolean;
 };
-type AppSettings = { fastModel: string; smartModel: string };
-type PiModel = { id: string; provider: string; model: string };
+type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string };
+type PiModel = { id: string; provider: string; model: string; agent?: "pi" | "claude" };
 type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
 type TerminalTab = { id: string; promptId: string; session: string; title: string };
 
@@ -149,9 +150,10 @@ export default function Board() {
   const [home, setHome] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => getProjectIdFromUrl());
   const [composer, setComposer] = useState("");
-  const [composerModelProfile, setComposerModelProfile] = useState<ModelProfile>("smart");
-  const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "" });
+  const [composerPresetId, setComposerPresetId] = useState("pi");
+  const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi" });
   const [models, setModels] = useState<PiModel[]>([]);
+  const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
@@ -256,7 +258,13 @@ export default function Board() {
       const data = await api<{ home: string; projects: Project[]; prompts: Prompt[]; settings: AppSettings }>("/api/state");
       setProjects(data.projects);
       setPrompts(data.prompts);
-      setSettings(data.settings ?? { fastModel: "", smartModel: "" });
+      const nextSettings = data.settings ?? { fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi" };
+      setSettings(nextSettings);
+      setComposerPresetId((cur) => {
+        if (nextSettings.agentPresets.some((p) => p.id === cur)) return cur;
+        if (nextSettings.agentPresets.some((p) => p.id === nextSettings.defaultPresetId)) return nextSettings.defaultPresetId;
+        return nextSettings.agentPresets[0]?.id ?? "pi";
+      });
       setHome(data.home ?? "");
       setActiveProjectId((cur) => {
         const urlId = getProjectIdFromUrl();
@@ -303,7 +311,7 @@ export default function Board() {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/projects/${activeProjectId}/prompts`, {
         method: "POST",
-        body: JSON.stringify({ text, modelProfile: composerModelProfile }),
+        body: JSON.stringify({ text, presetId: composerPresetId }),
       });
       setPrompts((p) => [...p, prompt]);
       setComposer("");
@@ -339,7 +347,7 @@ export default function Board() {
     }
   }
 
-  async function editPrompt(id: string, patch: { text?: string; modelProfile?: ModelProfile }) {
+  async function editPrompt(id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}`, {
         method: "PATCH",
@@ -453,21 +461,32 @@ export default function Board() {
     void launch(activeId, target);
   }
 
-  async function saveSettings(patch: Partial<AppSettings>) {
+  async function saveSettings(patch: Partial<AppSettings>): Promise<AppSettings | undefined> {
+    const prev = settings;
+    setSettings((cur) => ({ ...cur, ...patch }));
     try {
       const { settings: next } = await api<{ settings: AppSettings }>("/api/settings", {
         method: "PATCH",
         body: JSON.stringify(patch),
       });
       setSettings(next);
+      return next;
     } catch (e) {
+      setSettings(prev);
       setError(e instanceof Error ? e.message : String(e));
     }
   }
 
+  async function createPreset(): Promise<string | undefined> {
+    const id = `custom-${Date.now()}`;
+    const nextPreset: AgentPreset = { id, name: "Custom", kind: "custom", binary: "codex", argsTemplate: "{{prompt}}", model: "", promptTemplate: "{{prompt}}" };
+    const next = await saveSettings({ agentPresets: [...settings.agentPresets, nextPreset] });
+    return next ? id : undefined;
+  }
+
   useEffect(() => {
-    void api<{ models: PiModel[] }>("/api/models")
-      .then((data) => setModels(data.models ?? []))
+    void api<{ models: PiModel[]; claudeModels: PiModel[] }>("/api/models")
+      .then((data) => { setModels(data.models ?? []); setClaudeModels(data.claudeModels ?? []); })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
@@ -513,16 +532,14 @@ export default function Board() {
                 <span className="path" title={activeProject.path}>{tildeify(activeProject.path, home)}</span>
               </div>
               <div className="topbar-spacer" />
-              <div className="model-tabs">
-                <div className="model-tab">
-                  <span className="model-tab-label"><Zap size={11} /> Fast</span>
-                  <ModelPicker models={models} value={settings.fastModel} onChange={(v) => void saveSettings({ fastModel: v })} />
-                </div>
-                <div className="model-tab">
-                  <span className="model-tab-label"><Brain size={11} /> Smart</span>
-                  <ModelPicker models={models} value={settings.smartModel} onChange={(v) => void saveSettings({ smartModel: v })} />
-                </div>
-              </div>
+              <PresetSettings
+                presets={settings.agentPresets}
+                defaultPresetId={settings.defaultPresetId}
+                onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
+                piModels={models}
+                claudeModels={claudeModels}
+                onChange={(agentPresets) => void saveSettings({ agentPresets })}
+              />
             </div>
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
@@ -556,8 +573,13 @@ export default function Board() {
                             value={composer}
                             onChange={setComposer}
                             onSubmit={addPrompt}
-                            modelProfile={composerModelProfile}
-                            onModelProfileChange={setComposerModelProfile}
+                            presets={settings.agentPresets}
+                            presetId={composerPresetId}
+                            onPresetChange={setComposerPresetId}
+                            onCreatePreset={async () => {
+                              const id = await createPreset();
+                              if (id) setComposerPresetId(id);
+                            }}
                           />
                         ) : null
                       }
@@ -767,7 +789,7 @@ function ColumnView(props: {
   icon: React.ComponentType<{ className?: string }>;
   prompts: Prompt[];
   onDelete: (id: string) => void;
-  onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void;
+  onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onOpenTerminal: (prompt: Prompt) => void;
@@ -878,7 +900,134 @@ function getDroppedImagePaths(dt: DataTransfer): string[] {
     .filter((path) => path && IMAGE_RE.test(path));
 }
 
-function Composer(props: { value: string; onChange: (v: string) => void; onSubmit: () => void; modelProfile: ModelProfile; onModelProfileChange: (v: ModelProfile) => void }) {
+function SortablePresetItem({ preset, active, isDefault, onSelect }: { preset: AgentPreset; active: boolean; isDefault: boolean; onSelect: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: preset.id });
+  const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      className={`preset-modal-list-item ${active ? "active" : ""}`}
+      onClick={onSelect}
+      {...attributes}
+      {...listeners}
+    >
+      <span className="preset-modal-list-name">{preset.name}{isDefault ? " ★" : ""}</span>
+      <span className="preset-modal-list-binary">{preset.binary}</span>
+    </button>
+  );
+}
+
+function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; onSetDefault: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(props.presets[0]?.id ?? null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+
+  function update(id: string, patch: Partial<AgentPreset>) {
+    props.onChange(props.presets.map((preset) => preset.id === id ? { ...preset, ...patch } : preset));
+  }
+  function addPreset() {
+    const id = `custom-${Date.now()}`;
+    props.onChange([...props.presets, { id, name: "Custom", kind: "custom", binary: "codex", argsTemplate: "{{prompt}}", model: "", promptTemplate: "{{prompt}}" }]);
+    setSelectedId(id);
+  }
+  function removePreset(id: string) {
+    const next = props.presets.filter((preset) => preset.id !== id);
+    props.onChange(next);
+    setSelectedId(next[0]?.id ?? null);
+  }
+
+  const selected = props.presets.find((preset) => preset.id === selectedId) ?? props.presets[0] ?? null;
+  const selectedKind: AgentPreset["kind"] = selected?.binary === "pi" ? "pi" : selected?.binary === "claude" ? "claude" : "custom";
+  const selectedModels = selectedKind === "claude" ? props.claudeModels : props.piModels;
+
+  return (
+    <>
+      <button className="btn ghost sm" onClick={() => setOpen(true)}>Presets</button>
+      {open && (
+        <div className="modal-overlay" onClick={() => setOpen(false)}>
+          <div className="modal preset-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="preset-modal-header">
+              <h2>Agent presets</h2>
+              <button className="btn ghost sm" onClick={() => setOpen(false)}>Close</button>
+            </header>
+            <div className="preset-modal-body">
+              <aside className="preset-modal-list">
+                <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={(e) => {
+                  const { active, over } = e;
+                  if (!over || active.id === over.id) return;
+                  const oldIndex = props.presets.findIndex((p) => p.id === active.id);
+                  const newIndex = props.presets.findIndex((p) => p.id === over.id);
+                  if (oldIndex === -1 || newIndex === -1) return;
+                  props.onChange(arrayMove(props.presets, oldIndex, newIndex));
+                }}>
+                  <SortableContext items={props.presets.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                    {props.presets.map((preset) => (
+                      <SortablePresetItem
+                        key={preset.id}
+                        preset={preset}
+                        active={preset.id === selected?.id}
+                        isDefault={preset.id === props.defaultPresetId}
+                        onSelect={() => setSelectedId(preset.id)}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+                <button className="btn ghost sm" onClick={addPreset}>+ New preset</button>
+              </aside>
+              {selected ? (
+                <form className="preset-modal-form" onSubmit={(e) => e.preventDefault()}>
+                  <label>
+                    <span>Name</span>
+                    <input value={selected.name} onChange={(e) => update(selected.id, { name: e.target.value })} />
+                  </label>
+                  <label>
+                    <span>Binary</span>
+                    <input value={selected.binary} onChange={(e) => {
+                      const binary = e.target.value;
+                      const kind = binary === "pi" ? "pi" : binary === "claude" ? "claude" : "custom";
+                      update(selected.id, { binary, kind });
+                    }} placeholder="pi, claude, codex, …" />
+                  </label>
+                  <label>
+                    <span>Model</span>
+                    {selectedKind === "custom" ? (
+                      <input value={selected.model ?? ""} onChange={(e) => update(selected.id, { model: e.target.value })} placeholder="optional, available as {{model}}" />
+                    ) : (
+                      <ModelPicker models={selectedModels} value={selected.model ?? ""} onChange={(model) => update(selected.id, { model })} />
+                    )}
+                  </label>
+
+                  <label>
+                    <span>Args template</span>
+                    <input value={selected.argsTemplate} onChange={(e) => update(selected.id, { argsTemplate: e.target.value })} placeholder="--model {{model}} {{prompt}}" />
+                  </label>
+                  <label>
+                    <span>Prompt template</span>
+                    <textarea rows={5} value={selected.promptTemplate ?? "{{prompt}}"} onChange={(e) => update(selected.id, { promptTemplate: e.target.value })} placeholder="Use {{prompt}} for the card text." />
+                  </label>
+                  <label className="preset-modal-default">
+                    <input type="checkbox" checked={selected.id === props.defaultPresetId} onChange={(e) => { if (e.target.checked) props.onSetDefault(selected.id); }} />
+                    <span>Use as default for new prompts</span>
+                  </label>
+                  <div className="preset-modal-form-actions">
+                    {props.presets.length > 1 && (
+                      <button type="button" className="btn danger sm" onClick={() => removePreset(selected.id)}>Delete preset</button>
+                    )}
+                  </div>
+                </form>
+              ) : (
+                <div className="preset-modal-empty">No presets yet.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Composer(props: { value: string; onChange: (v: string) => void; onSubmit: () => void; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragDepth = useRef(0);
   const [dragOver, setDragOver] = useState(false);
@@ -949,17 +1098,14 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
         }}
       />
       <div className="composer-actions">
-        <div className="profile-toggle">
-          <button className={`profile-tab ${props.modelProfile === "fast" ? "active" : ""}`} type="button" onClick={() => props.onModelProfileChange("fast")}><Zap size={11} /> Fast</button>
-          <button className={`profile-tab ${props.modelProfile === "smart" ? "active" : ""}`} type="button" onClick={() => props.onModelProfileChange("smart")}><Brain size={11} /> Smart</button>
-        </div>
+        <PresetPicker presets={props.presets} value={props.presetId} onChange={props.onPresetChange} onCreate={props.onCreatePreset} />
         <div style={{ flex: 1 }} />
         <button
           className="btn primary sm composer-submit"
           onClick={props.onSubmit}
-          disabled={!props.value.trim()}
+          disabled={!props.value.trim() || props.presets.length === 0}
           aria-label="Add prompt"
-          title="Add prompt"
+          title={props.presets.length === 0 ? "Create a preset first" : "Add prompt"}
         >
           Add
         </button>
@@ -1075,10 +1221,9 @@ function LinkifiedText({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; home: string; isArchivedCol?: boolean }) {
+function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
-  const [editModelProfile, setEditModelProfile] = useState<ModelProfile>(prompt.modelProfile ?? "smart");
   const {
     attributes,
     listeners,
@@ -1128,32 +1273,27 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
               e.preventDefault();
-              onEdit(prompt.id, { text: editText, modelProfile: editModelProfile });
+              onEdit(prompt.id, { text: editText });
               setIsEditing(false);
             }
             if (e.key === "Escape") {
               setIsEditing(false);
               setEditText(prompt.text);
-              setEditModelProfile(prompt.modelProfile ?? "smart");
             }
           }}
           autoFocus
         />
-        <div className="profile-toggle" style={{ marginTop: 8, marginBottom: 8 }}>
-          <button className={`profile-tab ${editModelProfile === "fast" ? "active" : ""}`} type="button" onClick={() => setEditModelProfile("fast")}><Zap size={11} /> Fast</button>
-          <button className={`profile-tab ${editModelProfile === "smart" ? "active" : ""}`} type="button" onClick={() => setEditModelProfile("smart")}><Brain size={11} /> Smart</button>
-        </div>
         <div className="card-actions" style={{ opacity: 1 }}>
           <div style={{ flex: 1 }} />
           <button
             className="btn ghost sm"
-            onClick={() => { setIsEditing(false); setEditText(prompt.text); setEditModelProfile(prompt.modelProfile ?? "smart"); }}
+            onClick={() => { setIsEditing(false); setEditText(prompt.text); }}
           >
             Cancel
           </button>
           <button
             className="btn primary sm"
-            onClick={() => { onEdit(prompt.id, { text: editText, modelProfile: editModelProfile }); setIsEditing(false); }}
+            onClick={() => { onEdit(prompt.id, { text: editText }); setIsEditing(false); }}
             disabled={!editText.trim()}
           >
             Save
@@ -1210,17 +1350,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       <div className="card-actions">
-        <button
-          className="model-badge"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(prompt.id, { modelProfile: prompt.modelProfile === "fast" ? "smart" : "fast" });
-          }}
-          title="Toggle model profile"
-        >
-          {prompt.modelProfile === "fast" ? <><Zap size={11} /> Fast</> : <><Brain size={11} /> Smart</>}
-        </button>
+        <span className="model-badge">{prompt.presetId}</span>
         <div className="card-actions-group">
           {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
           <button
@@ -1229,7 +1359,6 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal
             onClick={(e) => {
               e.stopPropagation();
               setEditText(prompt.text);
-              setEditModelProfile(prompt.modelProfile ?? "smart");
               setIsEditing(true);
             }}
             title="Edit prompt"

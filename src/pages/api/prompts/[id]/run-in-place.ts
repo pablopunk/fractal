@@ -1,6 +1,5 @@
 import type { APIRoute } from "astro";
 import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/store.js";
-import { resolvePromptModel } from "~/lib/server/pi.js";
 import { launchInPlace } from "~/lib/server/worktree.js";
 import { withPromptStatus } from "~/lib/server/prompt-status.js";
 
@@ -13,13 +12,15 @@ export const POST: APIRoute = async ({ params }) => {
   const project = getProject(prompt.projectId);
   if (!project) return Response.json({ error: "project missing" }, { status: 404 });
   try {
-    const model = resolvePromptModel(prompt.modelProfile ?? "smart", getSettings());
+    const settings = getSettings();
+    const preset = settings.agentPresets.find((p) => p.id === prompt.presetId) ?? settings.agentPresets[0];
+    if (!preset) throw new Error("No agent preset configured");
     const result = await launchInPlace({
       projectPath: project.path,
       projectName: project.name,
       promptId: prompt.id,
       prompt: prompt.text,
-      model,
+      preset,
     });
     const updated = updatePrompt(id, {
       column: "RUN_IN_PLACE",
