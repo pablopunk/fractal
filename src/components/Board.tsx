@@ -556,6 +556,7 @@ export default function Board() {
                       title={col.title}
                       icon={col.icon}
                       prompts={colPrompts}
+                      presets={settings.agentPresets}
                       onDelete={deletePrompt}
                       onEdit={editPrompt}
                       onArchive={archivePrompt}
@@ -788,6 +789,7 @@ function ColumnView(props: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   prompts: Prompt[];
+  presets: AgentPreset[];
   onDelete: (id: string) => void;
   onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void;
   onArchive: (id: string) => void;
@@ -848,6 +850,7 @@ function ColumnView(props: {
               {showIndicator && overIndex === i && <div className="drop-indicator" />}
               <Card
                 prompt={p}
+                presets={props.presets}
                 onDelete={props.onDelete}
                 onEdit={props.onEdit}
                 onArchive={props.onArchive}
@@ -1116,6 +1119,19 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 const TRAILING_URL_PUNCTUATION_RE = /[),.;:!?]+$/;
+const QUOTED_IMAGE_PATH_RE = /(["'])((?:~|\/)[^"']+?\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif))\1/gi;
+const UNQUOTED_IMAGE_PATH_RE = /(?:^|\s)((?:~|\/)[^\n\r\t"']+?\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif))(?=$|\s)/gi;
+
+function extractImagePaths(text: string): string[] {
+  const paths = new Set<string>();
+  for (const match of text.matchAll(QUOTED_IMAGE_PATH_RE)) paths.add(match[2]);
+  for (const match of text.matchAll(UNQUOTED_IMAGE_PATH_RE)) paths.add(match[1].trim());
+  return [...paths];
+}
+
+function basename(path: string): string {
+  return path.split("/").filter(Boolean).at(-1) ?? path;
+}
 
 function UrlPreviewLink({ url }: { url: string }) {
   const [showPreview, setShowPreview] = useState(false);
@@ -1201,6 +1217,18 @@ function UrlPreviewLink({ url }: { url: string }) {
   );
 }
 
+function LocalImageAttachment({ path }: { path: string }) {
+  const [exists, setExists] = useState(true);
+  if (!exists) return null;
+  const src = `/api/local-image?path=${encodeURIComponent(path)}`;
+  return (
+    <a className="image-attachment" href={src} target="_blank" rel="noreferrer" title={path} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+      <img src={src} alt={basename(path)} loading="lazy" onError={() => setExists(false)} />
+      <span>{basename(path)}</span>
+    </a>
+  );
+}
+
 function LinkifiedText({ text }: { text: string }) {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -1221,7 +1249,7 @@ function LinkifiedText({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; home: string; isArchivedCol?: boolean }) {
+function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const {
@@ -1237,6 +1265,8 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal
     transition,
   };
   const isRunning = !!prompt.isRunning;
+  const presetName = presets.find((preset) => preset.id === prompt.presetId)?.name ?? prompt.presetId;
+  const imagePaths = useMemo(() => extractImagePaths(prompt.text), [prompt.text]);
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1328,6 +1358,11 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal
         </button>
       )}
       <div className="text"><LinkifiedText text={prompt.text} /></div>
+      {imagePaths.length > 0 && (
+        <div className="image-attachments">
+          {imagePaths.map((path) => <LocalImageAttachment key={path} path={path} />)}
+        </div>
+      )}
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
         <div className="card-meta">
           {isRunning && <span className="tag accent">running</span>}
@@ -1350,7 +1385,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       <div className="card-actions">
-        <span className="model-badge">{prompt.presetId}</span>
+        <span className="model-badge" title={prompt.presetId}>{presetName}</span>
         <div className="card-actions-group">
           {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
           <button
