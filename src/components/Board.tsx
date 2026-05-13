@@ -889,12 +889,26 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function copyWorktreeName() {
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current) {
+        clearTimeout(copyTimer.current);
+        copyTimer.current = null;
+      }
+    };
+  }, []);
+
+  async function copyWorktreeName() {
     if (!prompt.tmuxSession) return;
-    void navigator.clipboard?.writeText(String(prompt.tmuxSession));
-    setCopied(true);
-    if (copyTimer.current) clearTimeout(copyTimer.current);
-    copyTimer.current = setTimeout(() => setCopied(false), 1400);
+    try {
+      await navigator.clipboard?.writeText(prompt.tmuxSession);
+      setCopied(true);
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => setCopied(false), 1400);
+    } catch (e) {
+      console.error("Failed to copy worktree name", e);
+      setCopied(false);
+    }
   }
 
   if (isEditing) {
@@ -957,8 +971,10 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
           {isLaunched && <span className="tag accent">running</span>}
           {prompt.tmuxSession && (
             <button
+              type="button"
               className="tag tag-button"
               title={`Copy ${prompt.tmuxSession}`}
+              aria-label={`Copy ${prompt.tmuxSession}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
@@ -984,7 +1000,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
           {prompt.modelProfile === "fast" ? <><Zap size={11} /> Fast</> : <><Brain size={11} /> Smart</>}
         </button>
         <div className="card-actions-group">
-          {copied && <span className="copy-notice">Copied</span>}
+          {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
           <button
             className="icon-btn"
             onPointerDown={(e) => e.stopPropagation()}
@@ -1001,6 +1017,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
           </button>
           {prompt.tmuxSession && (
             <button
+              type="button"
               className="icon-btn"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {

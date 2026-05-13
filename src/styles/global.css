@@ -677,9 +677,12 @@ a { color: inherit; }
   cursor: pointer;
   appearance: none;
 }
-.tag.tag-button:hover {
+.tag.tag-button:hover,
+.tag.tag-button:focus-visible {
   color: var(--text);
   border-color: var(--border-strong);
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline-offset: 2px;
 }
 .tag.error {
   color: var(--danger);
