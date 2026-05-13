@@ -1108,8 +1108,7 @@ a { color: inherit; }
 .terminal-host .xterm,
 .terminal-host .xterm-viewport,
 .terminal-host .xterm-screen {
-  font-family: "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace !important;
-  letter-spacing: 0 !important;
+  font-family: "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "calt" 0;
 }

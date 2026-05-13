@@ -105,10 +105,10 @@ function TerminalView({ tab }: { tab: TerminalTab }) {
         cursorBlink: true,
         convertEol: true,
         fontFamily: '"JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace',
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: "400",
         letterSpacing: 0,
-        lineHeight: 1.1,
+        lineHeight: 1,
         theme: { background: "#0b0b0d", foreground: "#ededf0", cursor: "#ff6a3d" },
         allowProposedApi: false,
       });
