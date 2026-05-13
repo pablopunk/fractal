@@ -886,6 +886,16 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
     transition,
   };
   const isLaunched = !!prompt.launchedAt;
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function copyWorktreeName() {
+    if (!prompt.tmuxSession) return;
+    void navigator.clipboard?.writeText(String(prompt.tmuxSession));
+    setCopied(true);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 1400);
+  }
 
   if (isEditing) {
     return (
@@ -945,9 +955,19 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isLaunched) && (
         <div className="card-meta">
           {isLaunched && <span className="tag accent">running</span>}
-          {prompt.branch && <span className="tag" title={prompt.branch}>{prompt.branch}</span>}
-          {prompt.tmuxSession && <span className="tag" title={`tmux: ${prompt.tmuxSession}`}>tmux: {prompt.tmuxSession}</span>}
-          {prompt.worktreePath && <span className="tag" title={prompt.worktreePath}>wt: {trimMid(tildeify(prompt.worktreePath, home), 28)}</span>}
+          {prompt.tmuxSession && (
+            <button
+              className="tag tag-button"
+              title={`Copy ${prompt.tmuxSession}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                copyWorktreeName();
+              }}
+            >
+              {prompt.tmuxSession}
+            </button>
+          )}
         </div>
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
@@ -964,6 +984,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
           {prompt.modelProfile === "fast" ? <><Zap size={11} /> Fast</> : <><Brain size={11} /> Smart</>}
         </button>
         <div className="card-actions-group">
+          {copied && <span className="copy-notice">Copied</span>}
           <button
             className="icon-btn"
             onPointerDown={(e) => e.stopPropagation()}
@@ -984,10 +1005,10 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                void navigator.clipboard?.writeText(`tmux attach -t ${prompt.tmuxSession}`);
+                copyWorktreeName();
               }}
-              title="Copy tmux attach command"
-              aria-label="Copy tmux attach command"
+              title="Copy worktree name"
+              aria-label="Copy worktree name"
             >
               <Copy size={14} />
             </button>
