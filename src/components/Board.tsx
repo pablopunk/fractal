@@ -57,6 +57,7 @@ type Prompt = {
 };
 type AppSettings = { fastModel: string; smartModel: string };
 type PiModel = { id: string; provider: string; model: string };
+type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
 
 const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
@@ -869,6 +870,113 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
   );
 }
 
+const URL_RE = /https?:\/\/[^\s<>"']+/g;
+const TRAILING_URL_PUNCTUATION_RE = /[),.;:!?]+$/;
+
+function UrlPreviewLink({ url }: { url: string }) {
+  const [showPreview, setShowPreview] = useState(false);
+  const [preview, setPreview] = useState<UrlPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+
+  function openPreview() {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      const rect = wrapRef.current?.getBoundingClientRect();
+      if (rect) {
+        const width = Math.min(420, window.innerWidth * 0.7);
+        const height = 128;
+        const left = Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
+        const hasRoomAbove = rect.top > height + 16;
+        setPopoverStyle({ left, top: hasRoomAbove ? rect.top - height - 8 : rect.bottom + 8, width });
+      }
+      setShowPreview(true);
+    }, 250);
+  }
+
+  function closePreview() {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setShowPreview(false);
+  }
+
+  useEffect(() => {
+    if (!showPreview || preview || previewError) return;
+    const controller = new AbortController();
+    void api<UrlPreview>(`/api/url-preview?url=${encodeURIComponent(url)}`, { signal: controller.signal })
+      .then(setPreview)
+      .catch((e) => {
+        if (!controller.signal.aborted) setPreviewError(e instanceof Error ? e.message : String(e));
+      });
+    return () => controller.abort();
+  }, [preview, previewError, showPreview, url]);
+
+  return (
+    <span ref={wrapRef} className="url-preview-wrap" onMouseEnter={openPreview} onMouseLeave={closePreview}>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>
+      {showPreview && (
+        <span className="url-preview-popover" style={popoverStyle ?? undefined} aria-hidden="true">
+          {!preview && !previewError && (
+            <>
+              <span className="url-preview-image url-preview-skeleton" />
+              <span className="url-preview-content">
+                <span className="url-preview-skeleton url-preview-skeleton-site" />
+                <span className="url-preview-skeleton url-preview-skeleton-title" />
+                <span className="url-preview-skeleton url-preview-skeleton-description" />
+                <span className="url-preview-skeleton url-preview-skeleton-url" />
+              </span>
+            </>
+          )}
+          {previewError && <span className="url-preview-loading">Preview unavailable</span>}
+          {preview && (
+            <>
+              {preview.image && <img className="url-preview-image" src={preview.image} alt="" loading="lazy" />}
+              <span className="url-preview-content">
+                <span className="url-preview-site">
+                  {preview.favicon && <img src={preview.favicon} alt="" loading="lazy" />}
+                  {preview.siteName}
+                </span>
+                <span className="url-preview-title">{preview.title}</span>
+                {preview.description && <span className="url-preview-description">{preview.description}</span>}
+                <span className="url-preview-url">{preview.url}</span>
+              </span>
+            </>
+          )}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function LinkifiedText({ text }: { text: string }) {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(URL_RE)) {
+    const rawUrl = match[0];
+    const matchIndex = match.index ?? 0;
+    const url = rawUrl.replace(TRAILING_URL_PUNCTUATION_RE, "");
+    const trailing = rawUrl.slice(url.length);
+
+    if (matchIndex > lastIndex) parts.push(text.slice(lastIndex, matchIndex));
+    parts.push(<UrlPreviewLink key={`${matchIndex}-${url}`} url={url} />);
+    if (trailing) parts.push(trailing);
+    lastIndex = matchIndex + rawUrl.length;
+  }
+
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return <>{parts}</>;
+}
+
 function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
@@ -965,7 +1073,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
       {...attributes}
       {...listeners}
     >
-      <div className="text">{prompt.text}</div>
+      <div className="text"><LinkifiedText text={prompt.text} /></div>
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isLaunched) && (
         <div className="card-meta">
           {isLaunched && <span className="tag accent">running</span>}
