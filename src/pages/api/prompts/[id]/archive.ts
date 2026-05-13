@@ -1,7 +1,8 @@
 import type { APIRoute } from "astro";
 import { getPrompt, getProject, updatePrompt } from "~/lib/server/store.js";
-import { hasPullRequest, isBranchMerged, removeWorktree } from "~/lib/server/git.js";
+import { getUncommittedChanges, hasPullRequest, hasUncommittedChanges, isBranchMerged, removeWorktree } from "~/lib/server/git.js";
 import { killSession } from "~/lib/server/tmux.js";
+import { withPromptStatus } from "~/lib/server/prompt-status.js";
 import { existsSync } from "node:fs";
 
 export const prerender = false;
@@ -21,6 +22,17 @@ export const POST: APIRoute = async ({ params }) => {
   if (prompt.runMode === "worktree" && prompt.branch && prompt.projectId) {
     const project = getProject(prompt.projectId);
     if (project) {
+      if (prompt.worktreePath && existsSync(prompt.worktreePath) && await hasUncommittedChanges(prompt.worktreePath)) {
+        const changes = await getUncommittedChanges(prompt.worktreePath);
+        return Response.json(
+          {
+            error: "This worktree can't be marked as done yet.",
+            detail: `Commit, stash, or discard the uncommitted changes first.\n\n${changes.join("\n")}`,
+          },
+          { status: 409 },
+        );
+      }
+
       [merged, hasPr] = await Promise.all([
         isBranchMerged(project.path, prompt.branch),
         hasPullRequest(project.path, prompt.branch),
@@ -62,7 +74,7 @@ export const POST: APIRoute = async ({ params }) => {
   }
 
   const updated = updatePrompt(id, { isArchived: true } as never);
-  return Response.json({ prompt: updated });
+  return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
 };
 
 /**
@@ -74,5 +86,5 @@ export const DELETE: APIRoute = async ({ params }) => {
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
 
   const updated = updatePrompt(id, { isArchived: false } as never);
-  return Response.json({ prompt: updated });
+  return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
 };

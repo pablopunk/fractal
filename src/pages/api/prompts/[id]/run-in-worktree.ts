@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/store.js";
 import { resolvePromptModel } from "~/lib/server/pi.js";
 import { launchInWorktree } from "~/lib/server/worktree.js";
+import { withPromptStatus } from "~/lib/server/prompt-status.js";
 
 export const prerender = false;
 
@@ -29,10 +30,10 @@ export const POST: APIRoute = async ({ params }) => {
       launchedAt: new Date(),
       error: null,
     } as never);
-    return Response.json({ prompt: updated });
+    return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const updated = updatePrompt(id, { error: msg } as never);
-    return Response.json({ error: msg, prompt: updated }, { status: 500 });
+    return Response.json({ error: msg, prompt: updated ? await withPromptStatus(updated) : updated }, { status: 500 });
   }
 };

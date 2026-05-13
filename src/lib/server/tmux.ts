@@ -15,6 +15,16 @@ export async function hasSession(name: string): Promise<boolean> {
   }
 }
 
+export async function listSessions(): Promise<string[]> {
+  try {
+    const { stdout } = await exec("tmux", ["list-sessions", "-F", "#{session_name}"]);
+    return stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+  } catch (e) {
+    if (e instanceof ExecError) return [];
+    throw e;
+  }
+}
+
 export async function killSession(name: string): Promise<void> {
   try {
     if (await hasSession(name)) {

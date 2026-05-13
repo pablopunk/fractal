@@ -54,6 +54,7 @@ type Prompt = {
   error?: string | null;
   isArchived?: boolean | null;
   launchedAt?: number | null;
+  isRunning?: boolean;
 };
 type AppSettings = { fastModel: string; smartModel: string };
 type PiModel = { id: string; provider: string; model: string };
@@ -993,7 +994,7 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const isLaunched = !!prompt.launchedAt;
+  const isRunning = !!prompt.isRunning;
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1074,9 +1075,9 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
       {...listeners}
     >
       <div className="text"><LinkifiedText text={prompt.text} /></div>
-      {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isLaunched) && (
+      {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
         <div className="card-meta">
-          {isLaunched && <span className="tag accent">running</span>}
+          {isRunning && <span className="tag accent">running</span>}
           {prompt.tmuxSession && (
             <button
               type="button"
