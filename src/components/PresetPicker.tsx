@@ -17,7 +17,7 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<React.CSSProperties | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,9 +35,16 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
     const margin = 8;
     let left = rect.left;
     if (left + POPUP_WIDTH > window.innerWidth - margin) left = window.innerWidth - POPUP_WIDTH - margin;
-    let top = rect.bottom + 6;
-    if (top + POPUP_MAX_HEIGHT > window.innerHeight - margin) top = rect.top - POPUP_MAX_HEIGHT - 6;
-    setPos({ top, left });
+
+    const availableBelow = window.innerHeight - rect.bottom - margin - 6;
+    const availableAbove = rect.top - margin - 6;
+    const maxHeight = Math.min(POPUP_MAX_HEIGHT, Math.max(160, Math.max(availableBelow, availableAbove)));
+
+    if (availableBelow >= POPUP_MAX_HEIGHT || availableBelow >= availableAbove) {
+      setPos({ top: rect.bottom + 6, left, width: POPUP_WIDTH, maxHeight });
+    } else {
+      setPos({ bottom: window.innerHeight - rect.top + 6, left, width: POPUP_WIDTH, maxHeight });
+    }
     setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
@@ -88,7 +95,7 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
         </svg>
       </div>
       {open && pos && (
-        <div ref={popupRef} className="model-picker-popup" style={{ top: pos.top, left: pos.left, width: POPUP_WIDTH, maxHeight: POPUP_MAX_HEIGHT }}>
+        <div ref={popupRef} className="model-picker-popup" style={pos}>
           <div className="model-picker-search">
             <input ref={inputRef} className="model-picker-input" placeholder="Search presets…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKeyDown} spellCheck={false} />
           </div>
