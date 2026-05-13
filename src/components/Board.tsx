@@ -29,6 +29,7 @@ import {
   FolderRoot,
   Pencil,
   Play,
+  SquareTerminal,
 
   Trash2,
   Undo2,
@@ -36,6 +37,7 @@ import {
 } from "lucide-react";
 import ProjectPicker from "./ProjectPicker.js";
 import ModelPicker from "./ModelPicker.js";
+import TerminalPane from "./TerminalPane.js";
 
 type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
 
@@ -59,6 +61,7 @@ type Prompt = {
 type AppSettings = { fastModel: string; smartModel: string };
 type PiModel = { id: string; provider: string; model: string };
 type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
+type TerminalTab = { id: string; promptId: string; session: string; title: string };
 
 const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
@@ -68,6 +71,10 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
 ];
 
 const COLLAPSED_KEY = "fractal:collapsedColumns";
+const TERMINAL_TABS_KEY = "fractal:terminalTabs";
+const TERMINAL_WIDTH_KEY = "fractal:terminalWidth";
+const TERMINAL_HEIGHT_KEY = "fractal:terminalHeight";
+const TERMINAL_POSITION_KEY = "fractal:terminalPosition";
 const columnAwareCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   return pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
@@ -80,6 +87,34 @@ function loadCollapsed(): Record<Column, boolean> {
     if (!raw) return def;
     return { ...def, ...JSON.parse(raw) };
   } catch { return def; }
+}
+
+function loadTerminalTabs(): TerminalTab[] {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_TABS_KEY) : null;
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function loadTerminalWidth(): number {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_WIDTH_KEY) : null;
+    return raw ? Number(raw) || 520 : 520;
+  } catch { return 520; }
+}
+
+function loadTerminalHeight(): number {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_HEIGHT_KEY) : null;
+    return raw ? Number(raw) || 320 : 320;
+  } catch { return 320; }
+}
+
+function loadTerminalPosition(): "right" | "bottom" {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_POSITION_KEY) : null;
+    return raw === "bottom" ? "bottom" : "right";
+  } catch { return "right"; }
 }
 
 class ApiError extends Error {
@@ -124,6 +159,11 @@ export default function Board() {
   const [pendingDeletePromptId, setPendingDeletePromptId] = useState<string | null>(null);
   const [pendingDeleteChanges, setPendingDeleteChanges] = useState<string[] | null>(null);
   const [archiveBlockedMessage, setArchiveBlockedMessage] = useState<string | null>(null);
+  const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>(() => loadTerminalTabs());
+  const [activeTerminalId, setActiveTerminalId] = useState<string | null>(() => loadTerminalTabs()[0]?.id ?? null);
+  const [terminalWidth, setTerminalWidth] = useState<number>(() => loadTerminalWidth());
+  const [terminalHeight, setTerminalHeight] = useState<number>(() => loadTerminalHeight());
+  const [terminalPosition, setTerminalPosition] = useState<"right" | "bottom">(() => loadTerminalPosition());
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -167,8 +207,48 @@ export default function Board() {
     try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed)); } catch {}
   }, [collapsed]);
 
+  useEffect(() => {
+    try { localStorage.setItem(TERMINAL_TABS_KEY, JSON.stringify(terminalTabs)); } catch {}
+  }, [terminalTabs]);
+
+  useEffect(() => {
+    try { localStorage.setItem(TERMINAL_WIDTH_KEY, String(terminalWidth)); } catch {}
+  }, [terminalWidth]);
+
+  useEffect(() => {
+    try { localStorage.setItem(TERMINAL_HEIGHT_KEY, String(terminalHeight)); } catch {}
+  }, [terminalHeight]);
+
+  useEffect(() => {
+    try { localStorage.setItem(TERMINAL_POSITION_KEY, terminalPosition); } catch {}
+  }, [terminalPosition]);
+
   function toggleCollapse(id: Column) {
     setCollapsed((c) => ({ ...c, [id]: !c[id] }));
+  }
+
+  function openTerminal(prompt: Prompt) {
+    if (!prompt.tmuxSession) return;
+    if (!prompt.isRunning) {
+      setError("This tmux session is not running.");
+      return;
+    }
+    const tab: TerminalTab = {
+      id: prompt.tmuxSession,
+      promptId: prompt.id,
+      session: prompt.tmuxSession,
+      title: prompt.tmuxSession.replace(/^fractal-/, ""),
+    };
+    setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
+    setActiveTerminalId(tab.id);
+  }
+
+  function closeTerminal(id: string) {
+    setTerminalTabs((tabs) => {
+      const next = tabs.filter((tab) => tab.id !== id);
+      setActiveTerminalId((active) => active === id ? next.at(-1)?.id ?? null : active);
+      return next;
+    });
   }
 
   async function refresh() {
@@ -446,6 +526,7 @@ export default function Board() {
             </div>
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
+              <div className={`workspace workspace-${terminalTabs.length > 0 ? terminalPosition : "right"}`}>
               <div className="board">
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
@@ -462,6 +543,7 @@ export default function Board() {
                       onEdit={editPrompt}
                       onArchive={archivePrompt}
                       onUnarchive={unarchivePrompt}
+                      onOpenTerminal={openTerminal}
                       home={home}
                       activeId={activeDragId}
                       overId={overId}
@@ -482,6 +564,19 @@ export default function Board() {
                     />
                   );
                 })}
+              </div>
+              {terminalTabs.length > 0 && (
+                <TerminalPane
+                  tabs={terminalTabs}
+                  activeId={activeTerminalId}
+                  position={terminalPosition}
+                  size={terminalPosition === "right" ? terminalWidth : terminalHeight}
+                  onResize={terminalPosition === "right" ? setTerminalWidth : setTerminalHeight}
+                  onTogglePosition={() => setTerminalPosition((position) => position === "right" ? "bottom" : "right")}
+                  onSelect={setActiveTerminalId}
+                  onClose={closeTerminal}
+                />
+              )}
               </div>
               <DragOverlay dropAnimation={null}>
                 {dragging ? <div className="overlay-card">{truncate(dragging.text, 140)}</div> : null}
@@ -675,6 +770,7 @@ function ColumnView(props: {
   onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
+  onOpenTerminal: (prompt: Prompt) => void;
   composer: React.ReactNode;
   home: string;
   activeId?: string | null;
@@ -734,6 +830,7 @@ function ColumnView(props: {
                 onEdit={props.onEdit}
                 onArchive={props.onArchive}
                 onUnarchive={props.onUnarchive}
+                onOpenTerminal={props.onOpenTerminal}
                 home={props.home}
                 isArchivedCol={props.isArchivedCol}
               />
@@ -978,7 +1075,7 @@ function LinkifiedText({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; home: string; isArchivedCol?: boolean }) {
+function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, home, isArchivedCol }: { prompt: Prompt; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const [editModelProfile, setEditModelProfile] = useState<ModelProfile>(prompt.modelProfile ?? "smart");
@@ -1074,6 +1171,22 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
       {...attributes}
       {...listeners}
     >
+      {prompt.tmuxSession && (
+        <button
+          type="button"
+          className="terminal-card-button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenTerminal(prompt);
+          }}
+          title={prompt.isRunning ? "Open terminal" : "tmux session is not running"}
+          aria-label="Open terminal"
+          disabled={!prompt.isRunning}
+        >
+          <SquareTerminal size={18} />
+        </button>
+      )}
       <div className="text"><LinkifiedText text={prompt.text} /></div>
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
         <div className="card-meta">
@@ -1125,19 +1238,21 @@ function Card({ prompt, onDelete, onEdit, onArchive, onUnarchive, home, isArchiv
             <Pencil size={14} />
           </button>
           {prompt.tmuxSession && (
-            <button
-              type="button"
-              className="icon-btn"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                copyWorktreeName();
-              }}
-              title="Copy worktree name"
-              aria-label="Copy worktree name"
-            >
-              <Copy size={14} />
-            </button>
+            <>
+              <button
+                type="button"
+                className="icon-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyWorktreeName();
+                }}
+                title="Copy worktree name"
+                aria-label="Copy worktree name"
+              >
+                <Copy size={14} />
+              </button>
+            </>
           )}
           {isArchivedCol ? (
             <button

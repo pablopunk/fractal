@@ -30,14 +30,18 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "astro": "^6.2.2",
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
     "electron-updater": "^6.6.2",
     "fuzzysort": "^3.1.0",
     "lucide-react": "^1.14.0",
+    "node-pty": "^1.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "ws": "^8.20.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -45,7 +49,8 @@
       "esbuild",
       "sharp",
       "electron",
-      "electron-winstaller"
+      "electron-winstaller",
+      "node-pty"
     ]
   },
   "devDependencies": {
@@ -54,6 +59,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.18.1",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
     "electron": "^41.5.0",

@@ -984,3 +984,175 @@ a { color: inherit; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 6px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+.workspace {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.workspace > .board {
+  flex: 1;
+  min-width: 0;
+}
+
+.terminal-pane {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 320px;
+  max-width: 72vw;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: #0b0b0d;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+.terminal-resizer {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.terminal-resizer:hover { background: color-mix(in oklab, var(--accent) 20%, transparent); }
+.terminal-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  overflow-x: auto;
+}
+.terminal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 220px;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.terminal-tab:hover { color: var(--text); border-color: var(--border-strong); }
+.terminal-tab.active {
+  color: var(--text);
+  background: var(--surface-3);
+  border-color: var(--accent);
+}
+.terminal-tab span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.terminal-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  border-radius: 4px;
+  flex: none;
+}
+.terminal-tab-close:hover { color: var(--text); background: var(--surface); }
+.terminal-host {
+  min-height: 0;
+  padding: 8px;
+  overflow: hidden;
+}
+.terminal-host .xterm { height: 100%; }
+
+.terminal-card-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--surface-3) 86%, transparent);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 80ms, color 80ms, border-color 80ms, background 80ms;
+  z-index: 1;
+}
+.card:hover .terminal-card-button,
+.terminal-card-button:focus-visible {
+  opacity: 1;
+}
+.terminal-card-button:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+  background: var(--surface-3);
+}
+.terminal-card-button:disabled {
+  cursor: not-allowed;
+  color: var(--text-faint);
+  opacity: 0.35;
+}
+.card:has(.terminal-card-button) .text {
+  padding-right: 34px;
+}
+
+.terminal-host,
+.terminal-host .xterm,
+.terminal-host .xterm-viewport,
+.terminal-host .xterm-screen {
+  font-family: "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace !important;
+  letter-spacing: 0 !important;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+.workspace-right { flex-direction: row; }
+.workspace-bottom { flex-direction: column; }
+.workspace-bottom > .board { min-height: 0; }
+.workspace-bottom .terminal-pane {
+  width: auto !important;
+  max-width: none;
+  min-width: 0;
+  border-left: none;
+  border-top: 1px solid var(--border);
+}
+.terminal-pane-toggle {
+  margin-left: auto;
+  width: 28px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.terminal-pane-toggle:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-3); }
+.terminal-resizer-bottom {
+  left: 0;
+  right: 0;
+  top: -4px;
+  bottom: auto;
+  width: auto;
+  height: 8px;
+  cursor: row-resize;
+}
+.terminal-resizer-right {
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  height: auto;
+  cursor: col-resize;
+}
+.terminal-resizer-bottom:hover { background: color-mix(in oklab, var(--accent) 20%, transparent); }

@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { WORKTREES_ROOT, ensureDir } from "./paths.js";
 import { createWorktree, getRepoName } from "./git.js";
-import { slugifyPrompt } from "./branch-name.js";
+import { canonicalRunId } from "./branch-name.js";
 import { ensureSession, sanitizeSessionName, spawnPi } from "./tmux.js";
 
 export type LaunchInPlaceResult = {
@@ -22,7 +22,7 @@ export async function launchInPlace(opts: {
   prompt: string;
   model?: string;
 }): Promise<LaunchInPlaceResult> {
-  const session = sanitizeSessionName(`fractal-${opts.projectName}-${opts.promptId.slice(0, 6)}`);
+  const session = sanitizeSessionName(canonicalRunId(opts.projectName, opts.prompt, opts.promptId.slice(0, 6)));
   await ensureSession(session, opts.projectPath);
   await spawnPi(session, opts.prompt, opts.model);
   return { tmuxSession: session };
@@ -36,14 +36,14 @@ export async function launchInWorktree(opts: {
   model?: string;
 }): Promise<LaunchInWorktreeResult> {
   const repoName = await getRepoName(opts.projectPath);
-  const branch = slugifyPrompt(opts.prompt, opts.promptId.slice(0, 6));
-  const branchTail = branch.replace(/^fractal\//, "");
-  const worktreePath = join(WORKTREES_ROOT, repoName, branchTail);
+  const runId = sanitizeSessionName(canonicalRunId(repoName, opts.prompt, opts.promptId.slice(0, 6)));
+  const branch = runId;
+  const worktreePath = join(WORKTREES_ROOT, repoName, runId);
   ensureDir(join(WORKTREES_ROOT, repoName));
   if (!existsSync(worktreePath)) {
     await createWorktree(opts.projectPath, branch, worktreePath);
   }
-  const session = sanitizeSessionName(`fractal-${repoName}-${branchTail}`);
+  const session = runId;
   await ensureSession(session, worktreePath);
   await spawnPi(session, opts.prompt, opts.model);
   return { branch, worktreePath, tmuxSession: session };

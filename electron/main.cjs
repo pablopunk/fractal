@@ -28,6 +28,7 @@ console.error = function(...args) {
 
 let mainWindow = null;
 let serverPromise = null;
+let terminalServerPromise = null;
 let updateCheckInFlight = false;
 let updateDownloadInFlight = false;
 let updateStartupTimer = null;
@@ -200,6 +201,26 @@ async function findFreePort() {
   });
 }
 
+async function startTerminalServer() {
+  if (terminalServerPromise) return terminalServerPromise;
+  ensureUserPath();
+  terminalServerPromise = (async () => {
+    const port = await findFreePort();
+    const { createTerminalServer } = require("./terminal-server.cjs");
+    const server = createTerminalServer();
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+    console.log(`[fractal-terminal] server listening on 127.0.0.1:${port}`);
+    return port;
+  })();
+  return terminalServerPromise;
+}
+
 async function startAstroServer() {
   if (serverPromise) return serverPromise;
   ensureUserPath();
@@ -227,6 +248,7 @@ async function startAstroServer() {
 
 async function createWindow() {
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  const terminalPort = await startTerminalServer();
   const port = rendererUrl ? null : await startAstroServer();
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -241,6 +263,7 @@ async function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.cjs"),
+      additionalArguments: [`--fractal-terminal-port=${terminalPort}`],
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
