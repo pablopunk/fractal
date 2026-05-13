@@ -74,13 +74,18 @@ export default function TerminalPane(props: {
           {props.position === "right" ? <Rows2 size={14} /> : <Columns2 size={14} />}
         </button>
       </div>
-      <TerminalView key={active.id} tab={active} />
+      <TerminalView key={active.id} tab={active} onClose={props.onClose} />
     </aside>
   );
 }
 
-function TerminalView({ tab }: { tab: TerminalTab }) {
+function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string) => void }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const port = (window as ElectronGlobals).electron?.terminalPort;
@@ -136,7 +141,10 @@ function TerminalView({ tab }: { tab: TerminalTab }) {
         if (msg.type === "data" && msg.data) term.write(msg.data);
         if (msg.type === "error") term.writeln(`\r\n${msg.message ?? "Terminal error"}`);
       });
-      ws.addEventListener("close", () => term.writeln("\r\n[detached]"));
+      ws.addEventListener("close", () => {
+        if (disposed) return;
+        onCloseRef.current(tab.id);
+      });
 
       input = term.onData((data) => {
         if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
@@ -150,7 +158,7 @@ function TerminalView({ tab }: { tab: TerminalTab }) {
       ws?.close();
       term?.dispose();
     };
-  }, [tab.session]);
+  }, [tab.id, tab.session]);
 
   return <div ref={hostRef} className="terminal-host" />;
 }

@@ -166,6 +166,7 @@ export default function Board() {
   const [terminalWidth, setTerminalWidth] = useState<number>(() => loadTerminalWidth());
   const [terminalHeight, setTerminalHeight] = useState<number>(() => loadTerminalHeight());
   const [terminalPosition, setTerminalPosition] = useState<"right" | "bottom">(() => loadTerminalPosition());
+  const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -231,6 +232,11 @@ export default function Board() {
 
   function openTerminal(prompt: Prompt) {
     if (!prompt.tmuxSession) return;
+    const existing = terminalTabs.find((tab) => tab.id === prompt.tmuxSession);
+    if (existing) {
+      setActiveTerminalId(existing.id);
+      return;
+    }
     if (!prompt.isRunning) {
       setError("This tmux session is not running.");
       return;
@@ -562,6 +568,7 @@ export default function Board() {
                       onArchive={archivePrompt}
                       onUnarchive={unarchivePrompt}
                       onOpenTerminal={openTerminal}
+                      openTerminalIds={openTerminalIds}
                       home={home}
                       activeId={activeDragId}
                       overId={overId}
@@ -795,6 +802,7 @@ function ColumnView(props: {
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onOpenTerminal: (prompt: Prompt) => void;
+  openTerminalIds: Set<string>;
   composer: React.ReactNode;
   home: string;
   activeId?: string | null;
@@ -856,6 +864,7 @@ function ColumnView(props: {
                 onArchive={props.onArchive}
                 onUnarchive={props.onUnarchive}
                 onOpenTerminal={props.onOpenTerminal}
+                isTerminalOpen={!!p.tmuxSession && props.openTerminalIds.has(p.tmuxSession)}
                 home={props.home}
                 isArchivedCol={props.isArchivedCol}
               />
@@ -1249,7 +1258,7 @@ function LinkifiedText({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; home: string; isArchivedCol?: boolean }) {
+function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, isTerminalOpen, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; isTerminalOpen: boolean; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const {
@@ -1338,6 +1347,9 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
       ref={setNodeRef}
       className={`card ${isDragging ? "dragging" : ""}`}
       style={style}
+      onClick={() => {
+        if (isTerminalOpen) onOpenTerminal(prompt);
+      }}
       {...attributes}
       {...listeners}
     >
