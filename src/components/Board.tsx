@@ -550,7 +550,13 @@ export default function Board() {
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
               <div className={`workspace workspace-${terminalTabs.length > 0 ? terminalPosition : "right"}`}>
-              <div className="board">
+              <div
+                className="board"
+                style={{
+                  "--expanded-columns": COLUMNS.filter((col) => !collapsed[col.id]).length,
+                  "--collapsed-columns": COLUMNS.filter((col) => collapsed[col.id]).length,
+                } as CSSProperties}
+              >
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
                     ? archivedPrompts
