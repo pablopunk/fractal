@@ -1,6 +1,6 @@
 {
   "name": "fractal",
-  "version": "0.0.12",
+  "version": "0.1.0",
   "description": "A personal agent coordinator desktop app",
   "author": "Pablo Varela",
   "private": true,
