@@ -61,7 +61,8 @@ export async function ensureSession(name: string, cwd: string): Promise<void> {
 
 export async function sendKeys(name: string, command: string): Promise<void> {
   try {
-    await exec("tmux", ["send-keys", "-t", name, command, "Enter"]);
+    await exec("tmux", ["send-keys", "-l", "-t", name, command]);
+    await exec("tmux", ["send-keys", "-t", name, "Enter"]);
   } catch (e) {
     rethrowMissingTmux(e);
   }

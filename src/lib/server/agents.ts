@@ -91,7 +91,7 @@ function renderTemplate(template: string, vars: Record<string, string | undefine
 
 export function renderAgentCommand(preset: AgentPreset, prompt: string): string {
   const renderedPrompt = preset.promptTemplate?.trim()
-    ? preset.promptTemplate.replace(/{{\s*prompt\s*}}/g, prompt)
+    ? preset.promptTemplate.replace(/{{\s*prompt\s*}}/g, () => prompt)
     : prompt;
   const args = renderTemplate(preset.argsTemplate, { prompt: renderedPrompt, model: preset.model });
   return [preset.binary, args].filter(Boolean).join(" ");
