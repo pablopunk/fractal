@@ -7,9 +7,11 @@ const path = require("node:path");
 const net = require("node:net");
 const { pathToFileURL } = require("node:url");
 const { homedir } = require("node:os");
-const { createWriteStream } = require("node:fs");
+const { createWriteStream, mkdirSync } = require("node:fs");
 
-const logFile = path.join(homedir(), ".fractal", "fractal.log");
+const fractalLogDir = path.join(homedir(), ".fractal");
+mkdirSync(fractalLogDir, { recursive: true });
+const logFile = path.join(fractalLogDir, "fractal.log");
 const logStream = createWriteStream(logFile, { flags: "a" });
 const originalLog = console.log;
 const originalError = console.error;
@@ -50,19 +52,21 @@ app.on("second-instance", () => {
   }
 });
 
-// Make sure Finder-launched app processes see the user's login shell env.
+// Make sure desktop-launched app processes see the user's login shell env.
 function ensureUserPath() {
-  if (process.platform !== "darwin") return;
+  if (process.platform !== "darwin" && process.platform !== "linux") return;
   if (process.env.FRACTAL_PATH_PATCHED) return;
   try {
     const { execFileSync } = require("node:child_process");
     const fs = require("node:fs");
     const ALLOWED_SHELL_DIRS = ["/bin/", "/usr/bin/", "/usr/local/bin/", "/opt/homebrew/bin/"];
+    const fallbackShells = process.platform === "darwin" ? ["/bin/zsh", "/bin/bash"] : ["/bin/bash", "/bin/zsh"];
     const envShell = process.env.SHELL || "";
     const shellOk = envShell.startsWith("/")
       && ALLOWED_SHELL_DIRS.some((d) => envShell.startsWith(d))
       && fs.existsSync(envShell);
-    const shellBin = shellOk ? envShell : "/bin/zsh";
+    const shellBin = shellOk ? envShell : fallbackShells.find((shell) => fs.existsSync(shell));
+    if (!shellBin) return;
     const out = execFileSync(shellBin, ["-l", "-c", "/usr/bin/env -0"], {
       encoding: "utf8",
       timeout: 2000,
@@ -93,7 +97,10 @@ function clearUpdateTimers() {
 }
 
 function canUseAutoUpdates() {
-  return process.platform === "darwin" && app.isPackaged;
+  if (!app.isPackaged) return false;
+  if (process.platform === "darwin") return true;
+  if (process.platform === "linux") return Boolean(process.env.APPIMAGE);
+  return false;
 }
 
 async function checkForUpdates(trigger = "manual") {

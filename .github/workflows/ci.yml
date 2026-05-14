@@ -3,8 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -23,3 +28,55 @@ jobs:
 
       - name: Build app
         run: mise exec -- pnpm run build
+
+  release-linux:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup mise
+        uses: jdx/mise-action@v2
+
+      - name: Install Linux packaging dependencies
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools rpm
+
+      - name: Install dependencies
+        run: mise exec -- pnpm install --frozen-lockfile
+
+      - name: Build Linux release
+        run: mise exec -- pnpm run dist:linux:x64
+
+      - name: Collect Linux artifacts
+        run: |
+          mkdir -p linux-artifacts
+          shopt -s nullglob
+          files=(
+            release/Fractal-*.AppImage
+            release/Fractal-*.deb
+            release/latest-linux.yml
+            release/*.AppImage.blockmap
+          )
+          cp "${files[@]}" linux-artifacts/
+
+      - name: Upload Linux dry-run artifacts
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fractal-linux-${{ github.sha }}
+          path: linux-artifacts/*
+          if-no-files-found: error
+
+      - name: Upload Linux release artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "$tag" --generate-notes
+          gh release upload "$tag" linux-artifacts/* --clobber

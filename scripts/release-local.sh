@@ -47,6 +47,7 @@ fi
 echo "Pushing branch and tag..."
 git push origin "$(git branch --show-current)"
 git push origin "$TAG"
+echo "Linux release build will run on GitHub Actions for $TAG."
 
 echo "Building signed/notarized macOS arm64 release..."
 mise exec -- pnpm run dist:mac:arm64

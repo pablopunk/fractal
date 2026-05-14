@@ -22,12 +22,18 @@ function buildTerminalEnv() {
   for (const candidate of [
     path.join(os.homedir(), ".pi/agent/bin"),
     path.join(os.homedir(), ".bun/bin"),
+    path.join(os.homedir(), ".cargo/bin"),
     path.join(os.homedir(), ".local/bin"),
     path.join(os.homedir(), ".local/share/mise/shims"),
+    path.join(os.homedir(), ".nix-profile/bin"),
     "/opt/homebrew/bin",
     "/usr/local/bin",
+    "/usr/local/sbin",
     "/usr/bin",
+    "/usr/sbin",
     "/bin",
+    "/sbin",
+    "/snap/bin",
   ]) {
     if (fs.existsSync(candidate)) entries.add(candidate);
   }
@@ -146,7 +152,10 @@ function createTerminalServer() {
       kill = () => term.kill();
     } catch (error) {
       console.error("[fractal-terminal] node-pty failed, falling back to script(1):", error);
-      child = spawn("script", ["-q", "/dev/null", "tmux", "attach-session", "-t", session], {
+      const scriptArgs = process.platform === "linux"
+        ? ["-q", "-c", `tmux attach-session -t ${session}`, "/dev/null"]
+        : ["-q", "/dev/null", "tmux", "attach-session", "-t", session];
+      child = spawn("script", scriptArgs, {
         cwd: os.homedir(),
         env: { ...buildTerminalEnv(), TERM: "xterm-256color" },
         stdio: "pipe",

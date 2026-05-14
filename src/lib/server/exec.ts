@@ -28,12 +28,18 @@ function buildExecEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     join(home, ".pi/agent/bin"),
     join(home, ".opencode/bin"),
     join(home, ".bun/bin"),
+    join(home, ".cargo/bin"),
     join(home, ".local/bin"),
     join(home, ".local/share/mise/shims"),
+    join(home, ".nix-profile/bin"),
     "/opt/homebrew/bin",
     "/usr/local/bin",
+    "/usr/local/sbin",
     "/usr/bin",
+    "/usr/sbin",
     "/bin",
+    "/sbin",
+    "/snap/bin",
   ];
 
   const miseNodeRoot = join(home, ".local/share/mise/installs/node");
