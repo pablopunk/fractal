@@ -28,6 +28,7 @@ console.error = function(...args) {
 
 let mainWindow = null;
 let serverPromise = null;
+let terminalServer = null;
 let terminalServerPromise = null;
 let updateCheckInFlight = false;
 let updateDownloadInFlight = false;
@@ -220,6 +221,7 @@ async function startTerminalServer() {
     const port = await findFreePort();
     const { createTerminalServer } = require("./terminal-server.cjs");
     const server = createTerminalServer();
+    terminalServer = server;
     await new Promise((resolve, reject) => {
       server.once("error", reject);
       server.listen(port, "127.0.0.1", () => {
@@ -298,6 +300,15 @@ async function createWindow() {
   await mainWindow.loadURL(rendererUrl || `http://127.0.0.1:${port}`);
 }
 
+function closeTerminalServer() {
+  const server = terminalServer;
+  terminalServer = null;
+  terminalServerPromise = null;
+  if (!server) return;
+  try { server.closeTerminalConnections?.(); } catch (error) { console.error("[fractal-terminal] failed to close terminal connections", error); }
+  try { server.close(); } catch (error) { console.error("[fractal-terminal] failed to close terminal server", error); }
+}
+
 function buildMenu() {
   const isMac = process.platform === "darwin";
   const fractalMenu = {
@@ -362,6 +373,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   clearUpdateTimers();
+  closeTerminalServer();
 });
 
 app.on("window-all-closed", () => {

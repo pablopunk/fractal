@@ -78,6 +78,15 @@ function createTerminalServer() {
     res.end(JSON.stringify({ ok: true }));
   });
   const wss = new WebSocketServer({ server, path: "/terminal" });
+  const connectionCleanups = new Set();
+
+  server.closeTerminalConnections = () => {
+    for (const cleanup of Array.from(connectionCleanups)) cleanup();
+    for (const client of wss.clients) {
+      try { client.terminate(); } catch {}
+    }
+    try { wss.close(); } catch {}
+  };
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
@@ -94,10 +103,24 @@ function createTerminalServer() {
     }
 
     let term;
-    let disposable = { dispose() {} };
+    let dataDisposable = { dispose() {} };
+    let exitDisposable = { dispose() {} };
+    let child = null;
+    let cleanedUp = false;
     let write = () => {};
     let resize = () => {};
     let kill = () => {};
+
+    function cleanupConnection() {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      connectionCleanups.delete(cleanupConnection);
+      dataDisposable.dispose();
+      exitDisposable.dispose();
+      try { kill(); } catch {}
+    }
+
+    connectionCleanups.add(cleanupConnection);
 
     try {
       term = pty.spawn("tmux", ["attach-session", "-t", session], {
@@ -107,10 +130,15 @@ function createTerminalServer() {
         cwd: os.homedir(),
         env: { ...buildTerminalEnv(), TERM: "xterm-256color" },
       });
-      disposable = term.onData((data) => {
+      dataDisposable = term.onData((data) => {
         if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: "data", data }));
       });
-      term.onExit(({ exitCode }) => {
+      exitDisposable = term.onExit(({ exitCode }) => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        connectionCleanups.delete(cleanupConnection);
+        dataDisposable.dispose();
+        exitDisposable.dispose();
         if (ws.readyState === ws.OPEN) ws.close(1000, `terminal exited ${exitCode}`);
       });
       write = (data) => term.write(data);
@@ -118,7 +146,7 @@ function createTerminalServer() {
       kill = () => term.kill();
     } catch (error) {
       console.error("[fractal-terminal] node-pty failed, falling back to script(1):", error);
-      const child = spawn("script", ["-q", "/dev/null", "tmux", "attach-session", "-t", session], {
+      child = spawn("script", ["-q", "/dev/null", "tmux", "attach-session", "-t", session], {
         cwd: os.homedir(),
         env: { ...buildTerminalEnv(), TERM: "xterm-256color" },
         stdio: "pipe",
@@ -154,10 +182,7 @@ function createTerminalServer() {
       }
     });
 
-    ws.on("close", () => {
-      disposable.dispose();
-      try { kill(); } catch {}
-    });
+    ws.on("close", cleanupConnection);
   });
 
   return server;
