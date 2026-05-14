@@ -8,6 +8,16 @@ const pty = require("node-pty");
 
 function buildTerminalEnv() {
   const env = { ...process.env };
+  // LaunchServices (Finder launch) doesn't load shell init, so LANG/LC_* may be
+  // unset or "C" — that makes tmux/zsh/etc transliterate Unicode glyphs to ASCII
+  // (underscores). Force a UTF-8 locale so Nerd Font / Powerline / box-drawing
+  // characters survive the pipeline.
+  const hasUtf8Lang = /UTF-?8/i.test(String(env.LANG || "")) || /UTF-?8/i.test(String(env.LC_ALL || "")) || /UTF-?8/i.test(String(env.LC_CTYPE || ""));
+  if (!hasUtf8Lang) {
+    env.LANG = "en_US.UTF-8";
+    env.LC_ALL = "en_US.UTF-8";
+    env.LC_CTYPE = "en_US.UTF-8";
+  }
   const entries = new Set(String(env.PATH || "").split(path.delimiter).filter(Boolean));
   for (const candidate of [
     path.join(os.homedir(), ".pi/agent/bin"),
