@@ -102,12 +102,10 @@ export async function detectAndCleanupOrphans(options: { delete?: boolean; archi
   const archived: Prompt[] = [];
 
   for (const prompt of allPrompts) {
-    // Only check prompts that have a worktree path
-    if (!prompt.worktreePath || !existsSync(prompt.worktreePath)) {
-      continue;
-    }
+    // Only consider prompts that have a recorded worktree path
+    if (!prompt.worktreePath) continue;
 
-    // If worktree path exists but directory is gone, it's orphaned
+    // Orphan = recorded path no longer exists on disk
     if (!existsSync(prompt.worktreePath)) {
       if (options.delete) {
         await cleanupPrompt(prompt);

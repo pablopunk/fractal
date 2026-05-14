@@ -38,8 +38,10 @@ function absolutize(value: string | null, base: string): string {
   }
 }
 
+const MAX_TAGS_SCANNED = 500;
+
 function meta(html: string, key: string): string {
-  const tags = html.match(/<meta\b[^>]*>/gi) ?? [];
+  const tags = (html.match(/<meta\b[^>]{0,2000}>/gi) ?? []).slice(0, MAX_TAGS_SCANNED);
   for (const tag of tags) {
     const property = attr(tag, "property") ?? attr(tag, "name");
     if (property?.toLowerCase() === key.toLowerCase()) return decodeEntities(attr(tag, "content") ?? "");
@@ -53,7 +55,7 @@ function title(html: string): string {
 }
 
 function favicon(html: string, base: string): string {
-  const links = html.match(/<link\b[^>]*>/gi) ?? [];
+  const links = (html.match(/<link\b[^>]{0,2000}>/gi) ?? []).slice(0, MAX_TAGS_SCANNED);
   const icon = links.find((tag) => /\brel\s*=\s*(["']).*?(?:apple-touch-icon|icon).*?\1/i.test(tag));
   return absolutize(icon ? attr(icon, "href") : "/favicon.ico", base);
 }

@@ -72,14 +72,14 @@ function ensureSchema(sqlite: Database.Database) {
 
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN model_profile TEXT NOT NULL DEFAULT 'smart';");
-  } catch {}
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;");
-  } catch {}
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN preset_id TEXT NOT NULL DEFAULT 'pi';");
-  } catch {}
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]';");
-  } catch {}
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
 }

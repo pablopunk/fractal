@@ -1,3 +1,4 @@
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { WORKTREES_ROOT, ensureDir } from "./paths.js";
 import { ensureWorktree, getRepoName } from "./git.js";
@@ -15,11 +16,19 @@ export type LaunchInWorktreeResult = {
   tmuxSession: string;
 };
 
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif)$/i;
+
 function parseImagePaths(value: string | null | undefined): string[] {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((path): path is string => typeof path === "string" && path.trim().length > 0) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((path): path is string => {
+      if (typeof path !== "string" || path.trim().length === 0) return false;
+      if (!path.startsWith("/")) return false;
+      if (!IMAGE_EXT_RE.test(path)) return false;
+      try { return existsSync(path) && statSync(path).isFile(); } catch { return false; }
+    });
   } catch {
     return [];
   }

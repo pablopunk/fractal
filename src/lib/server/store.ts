@@ -95,7 +95,9 @@ export function getSettings(): AppSettings {
     if (row.key === "fastModel") out.fastModel = row.value;
     if (row.key === "smartModel") out.smartModel = row.value;
     if (row.key === "agentPresets") {
-      try { out.agentPresets = JSON.parse(row.value); } catch {}
+      try { out.agentPresets = JSON.parse(row.value); } catch (err) {
+        console.error("[fractal-settings] failed to parse agentPresets, using defaults:", err);
+      }
     }
     if (row.key === "defaultPresetId") out.defaultPresetId = row.value;
   }

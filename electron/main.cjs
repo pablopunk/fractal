@@ -55,7 +55,16 @@ function ensureUserPath() {
   if (process.env.FRACTAL_PATH_PATCHED) return;
   try {
     const { execFileSync } = require("node:child_process");
-    const out = execFileSync(process.env.SHELL || "/bin/zsh", ["-l", "-c", "echo $PATH"], {
+    // Only honor SHELL if it's an absolute path to an existing binary in a
+    // standard system location. Otherwise fall back to /bin/zsh.
+    const fs = require("node:fs");
+    const ALLOWED_SHELL_DIRS = ["/bin/", "/usr/bin/", "/usr/local/bin/", "/opt/homebrew/bin/"];
+    const envShell = process.env.SHELL || "";
+    const shellOk = envShell.startsWith("/")
+      && ALLOWED_SHELL_DIRS.some((d) => envShell.startsWith(d))
+      && fs.existsSync(envShell);
+    const shellBin = shellOk ? envShell : "/bin/zsh";
+    const out = execFileSync(shellBin, ["-l", "-c", "echo $PATH"], {
       encoding: "utf8",
       timeout: 2000,
     }).trim();

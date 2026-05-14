@@ -103,7 +103,9 @@ function createTerminalServer() {
         if (msg.type === "resize" && Number.isFinite(msg.cols) && Number.isFinite(msg.rows)) {
           resize(Math.max(2, msg.cols), Math.max(2, msg.rows));
         }
-      } catch {}
+      } catch (err) {
+        console.error("[fractal-terminal] failed to parse client message:", err);
+      }
     });
 
     ws.on("close", () => {
