@@ -248,6 +248,26 @@ a { color: inherit; }
   cursor: pointer;
 }
 .topbar-title-button:hover h1 { color: var(--accent); }
+.topbar-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.topbar-title-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--text-faint);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 120ms ease, transform 120ms ease, color 120ms ease;
+}
+.topbar-title-button:hover .topbar-title-icon,
+.topbar-title-button:focus-visible .topbar-title-icon {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--accent);
+}
 .topbar-title h1 {
   margin: 0;
   font-size: 16px;

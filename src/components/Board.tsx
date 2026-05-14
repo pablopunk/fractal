@@ -655,7 +655,10 @@ export default function Board() {
           <>
             <div className="topbar">
               <button type="button" className="topbar-title topbar-title-button" onClick={() => void openProjectTerminal(activeProject)} title="Open project terminal">
-                <h1>{activeProject.name}</h1>
+                <span className="topbar-title-row">
+                  <h1>{activeProject.name}</h1>
+                  <SquareTerminal className="topbar-title-icon" aria-hidden="true" />
+                </span>
                 <span className="path" title={activeProject.path}>{tildeify(activeProject.path, home)}</span>
               </button>
               <div className="topbar-spacer" />
