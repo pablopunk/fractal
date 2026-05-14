@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -48,6 +48,7 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
   { id: "ARCHIVED", title: "DONE", icon: Check },
 ];
 const THEME_OPTIONS: ThemeMode[] = ["system", "light", "dark"];
+const BOARD_ROWS_MAX_WIDTH = 960;
 
 function nextTheme(theme: ThemeMode): ThemeMode {
   return THEME_OPTIONS[(THEME_OPTIONS.indexOf(theme) + 1) % THEME_OPTIONS.length];
@@ -99,6 +100,8 @@ export default function Board() {
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
+  const [boardRows, setBoardRows] = useState(false);
+  const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
 
   const activateTerminal = (id: string) => {
@@ -188,6 +191,15 @@ export default function Board() {
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)); } catch {}
   }, [sidebarWidth]);
+
+  useEffect(() => {
+    if (!boardElement) return;
+    const updateLayout = () => setBoardRows(boardElement.getBoundingClientRect().width < BOARD_ROWS_MAX_WIDTH);
+    updateLayout();
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(boardElement);
+    return () => observer.disconnect();
+  }, [boardElement]);
 
   useEffect(() => {
     const updateProjectShortcuts = (event: KeyboardEvent | MouseEvent | FocusEvent) => {
@@ -674,7 +686,7 @@ export default function Board() {
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
               <div className={`workspace workspace-${terminalTabs.length > 0 ? terminalPosition : "right"}`}>
-              <div className={`board ${terminalTabs.length > 0 && terminalPosition === "right" ? "board-rows" : ""}`}>
+              <div ref={setBoardElement} className={`board ${boardRows ? "board-rows" : ""}`}>
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
                     ? archivedPrompts
