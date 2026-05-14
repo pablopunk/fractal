@@ -450,6 +450,18 @@ a { color: inherit; }
   transition: background 80ms ease, border-color 80ms ease;
 }
 .btn:hover { background: var(--surface-3); border-color: var(--border-strong); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--surface-2); border-color: var(--border); }
+.btn.ghost:disabled:hover { background: transparent; }
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: btn-spin 700ms linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 .btn.primary {
   background: var(--accent);
   color: #fff;
@@ -971,7 +983,10 @@ a { color: inherit; }
   cursor: pointer;
 }
 .icon-btn:hover { color: var(--text); background: var(--surface-3); border-color: var(--border); }
+.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.icon-btn:disabled:hover { color: var(--text-faint); background: transparent; border-color: transparent; }
 .icon-btn.danger:hover { color: var(--danger); }
+.icon-btn.danger:disabled:hover { color: var(--text-faint); }
 .icon-btn svg { width: 14px; height: 14px; }
 
 .dragging { opacity: 0.35; }

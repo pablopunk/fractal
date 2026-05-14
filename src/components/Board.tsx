@@ -186,6 +186,9 @@ export default function Board() {
   const [terminalFocusKey, setTerminalFocusKey] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => loadSidebarWidth());
   const [showProjectShortcuts, setShowProjectShortcuts] = useState(false);
+  const [isClearingDone, setIsClearingDone] = useState(false);
+  const [isAddingPrompt, setIsAddingPrompt] = useState(false);
+  const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
 
   const activateTerminal = (id: string) => {
@@ -381,6 +384,8 @@ export default function Board() {
   }
 
   async function openProjectTerminal(project: Project) {
+    if (isOpeningProjectTerminal) return;
+    setIsOpeningProjectTerminal(true);
     try {
       const { session, title } = await api<{ session: string; title: string }>(`/api/projects/${project.id}/terminal`, { method: "POST" });
       const existing = terminalTabs.find((tab) => tab.id === session);
@@ -396,6 +401,8 @@ export default function Board() {
       activateTerminal(tab.id);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsOpeningProjectTerminal(false);
     }
   }
 
@@ -419,7 +426,8 @@ export default function Board() {
 
   async function addPrompt() {
     const text = composer.trim();
-    if ((!text && composerImagePaths.length === 0) || !activeProjectId) return;
+    if ((!text && composerImagePaths.length === 0) || !activeProjectId || isAddingPrompt) return;
+    setIsAddingPrompt(true);
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/projects/${activeProjectId}/prompts`, {
         method: "POST",
@@ -430,6 +438,8 @@ export default function Board() {
       setComposerImagePaths([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsAddingPrompt(false);
     }
   }
 
@@ -457,6 +467,27 @@ export default function Board() {
       setPendingDeleteChanges(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function clearDonePrompts() {
+    if (!activeProjectId || isClearingDone) return;
+    const doneCount = archivedPrompts.length;
+    if (doneCount === 0) return;
+    setIsClearingDone(true);
+    try {
+      const { deleted, failed } = await api<{ deleted: string[]; failed: { id: string; error: string }[] }>(`/api/projects/${activeProjectId}/done-prompts`, { method: "DELETE" });
+      const deletedIds = new Set(deleted);
+      setPrompts((p) => p.filter((x) => !deletedIds.has(x.id)));
+      if (failed.length > 0) {
+        toast.error(`Deleted ${deleted.length} DONE prompt${deleted.length === 1 ? "" : "s"}; ${failed.length} failed.`);
+      } else {
+        toast.success(`Cleared ${deleted.length} DONE prompt${deleted.length === 1 ? "" : "s"}.`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsClearingDone(false);
     }
   }
 
@@ -682,10 +713,10 @@ export default function Board() {
         ) : (
           <>
             <div className="topbar">
-              <button type="button" className="topbar-title topbar-title-button" onClick={() => void openProjectTerminal(activeProject)} title="Open project terminal">
+              <button type="button" className="topbar-title topbar-title-button" onClick={() => void openProjectTerminal(activeProject)} disabled={isOpeningProjectTerminal} title={isOpeningProjectTerminal ? "Opening project terminal…" : "Open project terminal"}>
                 <span className="topbar-title-row">
                   <h1>{activeProject.name}</h1>
-                  <SquareTerminal className="topbar-title-icon" aria-hidden="true" />
+                  {isOpeningProjectTerminal ? <span className="btn-spinner" aria-hidden="true" /> : <SquareTerminal className="topbar-title-icon" aria-hidden="true" />}
                 </span>
                 <span className="path" title={activeProject.path}>{tildeify(activeProject.path, home)}</span>
               </button>
@@ -728,6 +759,8 @@ export default function Board() {
                       collapsed={!!collapsed[col.id]}
                       onToggleCollapse={() => toggleCollapse(col.id)}
                       isArchivedCol={col.id === "ARCHIVED"}
+                      onClearDone={col.id === "ARCHIVED" ? clearDonePrompts : undefined}
+                      isClearingDone={col.id === "ARCHIVED" ? isClearingDone : false}
                       composer={
                         col.id === "PROMPTS" ? (
                           <Composer
@@ -736,6 +769,7 @@ export default function Board() {
                             imagePaths={composerImagePaths}
                             onImagePathsChange={setComposerImagePaths}
                             onSubmit={addPrompt}
+                            isSubmitting={isAddingPrompt}
                             presets={settings.agentPresets}
                             presetId={composerPresetId}
                             onPresetChange={setComposerPresetId}
@@ -987,6 +1021,8 @@ function ColumnView(props: {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   isArchivedCol?: boolean;
+  onClearDone?: () => void;
+  isClearingDone?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: props.id });
   const itemIds = props.prompts.map((p) => p.id);
@@ -1021,6 +1057,22 @@ function ColumnView(props: {
         <Icon className="column-icon" />
         <span className="column-title">{props.title}</span>
         <span className="count-chip">{props.prompts.length}</span>
+        {props.onClearDone && props.prompts.length > 0 && (
+          <button
+            type="button"
+            className="btn ghost sm"
+            title={props.isClearingDone ? "Clearing DONE prompts…" : "Clear DONE prompts"}
+            aria-label={props.isClearingDone ? "Clearing DONE prompts" : "Clear DONE prompts"}
+            disabled={props.isClearingDone}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onClearDone?.();
+            }}
+          >
+            {props.isClearingDone ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 style={{ width: 14, height: 14 }} />}
+            {props.isClearingDone ? "Clearing…" : "Clear"}
+          </button>
+        )}
         <ChevronLeft className="column-collapse-icon" />
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
@@ -1213,7 +1265,7 @@ function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string
   );
 }
 
-function Composer(props: { value: string; onChange: (v: string) => void; imagePaths: string[]; onImagePathsChange: (paths: string[]) => void; onSubmit: () => void; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void }) {
+function Composer(props: { value: string; onChange: (v: string) => void; imagePaths: string[]; onImagePathsChange: (paths: string[]) => void; onSubmit: () => void; isSubmitting?: boolean; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragDepth = useRef(0);
   const [dragOver, setDragOver] = useState(false);
@@ -1266,7 +1318,7 @@ function Composer(props: { value: string; onChange: (v: string) => void; imagePa
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
-            props.onSubmit();
+            if (!props.isSubmitting) props.onSubmit();
           }
         }}
       />
@@ -1287,11 +1339,12 @@ function Composer(props: { value: string; onChange: (v: string) => void; imagePa
         <button
           className="btn primary sm composer-submit"
           onClick={props.onSubmit}
-          disabled={(!props.value.trim() && props.imagePaths.length === 0) || props.presets.length === 0}
-          aria-label="Add prompt"
+          disabled={props.isSubmitting || ((!props.value.trim() && props.imagePaths.length === 0) || props.presets.length === 0)}
+          aria-label={props.isSubmitting ? "Adding prompt" : "Add prompt"}
           title={props.presets.length === 0 ? "Create a preset first" : "Add prompt"}
         >
-          Add
+          {props.isSubmitting && <span className="btn-spinner" aria-hidden="true" />}
+          {props.isSubmitting ? "Adding…" : "Add"}
         </button>
       </div>
     </div>
@@ -1476,7 +1529,7 @@ function LinkifiedText({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
+function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void | Promise<void>; onArchive: (id: string) => void | Promise<void>; onUnarchive: (id: string) => void | Promise<void>; onOpenTerminal: (prompt: Prompt) => void; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const [editPresetId, setEditPresetId] = useState(prompt.presetId);
@@ -1496,6 +1549,7 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
   const presetName = presets.find((preset) => preset.id === prompt.presetId)?.name ?? prompt.presetId;
   const imagePaths = useMemo(() => [...new Set([...parseImagePaths(prompt.imagePaths), ...extractImagePaths(prompt.text)])], [prompt.imagePaths, prompt.text]);
   const [copied, setCopied] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "archive" | "unarchive" | "delete" | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -1526,9 +1580,19 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
     setEditPresetId(prompt.presetId);
   }
 
+  async function runCardAction(action: NonNullable<typeof pendingAction>, task: () => void | Promise<void>) {
+    if (pendingAction) return;
+    setPendingAction(action);
+    try {
+      await task();
+      if (action === "save") setIsEditing(false);
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   function saveEdit() {
-    onEdit(prompt.id, { text: editText, presetId: editPresetId });
-    setIsEditing(false);
+    void runCardAction("save", () => onEdit(prompt.id, { text: editText, presetId: editPresetId }));
   }
 
   if (isEditing) {
@@ -1564,9 +1628,10 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
           <button
             className="btn primary sm"
             onClick={saveEdit}
-            disabled={!editText.trim()}
+            disabled={!editText.trim() || !!pendingAction}
           >
-            Save
+            {pendingAction === "save" && <span className="btn-spinner" aria-hidden="true" />}
+            {pendingAction === "save" ? "Saving…" : "Save"}
           </button>
         </div>
       </div>
@@ -1655,34 +1720,37 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
             <button
               className="icon-btn"
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); onUnarchive(prompt.id); }}
+              disabled={!!pendingAction}
+              onClick={(e) => { e.stopPropagation(); void runCardAction("unarchive", () => onUnarchive(prompt.id)); }}
               title="Move prompt out of DONE"
               aria-label="Move prompt out of DONE"
             >
-              <Undo2 size={14} />
+              {pendingAction === "unarchive" ? <span className="btn-spinner" aria-hidden="true" /> : <Undo2 size={14} />}
             </button>
           ) : (
             <button
               className="icon-btn"
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); onArchive(prompt.id); }}
+              disabled={!!pendingAction}
+              onClick={(e) => { e.stopPropagation(); void runCardAction("archive", () => onArchive(prompt.id)); }}
               title="Mark prompt as done"
               aria-label="Mark prompt as done"
             >
-              <Check size={14} />
+              {pendingAction === "archive" ? <span className="btn-spinner" aria-hidden="true" /> : <Check size={14} />}
             </button>
           )}
           <button
             className="icon-btn danger"
             onPointerDown={(e) => e.stopPropagation()}
+            disabled={!!pendingAction}
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(prompt.id);
+              void runCardAction("delete", () => onDelete(prompt.id));
             }}
             title="Delete prompt and cleanup resources"
             aria-label="Delete prompt and cleanup resources"
           >
-            <Trash2 size={14} />
+            {pendingAction === "delete" ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 size={14} />}
           </button>
         </div>
       </div>
