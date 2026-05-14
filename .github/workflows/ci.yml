@@ -40,8 +40,12 @@ jobs:
       matrix:
         include:
           - arch: x64
+            appimage-arch: x86_64
+            deb-arch: amd64
             runner: ubuntu-latest
           - arch: arm64
+            appimage-arch: arm64
+            deb-arch: arm64
             runner: ubuntu-24.04-arm
 
     steps:
@@ -65,10 +69,14 @@ jobs:
           mkdir -p linux-artifacts
           shopt -s nullglob
           files=(
-            release/Fractal-*-${{ matrix.arch }}.AppImage
-            release/Fractal-*-${{ matrix.arch }}.deb
-            release/Fractal-*-${{ matrix.arch }}.AppImage.blockmap
+            release/Fractal-*-${{ matrix.appimage-arch }}.AppImage
+            release/Fractal-*-${{ matrix.deb-arch }}.deb
+            release/Fractal-*-${{ matrix.appimage-arch }}.AppImage.blockmap
           )
+          if (( ${#files[@]} == 0 )); then
+            find release -maxdepth 1 -type f -print
+            exit 1
+          fi
           cp "${files[@]}" linux-artifacts/
 
           if [[ "${{ matrix.arch }}" == "x64" ]]; then
