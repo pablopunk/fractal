@@ -1,6 +1,7 @@
 import type { Column, TerminalTab } from "./types.js";
 
 export const COLLAPSED_KEY = "fractal:collapsedColumns";
+export const PROJECT_COLLAPSED_KEY_PREFIX = "fractal:collapsedColumns:";
 export const TERMINAL_TABS_KEY = "fractal:terminalTabs";
 export const ACTIVE_TERMINAL_TAB_KEY = "fractal:activeTerminalTab";
 export const TERMINAL_WIDTH_KEY = "fractal:terminalWidth";
@@ -10,13 +11,22 @@ export const SIDEBAR_WIDTH_KEY = "fractal:sidebarWidth";
 export const SIDEBAR_MIN_WIDTH = 176;
 export const SIDEBAR_MAX_WIDTH = 260;
 
-export function loadCollapsed(): Record<Column, boolean> {
-  const def = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, ARCHIVED: true } as Record<Column, boolean>;
+const DEFAULT_COLLAPSED = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, ARCHIVED: true } as Record<Column, boolean>;
+
+function collapsedKey(projectId: string | null | undefined): string {
+  return projectId ? `${PROJECT_COLLAPSED_KEY_PREFIX}${projectId}` : COLLAPSED_KEY;
+}
+
+export function loadCollapsed(projectId?: string | null): Record<Column, boolean> {
   try {
-    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(COLLAPSED_KEY) : null;
-    if (!raw) return def;
-    return { ...def, ...JSON.parse(raw) };
-  } catch { return def; }
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(collapsedKey(projectId)) : null;
+    if (!raw) return { ...DEFAULT_COLLAPSED };
+    return { ...DEFAULT_COLLAPSED, ...JSON.parse(raw) };
+  } catch { return { ...DEFAULT_COLLAPSED }; }
+}
+
+export function saveCollapsed(projectId: string | null | undefined, collapsed: Record<Column, boolean>): void {
+  try { localStorage.setItem(collapsedKey(projectId), JSON.stringify(collapsed)); } catch {}
 }
 
 export function loadTerminalTabs(): TerminalTab[] {

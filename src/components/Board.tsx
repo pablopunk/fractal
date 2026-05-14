@@ -22,7 +22,6 @@ import { Sidebar, EmptyState, ColumnView, PresetSettings, Composer, tildeify, tr
 import { ApiError, api } from "~/lib/client/api.js";
 import {
   ACTIVE_TERMINAL_TAB_KEY,
-  COLLAPSED_KEY,
   SIDEBAR_WIDTH_KEY,
   TERMINAL_HEIGHT_KEY,
   TERMINAL_POSITION_KEY,
@@ -35,6 +34,7 @@ import {
   loadTerminalPosition,
   loadTerminalTabs,
   loadTerminalWidth,
+  saveCollapsed,
 } from "~/lib/client/persistence.js";
 import type { AgentPreset, AppSettings, Column, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
 
@@ -69,7 +69,7 @@ export default function Board() {
   const [opencodeModels, setOpenCodeModels] = useState<PiModel[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed());
+  const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed(getProjectIdFromUrl()));
   const [pendingDeletePromptId, setPendingDeletePromptId] = useState<string | null>(null);
   const [pendingDeleteChanges, setPendingDeleteChanges] = useState<string[] | null>(null);
   const [archiveBlockedMessage, setArchiveBlockedMessage] = useState<string | null>(null);
@@ -134,8 +134,12 @@ export default function Board() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed)); } catch {}
-  }, [collapsed]);
+    setCollapsed(loadCollapsed(activeProjectId));
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    saveCollapsed(activeProjectId, collapsed);
+  }, [activeProjectId, collapsed]);
 
   useEffect(() => {
     try { localStorage.setItem(TERMINAL_TABS_KEY, JSON.stringify(terminalTabs)); } catch {}
