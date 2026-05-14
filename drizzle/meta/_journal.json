@@ -8,6 +8,20 @@
       "when": 1778016256511,
       "tag": "0000_lethal_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1778760000000,
+      "tag": "0001_project_icons",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778760100000,
+      "tag": "0002_project_order",
+      "breakpoints": true
     }
   ]
 }

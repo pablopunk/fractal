@@ -116,6 +116,7 @@ a { color: inherit; }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
+  text-align: center;
 }
 
 .project-list {
@@ -145,17 +146,32 @@ a { color: inherit; }
   color: var(--text);
   border-color: var(--border);
 }
+.project-icon-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex: none;
+}
+.project-icon-button:hover { filter: brightness(1.1); }
 .project-icon {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   object-fit: contain;
   flex: none;
   display: block;
 }
 .project-icon.loaded {
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   margin: 2px;
 }
 .project-icon.active {
@@ -165,10 +181,9 @@ a { color: inherit; }
   display: none;
 }
 .project-icon-placeholder {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
-  border: 2px solid var(--text-faint);
   background: transparent;
   flex: none;
   display: inline-flex;
@@ -184,6 +199,23 @@ a { color: inherit; }
 .project-icon-placeholder.active {
   box-shadow: 0 0 0 2px var(--accent);
 }
+.project-icon-modal { padding: 0; overflow: hidden; }
+.project-icon-drop {
+  margin: 18px;
+  min-height: 150px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: var(--surface-2);
+}
+.project-icon-drop:hover { border-color: var(--accent); color: var(--text); }
+.project-icon-drop.saving { opacity: 0.7; cursor: wait; }
+.project-icon-drop input { display: none; }
 .project-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .project-shortcut {
   flex: none;

@@ -1,6 +1,6 @@
 export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
 
-export type Project = { id: string; name: string; path: string };
+export type Project = { id: string; name: string; path: string; icon?: string | null; iconMime?: string | null; sortOrder?: number };
 export type ModelProfile = "fast" | "smart";
 export type AgentPreset = { id: string; name: string; kind: "pi" | "claude" | "opencode" | "custom"; binary: string; argsTemplate: string; model?: string; promptTemplate?: string };
 export type Prompt = {

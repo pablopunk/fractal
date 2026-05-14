@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "./db/client.js";
 import { projects, prompts, settings, type Project, type Prompt } from "./db/schema.js";
@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export function listProjects(): Project[] {
-  return getDb().select().from(projects).all();
+  return getDb().select().from(projects).orderBy(asc(projects.sortOrder), asc(projects.createdAt)).all();
 }
 
 export function getProject(id: string): Project | undefined {
@@ -36,10 +36,12 @@ export function getProjectByPath(path: string): Project | undefined {
 
 export function createProject(input: { name: string; path: string }): Project {
   const now = new Date();
+  const sortOrder = listProjects().length;
   const row = {
     id: randomUUID(),
     name: input.name,
     path: input.path,
+    sortOrder,
     createdAt: now,
     updatedAt: now,
   };
@@ -49,6 +51,24 @@ export function createProject(input: { name: string; path: string }): Project {
 
 export function deleteProject(id: string): void {
   getDb().delete(projects).where(eq(projects.id, id)).run();
+}
+
+export function updateProject(id: string, patch: Partial<Project>): Project | undefined {
+  getDb()
+    .update(projects)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(projects.id, id))
+    .run();
+  return getProject(id);
+}
+
+export function reorderProjects(ids: string[]): Project[] {
+  const db = getDb();
+  const now = new Date();
+  ids.forEach((id, sortOrder) => {
+    db.update(projects).set({ sortOrder, updatedAt: now }).where(eq(projects.id, id)).run();
+  });
+  return listProjects();
 }
 
 export function listPrompts(projectId?: string): Prompt[] {

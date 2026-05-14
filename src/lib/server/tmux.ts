@@ -1,5 +1,16 @@
 import { exec, ExecError } from "./exec.js";
 
+const TMUX_MISSING_MESSAGE = "tmux is required to run agents and open terminals. Please install tmux and restart Fractal.";
+
+function isMissingTmuxError(error: unknown): boolean {
+  return error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT";
+}
+
+function rethrowMissingTmux(error: unknown): never {
+  if (isMissingTmuxError(error)) throw new Error(TMUX_MISSING_MESSAGE);
+  throw error;
+}
+
 /** tmux session names cannot contain `.` or `:`. */
 export function sanitizeSessionName(name: string): string {
   return name.replace(/[.:\s]/g, "-").replace(/-+/g, "-").slice(0, 80);
@@ -11,7 +22,7 @@ export async function hasSession(name: string): Promise<boolean> {
     return true;
   } catch (e) {
     if (e instanceof ExecError) return false;
-    throw e;
+    rethrowMissingTmux(e);
   }
 }
 
@@ -21,7 +32,7 @@ export async function listSessions(): Promise<string[]> {
     return stdout.split("\n").map((s) => s.trim()).filter(Boolean);
   } catch (e) {
     if (e instanceof ExecError) return [];
-    throw e;
+    rethrowMissingTmux(e);
   }
 }
 
@@ -32,12 +43,16 @@ export async function killSession(name: string): Promise<void> {
     }
   } catch (e) {
     if (e instanceof ExecError) return; // Session already gone
-    throw e;
+    rethrowMissingTmux(e);
   }
 }
 
 export async function newSession(name: string, cwd: string): Promise<void> {
-  await exec("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
+  try {
+    await exec("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
+  } catch (e) {
+    rethrowMissingTmux(e);
+  }
 }
 
 export async function ensureSession(name: string, cwd: string): Promise<void> {
@@ -45,7 +60,11 @@ export async function ensureSession(name: string, cwd: string): Promise<void> {
 }
 
 export async function sendKeys(name: string, command: string): Promise<void> {
-  await exec("tmux", ["send-keys", "-t", name, command, "Enter"]);
+  try {
+    await exec("tmux", ["send-keys", "-t", name, command, "Enter"]);
+  } catch (e) {
+    rethrowMissingTmux(e);
+  }
 }
 
 export async function spawnCommand(sessionName: string, command: string): Promise<void> {

@@ -39,17 +39,22 @@ function sanitizeSessionName(name) {
   return String(name || "").replace(/[.:\s]/g, "-").replace(/-+/g, "-").slice(0, 80);
 }
 
+const TMUX_MISSING_MESSAGE = "tmux is required to run agents and open terminals. Please install tmux and restart Fractal.";
+
 function hasTmuxSession(name) {
-  if (!name || sanitizeSessionName(name) !== name) return false;
+  if (!name || sanitizeSessionName(name) !== name) return { ok: false };
   const res = spawnSync("tmux", ["has-session", "-t", name], { stdio: "ignore", env: buildTerminalEnv() });
-  return res.status === 0;
+  if (res.error && res.error.code === "ENOENT") return { ok: false, error: TMUX_MISSING_MESSAGE };
+  return { ok: res.status === 0 };
 }
 
 function ensureTmuxSession(name, cwd) {
-  if (hasTmuxSession(name)) return true;
-  if (!cwd || !path.isAbsolute(cwd) || !fs.existsSync(cwd)) return false;
+  const existing = hasTmuxSession(name);
+  if (existing.ok || existing.error) return existing;
+  if (!cwd || !path.isAbsolute(cwd) || !fs.existsSync(cwd)) return { ok: false };
   const res = spawnSync("tmux", ["new-session", "-d", "-s", name, "-c", cwd], { stdio: "ignore", env: buildTerminalEnv() });
-  return res.status === 0;
+  if (res.error && res.error.code === "ENOENT") return { ok: false, error: TMUX_MISSING_MESSAGE };
+  return { ok: res.status === 0 };
 }
 
 function ensureNodePtySpawnHelperExecutable() {
@@ -79,10 +84,12 @@ function createTerminalServer() {
     const session = url.searchParams.get("session") || "";
     const cwd = url.searchParams.get("cwd") || "";
 
-    if (!ensureTmuxSession(session, cwd)) {
-      console.error(`[fractal-terminal] tmux session not found: ${session}`);
-      ws.send(JSON.stringify({ type: "error", message: `tmux session not found: ${session}` }));
-      ws.close(1008, "tmux session not found");
+    const tmuxSession = ensureTmuxSession(session, cwd);
+    if (!tmuxSession.ok) {
+      const message = tmuxSession.error || `tmux session not found: ${session}`;
+      console.error(`[fractal-terminal] ${message}`);
+      ws.send(JSON.stringify({ type: "error", message }));
+      ws.close(1008, message);
       return;
     }
 

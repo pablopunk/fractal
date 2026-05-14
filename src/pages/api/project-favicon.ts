@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, resolve, relative, isAbsolute } from "node:path";
+import { getProject } from "~/lib/server/store.js";
 
 const FAVICON_CANDIDATES = [
   "favicon.svg",
@@ -80,6 +81,20 @@ function guessContentType(path: string): string {
 }
 
 export const GET: APIRoute = async ({ url }) => {
+  const id = url.searchParams.get("id");
+  if (id) {
+    const project = getProject(id);
+    if (project?.icon) {
+      return new Response(Buffer.from(project.icon, "base64"), {
+        status: 200,
+        headers: {
+          "Content-Type": project.iconMime || "application/octet-stream",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+  }
+
   const cwd = url.searchParams.get("cwd");
   if (!cwd) {
     return new Response("Missing cwd parameter", { status: 400 });

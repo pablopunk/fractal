@@ -610,6 +610,12 @@ export default function Board() {
         home={home}
         onResize={setSidebarWidth}
         showShortcuts={showProjectShortcuts}
+        onReorder={async (ids) => {
+          const ordered = ids.map((id) => projects.find((p) => p.id === id)).filter(Boolean) as Project[];
+          setProjects(ordered);
+          const data = await api<{ projects: Project[] }>("/api/projects/reorder", { method: "POST", body: JSON.stringify({ ids }) });
+          setProjects(data.projects);
+        }}
       />
       <main className="main">
         {!activeProject ? (

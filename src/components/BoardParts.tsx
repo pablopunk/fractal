@@ -23,7 +23,10 @@ export function Sidebar(props: {
   home: string;
   onResize: (width: number) => void;
   showShortcuts: boolean;
+  onReorder: (ids: string[]) => void | Promise<void>;
 }) {
+  const projectSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
   function startResize(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
     const startX = e.clientX;
@@ -52,30 +55,29 @@ export function Sidebar(props: {
             No projects yet.
           </div>
         )}
-        {props.projects.map((p, index) => (
-          <div
-            key={p.id}
-            className={`project-item ${p.id === props.activeId ? "active" : ""}`}
-            onClick={() => props.onSelect(p.id)}
-            title={tildeify(p.path, props.home)}
-          >
-            <ProjectIcon name={p.name} path={p.path} active={p.id === props.activeId} />
-            <span className="name">{p.name}</span>
-            {props.showShortcuts && index < 9 && <span className="project-shortcut">⌘{index + 1}</span>}
-            <Tooltip content="Remove project">
-              <button
-                className="remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  props.onRemove(p.id);
-                }}
-                aria-label="Remove project"
-              >
-                ×
-              </button>
-            </Tooltip>
-          </div>
-        ))}
+        <DndContext sensors={projectSensors} collisionDetection={closestCorners} onDragEnd={(e) => {
+          const { active, over } = e;
+          if (!over || active.id === over.id) return;
+          const oldIndex = props.projects.findIndex((p) => p.id === active.id);
+          const newIndex = props.projects.findIndex((p) => p.id === over.id);
+          if (oldIndex === -1 || newIndex === -1) return;
+          void props.onReorder(arrayMove(props.projects, oldIndex, newIndex).map((p) => p.id));
+        }}>
+          <SortableContext items={props.projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            {props.projects.map((p, index) => (
+              <SortableProjectItem
+                key={p.id}
+                project={p}
+                index={index}
+                active={p.id === props.activeId}
+                home={props.home}
+                showShortcuts={props.showShortcuts}
+                onSelect={props.onSelect}
+                onRemove={props.onRemove}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
       <div className="sidebar-foot">
         {props.showPicker ? (
@@ -102,6 +104,39 @@ export function Sidebar(props: {
   );
 }
 
+function SortableProjectItem(props: { project: Project; index: number; active: boolean; home: string; showShortcuts: boolean; onSelect: (id: string) => void; onRemove: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.project.id });
+  const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`project-item ${props.active ? "active" : ""}`}
+      onClick={() => props.onSelect(props.project.id)}
+      title={tildeify(props.project.path, props.home)}
+      {...attributes}
+      {...listeners}
+    >
+      <ProjectIcon id={props.project.id} name={props.project.name} path={props.project.path} active={props.active} />
+      <span className="name">{props.project.name}</span>
+      {props.showShortcuts && props.index < 9 && <span className="project-shortcut">⌘{props.index + 1}</span>}
+      <Tooltip content="Remove project">
+        <button
+          className="remove"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onRemove(props.project.id);
+          }}
+          aria-label="Remove project"
+        >
+          ×
+        </button>
+      </Tooltip>
+    </div>
+  );
+}
+
 function hashString(value: string) {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -110,9 +145,12 @@ function hashString(value: string) {
   return Math.abs(hash);
 }
 
-function ProjectIcon({ name, path, active }: { name: string; path: string; active?: boolean }) {
+function ProjectIcon({ id, name, path, active }: { id: string; name: string; path: string; active?: boolean }) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
-  const src = `/api/project-favicon?cwd=${encodeURIComponent(path)}`;
+  const [open, setOpen] = useState(false);
+  const [version, setVersion] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const src = `/api/project-favicon?id=${encodeURIComponent(id)}&cwd=${encodeURIComponent(path)}&v=${version}`;
   const fallback = useMemo(() => {
     const label = (name || path.split("/").filter(Boolean).at(-1) || "?").replace(/^[._-]+/, "").charAt(0).toUpperCase() || "?";
     const hue = hashString(path || name) % 360;
@@ -124,20 +162,65 @@ function ProjectIcon({ name, path, active }: { name: string; path: string; activ
     };
   }, [name, path]);
 
+  async function saveIcon(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.set("icon", file);
+      const res = await fetch(`/api/projects/${id}`, { method: "PATCH", body: form });
+      if (!res.ok) throw new Error(await res.text());
+      setStatus("loading");
+      setVersion((v) => v + 1);
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <>
-      {status !== "loaded" && (
-        <span className={`project-icon-placeholder ${active ? "active" : ""}`} style={fallback.style} aria-hidden="true">
-          {fallback.label}
-        </span>
+      <button
+        type="button"
+        className="project-icon-button"
+        title="Change project icon"
+        aria-label={`Change ${name} icon`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+      >
+        {status !== "loaded" && (
+          <span className={`project-icon-placeholder ${active ? "active" : ""}`} style={fallback.style} aria-hidden="true">
+            {fallback.label}
+          </span>
+        )}
+        <img
+          src={src}
+          alt=""
+          className={`project-icon ${status === "loaded" ? "loaded" : ""} ${active ? "active" : ""} ${status === "loaded" ? "" : "hidden"}`}
+          onLoad={() => setStatus("loaded")}
+          onError={() => setStatus("error")}
+        />
+      </button>
+      {open && (
+        <div className="modal-overlay" onClick={() => setOpen(false)}>
+          <div className="modal project-icon-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="preset-modal-header">
+              <h2>Change project icon</h2>
+              <button className="btn ghost sm" onClick={() => setOpen(false)}>Close</button>
+            </header>
+            <label
+              className={`project-icon-drop ${saving ? "saving" : ""}`}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+              onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) void saveIcon(file); }}
+            >
+              <input type="file" accept="image/*" disabled={saving} onChange={(e) => { const file = e.currentTarget.files?.[0]; if (file) void saveIcon(file); }} />
+              <span>{saving ? "Saving…" : "Drag & drop an image here, or click to choose"}</span>
+            </label>
+          </div>
+        </div>
       )}
-      <img
-        src={src}
-        alt=""
-        className={`project-icon ${status === "loaded" ? "loaded" : ""} ${active ? "active" : ""} ${status === "loaded" ? "" : "hidden"}`}
-        onLoad={() => setStatus("loaded")}
-        onError={() => setStatus("error")}
-      />
     </>
   );
 }
