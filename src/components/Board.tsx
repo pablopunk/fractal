@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Check, FolderKanban, FolderRoot, Play, SquareTerminal } from "lucide-react";
+import { Check, FolderKanban, FolderRoot, Monitor, Moon, Play, SquareTerminal, Sun } from "lucide-react";
 import TerminalPane from "./TerminalPane.js";
 import CommandMenu from "./CommandMenu.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
@@ -34,7 +34,10 @@ import {
   loadTerminalPosition,
   loadTerminalTabs,
   loadTerminalWidth,
+  loadTheme,
   saveCollapsed,
+  saveTheme,
+  type ThemeMode,
 } from "~/lib/client/persistence.js";
 import type { AgentPreset, AppSettings, Column, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
 
@@ -44,6 +47,17 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
   { id: "RUN_IN_WORKTREE", title: "Run in worktree", icon: FolderKanban },
   { id: "ARCHIVED", title: "DONE", icon: Check },
 ];
+const THEME_OPTIONS: ThemeMode[] = ["system", "light", "dark"];
+
+function nextTheme(theme: ThemeMode): ThemeMode {
+  return THEME_OPTIONS[(THEME_OPTIONS.indexOf(theme) + 1) % THEME_OPTIONS.length];
+}
+
+function ThemeIcon(props: { theme: ThemeMode }) {
+  if (props.theme === "light") return <Sun size={14} />;
+  if (props.theme === "dark") return <Moon size={14} />;
+  return <Monitor size={14} />;
+}
 
 const columnAwareCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
@@ -84,6 +98,7 @@ export default function Board() {
   const [isClearingDone, setIsClearingDone] = useState(false);
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
+  const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
 
   const activateTerminal = (id: string) => {
@@ -95,6 +110,12 @@ export default function Board() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor),
   );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme === "system" ? "" : theme;
+    document.documentElement.style.colorScheme = theme === "system" ? "" : theme;
+    saveTheme(theme);
+  }, [theme]);
 
   useEffect(() => {
     void refresh();
@@ -589,7 +610,7 @@ export default function Board() {
 
   return (
     <TooltipProvider>
-      <Toaster richColors closeButton position="top-center" theme="dark" />
+      <Toaster richColors closeButton position="top-center" theme={theme} />
       <CommandMenu
         projects={projects}
         prompts={prompts}
@@ -644,6 +665,11 @@ export default function Board() {
                 opencodeModels={opencodeModels}
                 onChange={(agentPresets) => void saveSettings({ agentPresets })}
               />
+              <Tooltip content={`Theme: ${theme}`}>
+                <button type="button" className="theme-toggle" onClick={() => setTheme(nextTheme(theme))} aria-label={`Theme: ${theme}`}>
+                  <ThemeIcon theme={theme} />
+                </button>
+              </Tooltip>
             </div>
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
@@ -710,6 +736,7 @@ export default function Board() {
                   onSelect={activateTerminal}
                   onClose={closeTerminal}
                   focusKey={terminalFocusKey}
+                  theme={theme}
                 />
               )}
               </div>
