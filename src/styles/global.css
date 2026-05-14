@@ -8,6 +8,14 @@
   font-display: block;
 }
 
+@font-face {
+  font-family: "Fractal JetBrainsMono Nerd Font Mono";
+  src: url("/fonts/JetBrainsMonoNerdFontMono-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   --bg: #0b0b0d;
   --surface: #131316;

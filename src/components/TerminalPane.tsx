@@ -229,7 +229,8 @@ function TerminalView({ tab, onClose, focusKey }: { tab: TerminalTab; onClose: (
       const [{ Terminal }, { FitAddon }] = await Promise.all([
         import("@xterm/xterm"),
         import("@xterm/addon-fit"),
-        document.fonts?.load?.(`14px ${terminalFontFamily}`) ?? Promise.resolve(),
+        document.fonts?.load?.(`400 14px ${terminalFontFamily}`) ?? Promise.resolve(),
+        document.fonts?.load?.(`700 14px ${terminalFontFamily}`) ?? Promise.resolve(),
       ]);
       if (disposed || !hostRef.current) return;
 
@@ -239,6 +240,7 @@ function TerminalView({ tab, onClose, focusKey }: { tab: TerminalTab; onClose: (
         fontFamily: terminalFontFamily,
         fontSize: 14,
         fontWeight: "400",
+        fontWeightBold: "700",
         letterSpacing: 0,
         lineHeight: 1,
         theme: { background: "#0b0b0d", foreground: "#ededf0", cursor: "#ff6a3d" },
