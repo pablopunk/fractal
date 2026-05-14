@@ -1,17 +1,19 @@
 {
-  "fill" : "automatic",
+  "fill" : {
+    "solid" : "display-p3:0.00715,0.00405,0.00098,1.00000"
+  },
   "groups" : [
     {
       "layers" : [
         {
           "glass" : false,
-          "image-name" : "icon 3.png",
-          "name" : "icon 3",
+          "image-name" : "icon.png",
+          "name" : "icon",
           "position" : {
-            "scale" : 0.87,
+            "scale" : 0.65,
             "translation-in-points" : [
-              24.16015625,
-              0
+              18.69763098482531,
+              -40.302324490997535
             ]
           }
         }
