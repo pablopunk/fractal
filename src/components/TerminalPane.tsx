@@ -225,16 +225,18 @@ function TerminalView({ tab, onClose, focusKey }: { tab: TerminalTab; onClose: (
     };
 
     void (async () => {
+      const terminalFontFamily = '"Fractal JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace';
       const [{ Terminal }, { FitAddon }] = await Promise.all([
         import("@xterm/xterm"),
         import("@xterm/addon-fit"),
+        document.fonts?.load?.(`14px ${terminalFontFamily}`) ?? Promise.resolve(),
       ]);
       if (disposed || !hostRef.current) return;
 
       term = new Terminal({
         cursorBlink: true,
         convertEol: true,
-        fontFamily: '"Fractal JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace',
+        fontFamily: terminalFontFamily,
         fontSize: 14,
         fontWeight: "400",
         letterSpacing: 0,
