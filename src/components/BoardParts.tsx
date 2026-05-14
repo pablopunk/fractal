@@ -190,6 +190,7 @@ function ProjectIcon({ id, name, path, active }: { id: string; name: string; pat
           setOpen(true);
         }}
       >
+        <span className="project-icon-shadow" aria-hidden="true" />
         {status !== "loaded" && (
           <span className={`project-icon-placeholder ${active ? "active" : ""}`} style={fallback.style} aria-hidden="true">
             {fallback.label}
