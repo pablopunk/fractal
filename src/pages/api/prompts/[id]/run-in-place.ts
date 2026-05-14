@@ -20,7 +20,9 @@ export const POST: APIRoute = async ({ params }) => {
       projectName: project.name,
       promptId: prompt.id,
       prompt: prompt.text,
+      imagePaths: prompt.imagePaths,
       preset,
+      spawnAgent: !prompt.isArchived,
     });
     const updated = updatePrompt(id, {
       column: "RUN_IN_PLACE",
@@ -28,6 +30,7 @@ export const POST: APIRoute = async ({ params }) => {
       tmuxSession: result.tmuxSession,
       launchedAt: new Date(),
       error: null,
+      isArchived: false,
     } as never);
     return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
   } catch (e) {

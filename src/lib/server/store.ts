@@ -58,14 +58,15 @@ export function getPrompt(id: string): Prompt | undefined {
   return getDb().select().from(prompts).where(eq(prompts.id, id)).get();
 }
 
-export function createPrompt(input: { projectId: string; text: string; modelProfile?: ModelProfile; presetId?: string }): Prompt {
+export function createPrompt(input: { projectId: string; text: string; imagePaths?: string[]; modelProfile?: ModelProfile; presetId?: string }): Prompt {
   const now = new Date();
   const row = {
     id: randomUUID(),
     projectId: input.projectId,
     text: input.text,
+    imagePaths: JSON.stringify(input.imagePaths ?? []),
     modelProfile: input.modelProfile ?? "smart",
-    presetId: input.presetId ?? "pi",
+    presetId: input.presetId || getSettings().defaultPresetId,
     column: "PROMPTS" as const,
     createdAt: now,
     updatedAt: now,

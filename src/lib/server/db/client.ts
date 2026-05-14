@@ -48,6 +48,7 @@ function ensureSchema(sqlite: Database.Database) {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       text TEXT NOT NULL,
+      image_paths TEXT NOT NULL DEFAULT '[]',
       model_profile TEXT NOT NULL DEFAULT 'smart',
       preset_id TEXT NOT NULL DEFAULT 'pi',
       column TEXT NOT NULL DEFAULT 'PROMPTS',
@@ -77,5 +78,8 @@ function ensureSchema(sqlite: Database.Database) {
   } catch {}
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN preset_id TEXT NOT NULL DEFAULT 'pi';");
+  } catch {}
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]';");
   } catch {}
 }

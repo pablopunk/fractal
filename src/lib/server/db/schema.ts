@@ -14,6 +14,7 @@ export const prompts = sqliteTable("prompts", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   text: text("text").notNull(),
+  imagePaths: text("image_paths").notNull().default("[]"),
   modelProfile: text("model_profile", { enum: ["smart", "fast"] }).notNull().default("smart"),
   presetId: text("preset_id").notNull().default("pi"),
   column: text("column", { enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE"] })

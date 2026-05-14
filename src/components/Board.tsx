@@ -37,6 +37,7 @@ import ProjectPicker from "./ProjectPicker.js";
 import ModelPicker from "./ModelPicker.js";
 import PresetPicker from "./PresetPicker.js";
 import TerminalPane from "./TerminalPane.js";
+import { Toaster, toast } from "sonner";
 
 type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
 
@@ -47,6 +48,7 @@ type Prompt = {
   id: string;
   projectId: string;
   text: string;
+  imagePaths: string;
   modelProfile: ModelProfile;
   presetId: string;
   column: Column;
@@ -76,6 +78,9 @@ const TERMINAL_TABS_KEY = "fractal:terminalTabs";
 const TERMINAL_WIDTH_KEY = "fractal:terminalWidth";
 const TERMINAL_HEIGHT_KEY = "fractal:terminalHeight";
 const TERMINAL_POSITION_KEY = "fractal:terminalPosition";
+const SIDEBAR_WIDTH_KEY = "fractal:sidebarWidth";
+const SIDEBAR_MIN_WIDTH = 176;
+const SIDEBAR_MAX_WIDTH = 260;
 const columnAwareCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   return pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
@@ -118,6 +123,17 @@ function loadTerminalPosition(): "right" | "bottom" {
   } catch { return "right"; }
 }
 
+function clampSidebarWidth(width: number): number {
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
+}
+
+function loadSidebarWidth(): number {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(SIDEBAR_WIDTH_KEY) : null;
+    return raw ? clampSidebarWidth(Number(raw) || 204) : 204;
+  } catch { return 204; }
+}
+
 class ApiError extends Error {
   status: number;
   body: unknown;
@@ -150,11 +166,11 @@ export default function Board() {
   const [home, setHome] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => getProjectIdFromUrl());
   const [composer, setComposer] = useState("");
-  const [composerPresetId, setComposerPresetId] = useState("pi");
+  const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
+  const [composerPresetId, setComposerPresetId] = useState("");
   const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi" });
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed());
@@ -166,6 +182,8 @@ export default function Board() {
   const [terminalWidth, setTerminalWidth] = useState<number>(() => loadTerminalWidth());
   const [terminalHeight, setTerminalHeight] = useState<number>(() => loadTerminalHeight());
   const [terminalPosition, setTerminalPosition] = useState<"right" | "bottom">(() => loadTerminalPosition());
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => loadSidebarWidth());
+  const [showProjectShortcuts, setShowProjectShortcuts] = useState(false);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
 
   const sensors = useSensors(
@@ -226,6 +244,57 @@ export default function Board() {
     try { localStorage.setItem(TERMINAL_POSITION_KEY, terminalPosition); } catch {}
   }, [terminalPosition]);
 
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)); } catch {}
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    const updateProjectShortcuts = (event: KeyboardEvent | MouseEvent | FocusEvent) => {
+      setShowProjectShortcuts(event instanceof KeyboardEvent ? event.metaKey : false);
+    };
+
+    const cycleTerminalTabs = (direction: 1 | -1) => {
+      if (terminalTabs.length < 2) return;
+      const current = Math.max(terminalTabs.findIndex((tab) => tab.id === activeTerminalId), 0);
+      const next = (current + direction + terminalTabs.length) % terminalTabs.length;
+      setActiveTerminalId(terminalTabs[next].id);
+    };
+
+    const selectProjectByNumber = (index: number) => {
+      const project = projects[index];
+      if (project) setActiveProjectId(project.id);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey || e.repeat) return;
+
+      if (e.ctrlKey && !e.metaKey && e.key === "Tab") {
+        e.preventDefault();
+        cycleTerminalTabs(e.shiftKey ? -1 : 1);
+        return;
+      }
+
+      const ctrlOrCmd = e.ctrlKey || e.metaKey;
+      if (ctrlOrCmd && !e.shiftKey && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        selectProjectByNumber(Number(e.key) - 1);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", updateProjectShortcuts);
+    window.addEventListener("keyup", updateProjectShortcuts);
+    window.addEventListener("blur", updateProjectShortcuts);
+    window.addEventListener("mousemove", updateProjectShortcuts);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", updateProjectShortcuts);
+      window.removeEventListener("keyup", updateProjectShortcuts);
+      window.removeEventListener("blur", updateProjectShortcuts);
+      window.removeEventListener("mousemove", updateProjectShortcuts);
+    };
+  }, [activeProjectId, activeTerminalId, projects, terminalTabs]);
+
   function toggleCollapse(id: Column) {
     setCollapsed((c) => ({ ...c, [id]: !c[id] }));
   }
@@ -238,7 +307,7 @@ export default function Board() {
       return;
     }
     if (!prompt.isRunning) {
-      setError("This tmux session is not running.");
+      toast.error("This tmux session is not running.");
       return;
     }
     const tab: TerminalTab = {
@@ -280,7 +349,7 @@ export default function Board() {
         return cur ?? data.projects[0]?.id ?? null;
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -295,7 +364,7 @@ export default function Board() {
       setActiveProjectId(project.id);
       setShowSidebarPicker(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -303,26 +372,33 @@ export default function Board() {
     if (!confirm("Remove this project from Fractal?")) return;
     try {
       await api(`/api/projects/${id}`, { method: "DELETE" });
-      setProjects((p) => p.filter((x) => x.id !== id));
+      setProjects((prev) => {
+        const removedIndex = prev.findIndex((x) => x.id === id);
+        const next = prev.filter((x) => x.id !== id);
+        if (activeProjectId === id) {
+          setActiveProjectId(next[removedIndex]?.id ?? next[removedIndex - 1]?.id ?? null);
+        }
+        return next;
+      });
       setPrompts((p) => p.filter((x) => x.projectId !== id));
-      if (activeProjectId === id) setActiveProjectId(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function addPrompt() {
     const text = composer.trim();
-    if (!text || !activeProjectId) return;
+    if ((!text && composerImagePaths.length === 0) || !activeProjectId) return;
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/projects/${activeProjectId}/prompts`, {
         method: "POST",
-        body: JSON.stringify({ text, presetId: composerPresetId }),
+        body: JSON.stringify({ text, imagePaths: composerImagePaths, presetId: composerPresetId }),
       });
       setPrompts((p) => [...p, prompt]);
       setComposer("");
+      setComposerImagePaths([]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -349,7 +425,7 @@ export default function Board() {
       setPendingDeletePromptId(null);
       setPendingDeleteChanges(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -361,7 +437,7 @@ export default function Board() {
       });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -375,7 +451,7 @@ export default function Board() {
         setArchiveBlockedMessage(body?.detail ?? e.message);
         return;
       }
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -384,7 +460,7 @@ export default function Board() {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "DELETE" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -398,7 +474,22 @@ export default function Board() {
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
     } catch (e) {
       setPrompts(prev);
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function moveToPrompts(id: string) {
+    const prev = prompts;
+    setPrompts((p) => p.map((x) => (x.id === id ? { ...x, column: "PROMPTS", isArchived: false } : x)));
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ column: "PROMPTS", isArchived: false }),
+      });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+    } catch (e) {
+      setPrompts(prev);
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -427,7 +518,13 @@ export default function Board() {
         return;
       }
       if (!overPrompt.isArchived && activePrompt.isArchived) {
-        void unarchivePrompt(activeId);
+        if (overPrompt.column === "PROMPTS") {
+          void moveToPrompts(activeId);
+        } else if (overPrompt.column === "RUN_IN_PLACE" || overPrompt.column === "RUN_IN_WORKTREE") {
+          void launch(activeId, overPrompt.column);
+        } else {
+          void unarchivePrompt(activeId);
+        }
         return;
       }
       if (activePrompt.column === overPrompt.column) {
@@ -446,7 +543,9 @@ export default function Board() {
       }
       // Dropped on a card in a different column → treat as drop on that column
       const target = overPrompt.column;
-      if (activePrompt.column !== target && activePrompt.column === "PROMPTS") {
+      if (target === "PROMPTS") {
+        void moveToPrompts(activeId);
+      } else if (activePrompt.column !== target && activePrompt.column === "PROMPTS") {
         void launch(activeId, target);
       }
       return;
@@ -458,8 +557,16 @@ export default function Board() {
       if (!activePrompt.isArchived) void archivePrompt(activeId);
       return;
     }
+    if (target === "PROMPTS") {
+      void moveToPrompts(activeId);
+      return;
+    }
     if (activePrompt.isArchived) {
-      void unarchivePrompt(activeId);
+      if (target === "RUN_IN_PLACE" || target === "RUN_IN_WORKTREE") {
+        void launch(activeId, target);
+      } else {
+        void unarchivePrompt(activeId);
+      }
       return;
     }
     if (activePrompt.column === target) return;
@@ -479,7 +586,7 @@ export default function Board() {
       return next;
     } catch (e) {
       setSettings(prev);
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -493,7 +600,7 @@ export default function Board() {
   useEffect(() => {
     void api<{ models: PiModel[]; claudeModels: PiModel[] }>("/api/models")
       .then((data) => { setModels(data.models ?? []); setClaudeModels(data.claudeModels ?? []); })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
@@ -508,7 +615,9 @@ export default function Board() {
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
 
   return (
-    <div className="app">
+    <>
+      <Toaster richColors closeButton position="top-center" theme="dark" />
+      <div className="app" style={{ ["--sidebar-width" as string]: `${sidebarWidth}px` }}>
       <Sidebar
         projects={projects}
         activeId={activeProjectId}
@@ -518,14 +627,10 @@ export default function Board() {
         showPicker={showSidebarPicker}
         setShowPicker={setShowSidebarPicker}
         home={home}
+        onResize={setSidebarWidth}
+        showShortcuts={showProjectShortcuts}
       />
       <main className="main">
-        {error && (
-          <div className="error-banner" onClick={() => setError(null)} role="alert">
-            {error} · click to dismiss
-          </div>
-        )}
-
         {!activeProject ? (
           <div className="empty-wrapper">
             <EmptyState projects={projects} onAdd={addProject} />
@@ -550,13 +655,7 @@ export default function Board() {
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
               <div className={`workspace workspace-${terminalTabs.length > 0 ? terminalPosition : "right"}`}>
-              <div
-                className="board"
-                style={{
-                  "--expanded-columns": COLUMNS.filter((col) => !collapsed[col.id]).length,
-                  "--collapsed-columns": COLUMNS.filter((col) => collapsed[col.id]).length,
-                } as CSSProperties}
-              >
+              <div className={`board ${terminalTabs.length > 0 && terminalPosition === "right" ? "board-rows" : ""}`}>
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
                     ? archivedPrompts
@@ -586,6 +685,8 @@ export default function Board() {
                           <Composer
                             value={composer}
                             onChange={setComposer}
+                            imagePaths={composerImagePaths}
+                            onImagePathsChange={setComposerImagePaths}
                             onSubmit={addPrompt}
                             presets={settings.agentPresets}
                             presetId={composerPresetId}
@@ -664,7 +765,8 @@ export default function Board() {
           </>
         )}
       </main>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -679,7 +781,24 @@ function Sidebar(props: {
   showPicker: boolean;
   setShowPicker: (v: boolean) => void;
   home: string;
+  onResize: (width: number) => void;
+  showShortcuts: boolean;
 }) {
+  function startResize(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = e.currentTarget.parentElement?.getBoundingClientRect().width ?? 204;
+    const onMove = (event: PointerEvent) => {
+      props.onResize(clampSidebarWidth(startWidth + event.clientX - startX));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+  }
+
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
@@ -693,7 +812,7 @@ function Sidebar(props: {
             No projects yet.
           </div>
         )}
-        {props.projects.map((p) => (
+        {props.projects.map((p, index) => (
           <div
             key={p.id}
             className={`project-item ${p.id === props.activeId ? "active" : ""}`}
@@ -702,6 +821,7 @@ function Sidebar(props: {
           >
             <ProjectIcon name={p.name} path={p.path} active={p.id === props.activeId} />
             <span className="name">{p.name}</span>
+            {props.showShortcuts && index < 9 && <span className="project-shortcut">⌘{index + 1}</span>}
             <button
               className="remove"
               onClick={(e) => {
@@ -736,6 +856,7 @@ function Sidebar(props: {
           </button>
         )}
       </div>
+      <div className="sidebar-resize-handle" onPointerDown={startResize} title="Resize projects drawer" />
     </aside>
   );
 }
@@ -885,10 +1006,6 @@ function ColumnView(props: {
 }
 
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif)$/i;
-
-function quoteIfNeeded(p: string): string {
-  return /\s/.test(p) ? `"${p.replace(/"/g, '\\"')}"` : p;
-}
 
 function getDroppedImagePaths(dt: DataTransfer): string[] {
   const electron = (window as typeof window & {
@@ -1045,7 +1162,7 @@ function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string
   );
 }
 
-function Composer(props: { value: string; onChange: (v: string) => void; onSubmit: () => void; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void }) {
+function Composer(props: { value: string; onChange: (v: string) => void; imagePaths: string[]; onImagePathsChange: (paths: string[]) => void; onSubmit: () => void; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragDepth = useRef(0);
   const [dragOver, setDragOver] = useState(false);
@@ -1058,22 +1175,9 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
     const paths = getDroppedImagePaths(e.dataTransfer);
     if (paths.length === 0) return;
 
-    const ta = textareaRef.current;
-    const insert = paths.map(quoteIfNeeded).join(" ");
-    const start = ta?.selectionStart ?? props.value.length;
-    const end = ta?.selectionEnd ?? props.value.length;
-    const needsLeadingSpace = start > 0 && !/\s$/.test(props.value.slice(0, start));
-    const chunk = (needsLeadingSpace ? " " : "") + insert + " ";
-    const next = props.value.slice(0, start) + chunk + props.value.slice(end);
-    props.onChange(next);
+    props.onImagePathsChange([...new Set([...props.imagePaths, ...paths])]);
 
-    requestAnimationFrame(() => {
-      const t = textareaRef.current;
-      if (!t) return;
-      const pos = start + chunk.length;
-      t.focus();
-      t.setSelectionRange(pos, pos);
-    });
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   function onDragEnter(e: React.DragEvent<HTMLDivElement>) {
@@ -1115,13 +1219,24 @@ function Composer(props: { value: string; onChange: (v: string) => void; onSubmi
           }
         }}
       />
+      {props.imagePaths.length > 0 && (
+        <div className="image-attachments">
+          {props.imagePaths.map((path) => (
+            <LocalImageAttachment
+              key={path}
+              path={path}
+              onRemove={() => props.onImagePathsChange(props.imagePaths.filter((p) => p !== path))}
+            />
+          ))}
+        </div>
+      )}
       <div className="composer-actions">
         <PresetPicker presets={props.presets} value={props.presetId} onChange={props.onPresetChange} onCreate={props.onCreatePreset} />
         <div style={{ flex: 1 }} />
         <button
           className="btn primary sm composer-submit"
           onClick={props.onSubmit}
-          disabled={!props.value.trim() || props.presets.length === 0}
+          disabled={(!props.value.trim() && props.imagePaths.length === 0) || props.presets.length === 0}
           aria-label="Add prompt"
           title={props.presets.length === 0 ? "Create a preset first" : "Add prompt"}
         >
@@ -1142,6 +1257,16 @@ function extractImagePaths(text: string): string[] {
   for (const match of text.matchAll(QUOTED_IMAGE_PATH_RE)) paths.add(match[2]);
   for (const match of text.matchAll(UNQUOTED_IMAGE_PATH_RE)) paths.add(match[1].trim());
   return [...paths];
+}
+
+function parseImagePaths(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const paths = JSON.parse(value);
+    return Array.isArray(paths) ? paths.filter((path): path is string => typeof path === "string" && path.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
 }
 
 function basename(path: string): string {
@@ -1232,15 +1357,51 @@ function UrlPreviewLink({ url }: { url: string }) {
   );
 }
 
-function LocalImageAttachment({ path }: { path: string }) {
+function LocalImageAttachment({ path, onRemove }: { path: string; onRemove?: () => void }) {
   const [exists, setExists] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties | null>(null);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+
   if (!exists) return null;
   const src = `/api/local-image?path=${encodeURIComponent(path)}`;
+
+  function togglePreview() {
+    setPopoverStyle({ left: 0, top: 0, width: 0, height: 0 });
+    setShowPreview((value) => !value);
+  }
+
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (!showPreview) return;
+      if (wrapRef.current?.contains(e.target as Node)) return;
+      setShowPreview(false);
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [showPreview]);
+
+  function handleLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    const isWide = naturalWidth > naturalHeight;
+    setPopoverStyle(isWide ? { width: "85vw", maxWidth: "85vw" } : { height: "85vh", maxHeight: "85vh" });
+  }
+
   return (
-    <a className="image-attachment" href={src} target="_blank" rel="noreferrer" title={path} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-      <img src={src} alt={basename(path)} loading="lazy" onError={() => setExists(false)} />
-      <span>{basename(path)}</span>
-    </a>
+    <span ref={wrapRef} className="image-attachment-wrap">
+      <a className="image-attachment" href={src} target="_blank" rel="noreferrer" title={path} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePreview(); }}>
+        <img src={src} alt={basename(path)} loading="lazy" onError={() => setExists(false)} />
+        <span>{basename(path)}</span>
+      </a>
+      {onRemove && (
+        <button type="button" className="image-attachment-remove" aria-label={`Remove ${basename(path)}`} title="Remove attachment" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}>×</button>
+      )}
+      {showPreview && (
+        <span className="image-attachment-popover" style={popoverStyle ?? undefined} aria-hidden="true">
+          <img src={src} alt={basename(path)} loading="lazy" onLoad={handleLoad} />
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -1267,6 +1428,7 @@ function LinkifiedText({ text }: { text: string }) {
 function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, isTerminalOpen, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; isTerminalOpen: boolean; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
+  const [editPresetId, setEditPresetId] = useState(prompt.presetId);
   const {
     attributes,
     listeners,
@@ -1281,7 +1443,7 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
   };
   const isRunning = !!prompt.isRunning;
   const presetName = presets.find((preset) => preset.id === prompt.presetId)?.name ?? prompt.presetId;
-  const imagePaths = useMemo(() => extractImagePaths(prompt.text), [prompt.text]);
+  const imagePaths = useMemo(() => [...new Set([...parseImagePaths(prompt.imagePaths), ...extractImagePaths(prompt.text)])], [prompt.imagePaths, prompt.text]);
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1307,6 +1469,17 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
     }
   }
 
+  function cancelEdit() {
+    setIsEditing(false);
+    setEditText(prompt.text);
+    setEditPresetId(prompt.presetId);
+  }
+
+  function saveEdit() {
+    onEdit(prompt.id, { text: editText, presetId: editPresetId });
+    setIsEditing(false);
+  }
+
   if (isEditing) {
     return (
       <div className="card">
@@ -1318,27 +1491,28 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
               e.preventDefault();
-              onEdit(prompt.id, { text: editText });
-              setIsEditing(false);
+              saveEdit();
             }
             if (e.key === "Escape") {
-              setIsEditing(false);
-              setEditText(prompt.text);
+              cancelEdit();
             }
           }}
           autoFocus
         />
         <div className="card-actions" style={{ opacity: 1 }}>
+          {prompt.column === "PROMPTS" && (
+            <PresetPicker presets={presets} value={editPresetId} onChange={setEditPresetId} />
+          )}
           <div style={{ flex: 1 }} />
           <button
             className="btn ghost sm"
-            onClick={() => { setIsEditing(false); setEditText(prompt.text); }}
+            onClick={cancelEdit}
           >
             Cancel
           </button>
           <button
             className="btn primary sm"
-            onClick={() => { onEdit(prompt.id, { text: editText }); setIsEditing(false); }}
+            onClick={saveEdit}
             disabled={!editText.trim()}
           >
             Save
@@ -1354,26 +1528,15 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
       className={`card ${isDragging ? "dragging" : ""}`}
       style={style}
       onClick={() => {
-        if (isTerminalOpen) onOpenTerminal(prompt);
+        if (prompt.tmuxSession && prompt.isRunning) onOpenTerminal(prompt);
       }}
       {...attributes}
       {...listeners}
     >
-      {prompt.tmuxSession && (
-        <button
-          type="button"
-          className="terminal-card-button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenTerminal(prompt);
-          }}
-          title={prompt.isRunning ? "Open terminal" : "tmux session is not running"}
-          aria-label="Open terminal"
-          disabled={!prompt.isRunning}
-        >
+      {prompt.tmuxSession && prompt.isRunning && (
+        <div className="terminal-card-button" title="Terminal open" aria-hidden="true">
           <SquareTerminal size={18} />
-        </button>
+        </div>
       )}
       <div className="text"><LinkifiedText text={prompt.text} /></div>
       {imagePaths.length > 0 && (
@@ -1412,6 +1575,7 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
             onClick={(e) => {
               e.stopPropagation();
               setEditText(prompt.text);
+              setEditPresetId(prompt.presetId);
               setIsEditing(true);
             }}
             title="Edit prompt"

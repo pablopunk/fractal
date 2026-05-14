@@ -30,8 +30,21 @@ export async function getRepoName(path: string): Promise<string> {
   }
 }
 
+export async function branchExists(repoPath: string, branch: string): Promise<boolean> {
+  return (await gitOutput(repoPath, ["rev-parse", "--verify", branch])) !== null;
+}
+
 export async function createWorktree(repoPath: string, branch: string, worktreePath: string): Promise<void> {
   await exec("git", ["-C", repoPath, "worktree", "add", "-b", branch, worktreePath]);
+}
+
+export async function ensureWorktree(repoPath: string, branch: string, worktreePath: string): Promise<void> {
+  if (existsSync(worktreePath)) return;
+  if (await branchExists(repoPath, branch)) {
+    await exec("git", ["-C", repoPath, "worktree", "add", worktreePath, branch]);
+    return;
+  }
+  await createWorktree(repoPath, branch, worktreePath);
 }
 
 export async function listWorktrees(repoPath: string): Promise<string[]> {
@@ -67,16 +80,17 @@ export async function getUncommittedChanges(worktreePath: string): Promise<strin
   }
 }
 
-export async function removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
+export async function removeWorktree(repoPath: string, worktreePath: string, force = false): Promise<void> {
   try {
-    await exec("git", ["-C", repoPath, "worktree", "remove", worktreePath]);
+    await exec("git", ["-C", repoPath, "worktree", "remove", ...(force ? ["--force"] : []), worktreePath]);
   } catch (e) {
-    // If worktree is already gone or invalid, try to prune
+    // If worktree is already gone or invalid, prune stale git metadata.
     try {
       await exec("git", ["-C", repoPath, "worktree", "prune"]);
     } catch {
       // Ignore prune errors
     }
+    if (existsSync(worktreePath)) throw e;
   }
 }
 

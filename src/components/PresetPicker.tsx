@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import fuzzysort from "fuzzysort";
 
-type Preset = { id: string; name: string; kind: string; binary: string };
+type Preset = { id: string; name: string; binary: string };
 
 type Props = {
   presets: Preset[];
   value: string;
   onChange: (value: string) => void;
-  onCreate: () => void;
+  onCreate?: () => void;
 };
 
 const POPUP_WIDTH = 320;
@@ -71,18 +71,20 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
   }
 
   function create() {
+    if (!onCreate) return;
     onCreate();
     setInput("");
     setOpen(false);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "ArrowDown") { e.preventDefault(); setHighlight((h) => Math.min(filtered.length, h + 1)); }
+    const offset = onCreate ? 1 : 0;
+    if (e.key === "ArrowDown") { e.preventDefault(); setHighlight((h) => Math.min(filtered.length - 1 + offset, h + 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setHighlight((h) => Math.max(0, h - 1)); }
     else if (e.key === "Enter") {
       e.preventDefault();
-      if (highlight === 0) create();
-      else if (filtered[highlight - 1]) commit(filtered[highlight - 1].id);
+      if (onCreate && highlight === 0) create();
+      else if (filtered[highlight - offset]) commit(filtered[highlight - offset].id);
     }
   }
 
@@ -100,13 +102,15 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
             <input ref={inputRef} className="model-picker-input" placeholder="Search presets…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKeyDown} spellCheck={false} />
           </div>
           <div className="model-picker-items">
-            <div className={`picker-item ${highlight === 0 ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); create(); }} onMouseEnter={() => setHighlight(0)}>
-              <span className="picker-name">+ Create preset</span>
-            </div>
+            {onCreate && (
+              <div className={`picker-item ${highlight === 0 ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); create(); }} onMouseEnter={() => setHighlight(0)}>
+                <span className="picker-name">+ Create preset</span>
+              </div>
+            )}
             {filtered.map((preset, i) => (
-              <div key={preset.id} className={`picker-item ${i + 1 === highlight ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); commit(preset.id); }} onMouseEnter={() => setHighlight(i + 1)}>
+              <div key={preset.id} className={`picker-item ${i + (onCreate ? 1 : 0) === highlight ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); commit(preset.id); }} onMouseEnter={() => setHighlight(i + (onCreate ? 1 : 0))}>
                 <span className="picker-name">{preset.name}</span>
-                <span className="picker-path">{preset.kind} · {preset.binary}</span>
+                <span className="picker-path">{preset.binary}</span>
               </div>
             ))}
           </div>

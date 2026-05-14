@@ -9,7 +9,45 @@ type TerminalTab = {
   title: string;
 };
 
-type ElectronGlobals = typeof window & { electron?: { terminalPort?: number | null } };
+type ElectronGlobals = typeof window & {
+  electron?: {
+    terminalPort?: number | null;
+    getPathForFile?: (file: File) => string;
+  };
+};
+
+const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif)$/i;
+
+function shellQuote(path: string): string {
+  return `'${path.replaceAll("'", "'\\''")}'`;
+}
+
+function getImagePaths(dt: DataTransfer): string[] {
+  const electron = (window as ElectronGlobals).electron;
+  const fromFiles = Array.from(dt.files)
+    .filter((file) => file.type.startsWith("image/") || IMAGE_RE.test(file.name))
+    .map((file) => electron?.getPathForFile?.(file) ?? "")
+    .filter(Boolean);
+
+  if (fromFiles.length > 0) return fromFiles;
+
+  return dt.getData("text/uri-list")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#") && line.startsWith("file://"))
+    .map((uri) => {
+      try {
+        return decodeURIComponent(new URL(uri).pathname);
+      } catch {
+        return "";
+      }
+    })
+    .filter((path) => path && IMAGE_RE.test(path));
+}
+
+function imagePathsAsTerminalPaste(paths: string[]): string {
+  return paths.map(shellQuote).join(" ");
+}
 
 export default function TerminalPane(props: {
   tabs: TerminalTab[];
@@ -98,6 +136,32 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
     let resizeObserver: ResizeObserver | null = null;
     let input: { dispose: () => void } | null = null;
     let disposed = false;
+    const sendData = (data: string) => {
+      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
+    };
+    const pasteImagePaths = (dt: DataTransfer | null) => {
+      if (!dt) return false;
+      const paths = getImagePaths(dt);
+      if (paths.length === 0) return false;
+      sendData(imagePathsAsTerminalPaste(paths));
+      return true;
+    };
+    const onPaste = (event: ClipboardEvent) => {
+      if (!pasteImagePaths(event.clipboardData)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onDragOver = (event: DragEvent) => {
+      if (!Array.from(event.dataTransfer?.types ?? []).some((type) => type === "Files" || type === "text/uri-list")) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!pasteImagePaths(event.dataTransfer)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      term?.focus();
+    };
 
     void (async () => {
       const [{ Terminal }, { FitAddon }] = await Promise.all([
@@ -120,6 +184,9 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
       fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host);
+      host.addEventListener("paste", onPaste);
+      host.addEventListener("dragover", onDragOver);
+      host.addEventListener("drop", onDrop);
       fit.fit();
 
       if (!port) {
@@ -146,15 +213,16 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
         onCloseRef.current(tab.id);
       });
 
-      input = term.onData((data) => {
-        if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
-      });
+      input = term.onData(sendData);
     })();
 
     return () => {
       disposed = true;
       input?.dispose();
       resizeObserver?.disconnect();
+      host.removeEventListener("paste", onPaste);
+      host.removeEventListener("dragover", onDragOver);
+      host.removeEventListener("drop", onDrop);
       ws?.close();
       term?.dispose();
     };

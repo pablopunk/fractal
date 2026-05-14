@@ -13,9 +13,10 @@ export const GET: APIRoute = async ({ params }) => {
 export const POST: APIRoute = async ({ params, request }) => {
   const id = params.id!;
   if (!getProject(id)) return Response.json({ error: "not found" }, { status: 404 });
-  const body = (await request.json().catch(() => ({}))) as { text?: string; modelProfile?: "fast" | "smart"; presetId?: string };
+  const body = (await request.json().catch(() => ({}))) as { text?: string; imagePaths?: string[]; modelProfile?: "fast" | "smart"; presetId?: string };
   const text = body.text?.trim();
-  if (!text) return Response.json({ error: "text required" }, { status: 400 });
-  const prompt = createPrompt({ projectId: id, text, modelProfile: body.modelProfile, presetId: body.presetId });
+  const imagePaths = Array.isArray(body.imagePaths) ? body.imagePaths.filter((p) => typeof p === "string" && p.trim()) : [];
+  if (!text && imagePaths.length === 0) return Response.json({ error: "text or image required" }, { status: 400 });
+  const prompt = createPrompt({ projectId: id, text: text ?? "", imagePaths, modelProfile: body.modelProfile, presetId: body.presetId });
   return Response.json({ prompt: await withPromptStatus(prompt) });
 };

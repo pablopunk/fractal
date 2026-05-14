@@ -65,11 +65,11 @@ export async function cleanupPrompt(prompt: Prompt, force = false): Promise<void
           }
 
           const repoPath = project.path;
-          await removeWorktree(repoPath, prompt.worktreePath);
+          await removeWorktree(repoPath, prompt.worktreePath, force);
         }
       } catch (e) {
         console.error(`Failed to remove worktree ${prompt.worktreePath}:`, e);
-        // Continue with deletion even if worktree removal fails
+        throw e;
       }
     }
   }
@@ -162,4 +162,29 @@ export async function autoArchiveOrphans(): Promise<Prompt[]> {
   }
 
   return archived;
+}
+
+const DONE_CLEANUP_AGE_MS = Number(process.env.FRACTAL_DONE_CLEANUP_AGE_MS ?? 24 * 60 * 60 * 1000);
+
+/**
+ * Periodically delete DONE prompts after a grace period.
+ * Their tmux sessions and worktrees are removed as part of cleanup.
+ */
+export async function autoCleanupDonePrompts(): Promise<Prompt[]> {
+  const cutoff = Date.now() - DONE_CLEANUP_AGE_MS;
+  const deleted: Prompt[] = [];
+
+  for (const prompt of listPrompts()) {
+    if (!prompt.isArchived) continue;
+    if (prompt.updatedAt.getTime() > cutoff) continue;
+
+    try {
+      await cleanupPrompt(prompt, true);
+      deleted.push(prompt);
+    } catch (e) {
+      console.error(`Failed to clean DONE prompt ${prompt.id}:`, e);
+    }
+  }
+
+  return deleted;
 }
