@@ -49,14 +49,12 @@ app.on("second-instance", () => {
   }
 });
 
-// Make sure shells launched from Finder see the user's PATH (so git/tmux/pi resolve).
+// Make sure Finder-launched app processes see the user's login shell env.
 function ensureUserPath() {
   if (process.platform !== "darwin") return;
   if (process.env.FRACTAL_PATH_PATCHED) return;
   try {
     const { execFileSync } = require("node:child_process");
-    // Only honor SHELL if it's an absolute path to an existing binary in a
-    // standard system location. Otherwise fall back to /bin/zsh.
     const fs = require("node:fs");
     const ALLOWED_SHELL_DIRS = ["/bin/", "/usr/bin/", "/usr/local/bin/", "/opt/homebrew/bin/"];
     const envShell = process.env.SHELL || "";
@@ -64,14 +62,19 @@ function ensureUserPath() {
       && ALLOWED_SHELL_DIRS.some((d) => envShell.startsWith(d))
       && fs.existsSync(envShell);
     const shellBin = shellOk ? envShell : "/bin/zsh";
-    const out = execFileSync(shellBin, ["-l", "-c", "echo $PATH"], {
+    const out = execFileSync(shellBin, ["-l", "-c", "/usr/bin/env -0"], {
       encoding: "utf8",
       timeout: 2000,
-    }).trim();
-    if (out) {
-      process.env.PATH = out;
-      process.env.FRACTAL_PATH_PATCHED = "1";
+      maxBuffer: 1024 * 1024,
+    });
+    for (const entry of out.split("\0")) {
+      const eq = entry.indexOf("=");
+      if (eq <= 0) continue;
+      const key = entry.slice(0, eq);
+      if (["_", "PWD", "OLDPWD", "SHLVL"].includes(key)) continue;
+      process.env[key] = entry.slice(eq + 1);
     }
+    process.env.FRACTAL_PATH_PATCHED = "1";
   } catch {
     /* best effort */
   }
