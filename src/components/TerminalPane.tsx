@@ -50,6 +50,30 @@ function imagePathsAsTerminalPaste(paths: string[]): string {
   return paths.map(shellQuote).join(" ");
 }
 
+function decodeBase64Utf8(data: string): string {
+  const binary = atob(data);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function writeClipboard(text: string): Promise<void> {
+  await navigator.clipboard?.writeText(text);
+}
+
+function handleOsc52(data: string): boolean | Promise<boolean> {
+  const separator = data.indexOf(";");
+  if (separator === -1) return false;
+
+  const payload = data.slice(separator + 1);
+  // OSC 52 read requests use "?"; this app only grants terminal -> clipboard writes.
+  if (!payload || payload === "?") return true;
+
+  return writeClipboard(decodeBase64Utf8(payload)).then(
+    () => true,
+    () => false,
+  );
+}
+
 export default function TerminalPane(props: {
   tabs: TerminalTab[];
   activeId: string | null;
@@ -59,6 +83,7 @@ export default function TerminalPane(props: {
   onTogglePosition: () => void;
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
+  focusKey: number;
 }) {
   const active = props.tabs.find((tab) => tab.id === props.activeId) ?? props.tabs[0];
   const dragging = useRef(false);
@@ -113,18 +138,23 @@ export default function TerminalPane(props: {
           {props.position === "right" ? <Rows2 size={14} /> : <Columns2 size={14} />}
         </button>
       </div>
-      <TerminalView key={active.id} tab={active} onClose={props.onClose} />
+      <TerminalView key={active.id} tab={active} onClose={props.onClose} focusKey={props.focusKey} />
     </aside>
   );
 }
 
-function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string) => void }) {
+function TerminalView({ tab, onClose, focusKey }: { tab: TerminalTab; onClose: (id: string) => void; focusKey: number }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const termRef = useRef<XTermTerminal | null>(null);
   const onCloseRef = useRef(onClose);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    termRef.current?.focus();
+  }, [focusKey]);
 
   useEffect(() => {
     const port = (window as ElectronGlobals).electron?.terminalPort;
@@ -136,6 +166,7 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
     let ws: WebSocket | null = null;
     let resizeObserver: ResizeObserver | null = null;
     let input: { dispose: () => void } | null = null;
+    let osc52: { dispose: () => void } | null = null;
     let disposed = false;
     const sendData = (data: string) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
@@ -163,6 +194,35 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
       event.stopPropagation();
       term?.focus();
     };
+    const onShiftMouseDown = (event: MouseEvent) => {
+      // xterm.js forces selection with Shift on Linux/Windows, but with Option on macOS.
+      // Re-dispatch Shift+drag as Option+drag so this app matches other terminals.
+      if (!event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.button !== 0 || event.defaultPrevented) return;
+      if ((event as MouseEvent & { __fractalShiftSelection?: boolean }).__fractalShiftSelection) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const clone = new MouseEvent(event.type, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        view: window,
+        detail: event.detail,
+        screenX: event.screenX,
+        screenY: event.screenY,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        button: event.button,
+        buttons: event.buttons,
+        relatedTarget: event.relatedTarget,
+        altKey: true,
+        shiftKey: event.shiftKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+      }) as MouseEvent & { __fractalShiftSelection?: boolean };
+      clone.__fractalShiftSelection = true;
+      event.target?.dispatchEvent(clone);
+    };
 
     void (async () => {
       const [{ Terminal }, { FitAddon }] = await Promise.all([
@@ -174,20 +234,43 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
       term = new Terminal({
         cursorBlink: true,
         convertEol: true,
-        fontFamily: '"JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace',
+        fontFamily: '"Fractal JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace',
         fontSize: 14,
         fontWeight: "400",
         letterSpacing: 0,
         lineHeight: 1,
         theme: { background: "#0b0b0d", foreground: "#ededf0", cursor: "#ff6a3d" },
         allowProposedApi: false,
+        macOptionClickForcesSelection: true,
+        rightClickSelectsWord: true,
       });
+      termRef.current = term;
+      term.attachCustomKeyEventHandler((event) => {
+        if (event.type !== "keydown") return true;
+
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && term.hasSelection()) {
+          event.preventDefault();
+          void writeClipboard(term.getSelection());
+          term.clearSelection();
+          return false;
+        }
+
+        if (event.key === "Enter" && event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+          event.preventDefault();
+          sendData("\x1b[13;2u");
+          return false;
+        }
+        return true;
+      });
+      osc52 = term.parser.registerOscHandler(52, handleOsc52);
       fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host);
+      term.focus();
       host.addEventListener("paste", onPaste);
       host.addEventListener("dragover", onDragOver);
       host.addEventListener("drop", onDrop);
+      host.addEventListener("mousedown", onShiftMouseDown, { capture: true });
       fit.fit();
 
       if (!port) {
@@ -213,6 +296,10 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
       });
       ws.addEventListener("close", (event) => {
         if (disposed) return;
+        if (event.code === 1000 && event.reason.startsWith("terminal exited")) {
+          onCloseRef.current(tab.id);
+          return;
+        }
         term.writeln(`\r\nTerminal disconnected${event.reason ? `: ${event.reason}` : ""}`);
       });
 
@@ -226,7 +313,10 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
       host.removeEventListener("paste", onPaste);
       host.removeEventListener("dragover", onDragOver);
       host.removeEventListener("drop", onDrop);
+      host.removeEventListener("mousedown", onShiftMouseDown, { capture: true });
       ws?.close();
+      termRef.current = null;
+      osc52?.dispose();
       term?.dispose();
     };
   }, [tab.id, tab.session, tab.cwd]);

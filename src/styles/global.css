@@ -1,5 +1,13 @@
 /* Fractal — Linear/Raycast-flavoured dark UI */
 
+@font-face {
+  font-family: "Fractal JetBrainsMono Nerd Font Mono";
+  src: url("/fonts/JetBrainsMonoNerdFontMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   --bg: #0b0b0d;
   --surface: #131316;
@@ -22,7 +30,7 @@
   --radius-pill: 999px;
 
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono: "Fractal JetBrainsMono Nerd Font Mono", ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: light) {
@@ -1215,6 +1223,11 @@ a { color: inherit; }
   transition: color 80ms, border-color 80ms, background 80ms;
   z-index: 1;
 }
+.terminal-card-button.active {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
+  background: var(--accent-soft);
+}
 .terminal-card-button[title*="not running"] {
   color: var(--text-faint);
   opacity: 0.65;
@@ -1227,7 +1240,7 @@ a { color: inherit; }
 .terminal-host .xterm,
 .terminal-host .xterm-viewport,
 .terminal-host .xterm-screen {
-  font-family: "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  font-family: "Fractal JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "calt" 0;
 }
@@ -1335,3 +1348,109 @@ a { color: inherit; }
 .preset-modal-default { flex-direction: row !important; align-items: center; gap: 8px; justify-content: flex-start; }
 .preset-modal-default input[type="checkbox"] { width: auto !important; margin: 0; flex: 0 0 auto; }
 .preset-modal-default span { text-transform: none !important; font-size: 12px !important; color: var(--text) !important; letter-spacing: 0 !important; font-family: var(--font-sans) !important; }
+
+/* ---------- Command menu ---------- */
+.cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.34);
+}
+.cmdk-dialog {
+  position: fixed;
+  z-index: 201;
+  top: 14vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--surface) 94%, #000);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+}
+.cmdk-input {
+  width: 100%;
+  height: 54px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  padding: 0 18px;
+}
+.cmdk-list {
+  max-height: min(520px, 60vh);
+  overflow-y: auto;
+  padding: 8px;
+}
+.cmdk-empty {
+  padding: 24px 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.cmdk-group [cmdk-group-heading] {
+  padding: 10px 8px 6px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+}
+.cmdk-item[aria-selected="true"] {
+  background: var(--surface-3);
+}
+.cmdk-icon {
+  width: 17px;
+  height: 17px;
+  color: var(--text-muted);
+  flex: none;
+}
+.cmdk-item-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.cmdk-item-main > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmdk-item-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmdk-sub-icon {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+.cmdk-badge {
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--text-muted);
+  font-size: 11px;
+}

@@ -37,6 +37,7 @@ import ProjectPicker from "./ProjectPicker.js";
 import ModelPicker from "./ModelPicker.js";
 import PresetPicker from "./PresetPicker.js";
 import TerminalPane from "./TerminalPane.js";
+import CommandMenu from "./CommandMenu.js";
 import { Toaster, toast } from "sonner";
 
 type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
@@ -61,7 +62,7 @@ type Prompt = {
   launchedAt?: number | null;
   isRunning?: boolean;
 };
-type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string };
+type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string; lastProjectId: string };
 type PiModel = { id: string; provider: string; model: string; agent?: "pi" | "claude" };
 type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
 type TerminalTab = { id: string; promptId: string; session: string; title: string; cwd?: string };
@@ -168,7 +169,7 @@ export default function Board() {
   const [composer, setComposer] = useState("");
   const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
   const [composerPresetId, setComposerPresetId] = useState("");
-  const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi" });
+  const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", lastProjectId: "" });
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -182,9 +183,15 @@ export default function Board() {
   const [terminalWidth, setTerminalWidth] = useState<number>(() => loadTerminalWidth());
   const [terminalHeight, setTerminalHeight] = useState<number>(() => loadTerminalHeight());
   const [terminalPosition, setTerminalPosition] = useState<"right" | "bottom">(() => loadTerminalPosition());
+  const [terminalFocusKey, setTerminalFocusKey] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => loadSidebarWidth());
   const [showProjectShortcuts, setShowProjectShortcuts] = useState(false);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
+
+  const activateTerminal = (id: string) => {
+    setActiveTerminalId(id);
+    setTerminalFocusKey((key) => key + 1);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -207,6 +214,10 @@ export default function Board() {
     const url = new URL(window.location.href);
     if (activeProjectId) {
       url.searchParams.set("project", activeProjectId);
+      void api("/api/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ lastProjectId: activeProjectId }),
+      }).catch(() => {});
     } else {
       url.searchParams.delete("project");
     }
@@ -257,7 +268,7 @@ export default function Board() {
       if (terminalTabs.length < 2) return;
       const current = Math.max(terminalTabs.findIndex((tab) => tab.id === activeTerminalId), 0);
       const next = (current + direction + terminalTabs.length) % terminalTabs.length;
-      setActiveTerminalId(terminalTabs[next].id);
+      activateTerminal(terminalTabs[next].id);
     };
 
     const selectProjectByNumber = (index: number) => {
@@ -270,6 +281,7 @@ export default function Board() {
 
       if (e.ctrlKey && !e.metaKey && e.key === "Tab") {
         e.preventDefault();
+        e.stopImmediatePropagation();
         cycleTerminalTabs(e.shiftKey ? -1 : 1);
         return;
       }
@@ -281,13 +293,13 @@ export default function Board() {
       }
     };
 
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, { capture: true });
     window.addEventListener("keydown", updateProjectShortcuts);
     window.addEventListener("keyup", updateProjectShortcuts);
     window.addEventListener("blur", updateProjectShortcuts);
     window.addEventListener("mousemove", updateProjectShortcuts);
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
       window.removeEventListener("keydown", updateProjectShortcuts);
       window.removeEventListener("keyup", updateProjectShortcuts);
       window.removeEventListener("blur", updateProjectShortcuts);
@@ -303,21 +315,20 @@ export default function Board() {
     if (!prompt.tmuxSession) return;
     const existing = terminalTabs.find((tab) => tab.id === prompt.tmuxSession);
     if (existing) {
-      setActiveTerminalId(existing.id);
+      activateTerminal(existing.id);
       return;
     }
-    if (!prompt.isRunning) {
-      toast.error("This tmux session is not running.");
-      return;
-    }
+    const project = projects.find((p) => p.id === prompt.projectId);
+    const cwd = prompt.worktreePath ?? project?.path;
     const tab: TerminalTab = {
       id: prompt.tmuxSession,
       promptId: prompt.id,
       session: prompt.tmuxSession,
       title: prompt.tmuxSession.replace(/^fractal-/, ""),
+      cwd,
     };
     setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
-    setActiveTerminalId(tab.id);
+    activateTerminal(tab.id);
   }
 
   function closeTerminal(id: string) {
@@ -333,7 +344,7 @@ export default function Board() {
       const data = await api<{ home: string; projects: Project[]; prompts: Prompt[]; settings: AppSettings }>("/api/state");
       setProjects(data.projects);
       setPrompts(data.prompts);
-      const nextSettings = data.settings ?? { fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi" };
+      const nextSettings = data.settings ?? { fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", lastProjectId: "" };
       setSettings(nextSettings);
       setComposerPresetId((cur) => {
         if (nextSettings.agentPresets.some((p) => p.id === cur)) return cur;
@@ -342,11 +353,12 @@ export default function Board() {
       });
       setHome(data.home ?? "");
       setActiveProjectId((cur) => {
+        const hasProject = (id: string | null | undefined) => !!id && data.projects.some((p) => p.id === id);
         const urlId = getProjectIdFromUrl();
-        if (urlId && data.projects.some((p) => p.id === urlId)) {
-          return urlId;
-        }
-        return cur ?? data.projects[0]?.id ?? null;
+        if (hasProject(urlId)) return urlId;
+        if (hasProject(cur)) return cur;
+        if (hasProject(nextSettings.lastProjectId)) return nextSettings.lastProjectId;
+        return data.projects[0]?.id ?? null;
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -376,12 +388,12 @@ export default function Board() {
         if (!existing.cwd) {
           setTerminalTabs((tabs) => tabs.map((tab) => tab.id === existing.id ? { ...tab, cwd: project.path } : tab));
         }
-        setActiveTerminalId(existing.id);
+        activateTerminal(existing.id);
         return;
       }
       const tab: TerminalTab = { id: session, promptId: project.id, session, title, cwd: project.path };
       setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
-      setActiveTerminalId(tab.id);
+      activateTerminal(tab.id);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
@@ -633,9 +645,22 @@ export default function Board() {
   );
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
 
+  function selectCommandPrompt(prompt: Prompt) {
+    setActiveProjectId(prompt.projectId);
+    openTerminal(prompt);
+  }
+
   return (
     <>
       <Toaster richColors closeButton position="top-center" theme="dark" />
+      <CommandMenu
+        projects={projects}
+        prompts={prompts}
+        activeProjectId={activeProjectId}
+        home={home}
+        onSelectProject={(project) => setActiveProjectId(project.id)}
+        onSelectPrompt={selectCommandPrompt}
+      />
       <div className="app" style={{ ["--sidebar-width" as string]: `${sidebarWidth}px` }}>
       <Sidebar
         projects={projects}
@@ -696,6 +721,7 @@ export default function Board() {
                       onUnarchive={unarchivePrompt}
                       onOpenTerminal={openTerminal}
                       openTerminalIds={openTerminalIds}
+                      activeTerminalId={activeTerminalId}
                       home={home}
                       activeId={activeDragId}
                       overId={overId}
@@ -732,8 +758,9 @@ export default function Board() {
                   size={terminalPosition === "right" ? terminalWidth : terminalHeight}
                   onResize={terminalPosition === "right" ? setTerminalWidth : setTerminalHeight}
                   onTogglePosition={() => setTerminalPosition((position) => position === "right" ? "bottom" : "right")}
-                  onSelect={setActiveTerminalId}
+                  onSelect={activateTerminal}
                   onClose={closeTerminal}
+                  focusKey={terminalFocusKey}
                 />
               )}
               </div>
@@ -952,6 +979,7 @@ function ColumnView(props: {
   onUnarchive: (id: string) => void;
   onOpenTerminal: (prompt: Prompt) => void;
   openTerminalIds: Set<string>;
+  activeTerminalId?: string | null;
   composer: React.ReactNode;
   home: string;
   activeId?: string | null;
@@ -1014,6 +1042,7 @@ function ColumnView(props: {
                 onUnarchive={props.onUnarchive}
                 onOpenTerminal={props.onOpenTerminal}
                 isTerminalOpen={!!p.tmuxSession && props.openTerminalIds.has(p.tmuxSession)}
+                isActiveTerminal={!!p.tmuxSession && p.tmuxSession === props.activeTerminalId}
                 home={props.home}
                 isArchivedCol={props.isArchivedCol}
               />
@@ -1447,7 +1476,7 @@ function LinkifiedText({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, isTerminalOpen, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; isTerminalOpen: boolean; home: string; isArchivedCol?: boolean }) {
+function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void; onArchive: (id: string) => void; onUnarchive: (id: string) => void; onOpenTerminal: (prompt: Prompt) => void; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const [editPresetId, setEditPresetId] = useState(prompt.presetId);
@@ -1550,13 +1579,13 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
       className={`card ${isDragging ? "dragging" : ""}`}
       style={style}
       onClick={() => {
-        if (prompt.tmuxSession && prompt.isRunning) onOpenTerminal(prompt);
+        if (prompt.tmuxSession) onOpenTerminal(prompt);
       }}
       {...attributes}
       {...listeners}
     >
       {prompt.tmuxSession && prompt.isRunning && (
-        <div className="terminal-card-button" title="Terminal open" aria-hidden="true">
+        <div className={`terminal-card-button ${isActiveTerminal ? "active" : ""}`} title={isActiveTerminal ? "Active terminal" : "Terminal open"} aria-hidden="true">
           <SquareTerminal size={18} />
         </div>
       )}

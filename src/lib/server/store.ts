@@ -11,6 +11,7 @@ export type AppSettings = {
   smartModel: string;
   agentPresets: AgentPreset[];
   defaultPresetId: string;
+  lastProjectId: string;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   smartModel: "",
   agentPresets: DEFAULT_AGENT_PRESETS,
   defaultPresetId: "pi",
+  lastProjectId: "",
 };
 
 export function listProjects(): Project[] {
@@ -100,6 +102,7 @@ export function getSettings(): AppSettings {
       }
     }
     if (row.key === "defaultPresetId") out.defaultPresetId = row.value;
+    if (row.key === "lastProjectId") out.lastProjectId = row.value;
   }
   return out;
 }
