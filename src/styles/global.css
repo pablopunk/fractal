@@ -238,6 +238,16 @@ a { color: inherit; }
   gap: 2px;
   min-width: 0;
 }
+.topbar-title-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.topbar-title-button:hover h1 { color: var(--accent); }
 .topbar-title h1 {
   margin: 0;
   font-size: 16px;

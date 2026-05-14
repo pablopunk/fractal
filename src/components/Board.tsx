@@ -368,6 +368,22 @@ export default function Board() {
     }
   }
 
+  async function openProjectTerminal(project: Project) {
+    try {
+      const { session, title } = await api<{ session: string; title: string }>(`/api/projects/${project.id}/terminal`, { method: "POST" });
+      const existing = terminalTabs.find((tab) => tab.id === session);
+      if (existing) {
+        setActiveTerminalId(existing.id);
+        return;
+      }
+      const tab: TerminalTab = { id: session, promptId: project.id, session, title };
+      setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
+      setActiveTerminalId(tab.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function removeProject(id: string) {
     if (!confirm("Remove this project from Fractal?")) return;
     try {
@@ -638,10 +654,10 @@ export default function Board() {
         ) : (
           <>
             <div className="topbar">
-              <div className="topbar-title">
+              <button type="button" className="topbar-title topbar-title-button" onClick={() => void openProjectTerminal(activeProject)} title="Open project terminal">
                 <h1>{activeProject.name}</h1>
                 <span className="path" title={activeProject.path}>{tildeify(activeProject.path, home)}</span>
-              </div>
+              </button>
               <div className="topbar-spacer" />
               <PresetSettings
                 presets={settings.agentPresets}
