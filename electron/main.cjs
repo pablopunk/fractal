@@ -331,7 +331,7 @@ function buildMenu() {
         { role: "zoomOut" },
         { type: "separator" },
         { role: "togglefullscreen" },
-        ...(app.isPackaged ? [] : [{ role: "toggleDevTools" }]),
+        { role: "toggleDevTools" },
       ],
     },
     { role: "windowMenu" },
