@@ -45,18 +45,28 @@ export function loadActiveTerminalId(tabs: TerminalTab[]): string | null {
   } catch { return tabs[0]?.id ?? null; }
 }
 
+function halfViewportWidth(): number {
+  return typeof window === "undefined" ? 520 : Math.floor(window.innerWidth / 2);
+}
+
+function halfViewportHeight(): number {
+  return typeof window === "undefined" ? 320 : Math.floor(window.innerHeight / 2);
+}
+
 export function loadTerminalWidth(): number {
+  const fallback = halfViewportWidth();
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_WIDTH_KEY) : null;
-    return raw ? Number(raw) || 520 : 520;
-  } catch { return 520; }
+    return raw ? Number(raw) || fallback : fallback;
+  } catch { return fallback; }
 }
 
 export function loadTerminalHeight(): number {
+  const fallback = halfViewportHeight();
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_HEIGHT_KEY) : null;
-    return raw ? Number(raw) || 320 : 320;
-  } catch { return 320; }
+    return raw ? Number(raw) || fallback : fallback;
+  } catch { return fallback; }
 }
 
 export function loadTerminalPosition(): "right" | "bottom" {
