@@ -24,7 +24,8 @@
     "dist:mac": "mise exec -- pnpm run dist:mac:arm64",
     "dist:mac:arm64": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron-builder --config electron-builder.yml --mac zip --arm64 --publish never",
     "dist:linux": "mise exec -- pnpm run dist:linux:x64",
-    "dist:linux:x64": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron-builder --config electron-builder.yml --linux AppImage deb --x64 --publish never"
+    "dist:linux:x64": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron-builder --config electron-builder.yml --linux AppImage deb --x64 --publish never",
+    "dist:linux:arm64": "mise exec -- pnpm run rebuild:electron && astro build && mise exec -- pnpm exec electron-builder --config electron-builder.yml --linux AppImage deb --arm64 --publish never"
   },
   "dependencies": {
     "@astrojs/node": "^10.0.6",
