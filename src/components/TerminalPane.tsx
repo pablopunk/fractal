@@ -226,9 +226,10 @@ function TerminalView({ tab, onClose, focusKey }: { tab: TerminalTab; onClose: (
 
     void (async () => {
       const terminalFontFamily = '"Fractal JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace';
-      const [{ Terminal }, { FitAddon }] = await Promise.all([
+      const [{ Terminal }, { FitAddon }, webglMod] = await Promise.all([
         import("@xterm/xterm"),
         import("@xterm/addon-fit"),
+        import("@xterm/addon-webgl").catch(() => null),
         document.fonts?.load?.(`400 14px ${terminalFontFamily}`) ?? Promise.resolve(),
         document.fonts?.load?.(`700 14px ${terminalFontFamily}`) ?? Promise.resolve(),
       ]);
@@ -270,6 +271,12 @@ function TerminalView({ tab, onClose, focusKey }: { tab: TerminalTab; onClose: (
       fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host);
+      try {
+        const WebglAddon = webglMod?.WebglAddon;
+        if (WebglAddon) term.loadAddon(new WebglAddon());
+      } catch (err) {
+        console.warn("[fractal-terminal] webgl renderer unavailable, falling back to DOM", err);
+      }
       term.focus();
       host.addEventListener("paste", onPaste);
       host.addEventListener("dragover", onDragOver);
