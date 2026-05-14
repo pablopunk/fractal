@@ -5,7 +5,7 @@
 >
 
 <p align="center">
-  <img src="https://github.com/pablopunk/fractal/blob/main/build/icon.icon/Assets/icon.png?raw=true" width="200" />
+  <img src="https://github.com/pablopunk/fractal/blob/main/build/icon.icon/Assets/icon%203.png?raw=true" width="200" />
   <br/>
   <span><i>The app with the ugliest icon you'll ever see</i></span>
   <br/>
