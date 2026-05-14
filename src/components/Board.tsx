@@ -1244,7 +1244,14 @@ function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string
                     <input value={selected.name} onChange={(e) => update(selected.id, { name: e.target.value })} />
                   </label>
                   <label>
-                    <span>Binary</span>
+                    <span className="preset-modal-label-row">
+                      Binary
+                      <Tooltip content="Supported agents get automatic defaults for model lists and argument templates. Other binaries still work, but setup is manual.">
+                        <span>
+                          <Info className="preset-modal-info" aria-label="Binary preset info" />
+                        </span>
+                      </Tooltip>
+                    </span>
                     <input value={selected.binary} onChange={(e) => {
                       const binary = e.target.value;
                       const kind = binary === "pi" ? "pi" : binary === "claude" ? "claude" : binary === "opencode" ? "opencode" : "custom";
@@ -1252,16 +1259,7 @@ function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string
                     }} placeholder="pi, claude, opencode, codex, …" />
                   </label>
                   <label>
-                    <span className="preset-modal-label-row">
-                      Model
-                      {selectedKind !== "custom" && (
-                        <Tooltip content="Models are loaded from supported agent CLIs. Other agents still work, with manual model entry.">
-                          <span>
-                            <Info className="preset-modal-info" aria-label="Model list info" />
-                          </span>
-                        </Tooltip>
-                      )}
-                    </span>
+                    <span>Model</span>
                     {selectedKind === "custom" ? (
                       <input value={selected.model ?? ""} onChange={(e) => update(selected.id, { model: e.target.value })} placeholder="optional, available as {{model}}" />
                     ) : (
