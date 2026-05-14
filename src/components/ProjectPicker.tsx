@@ -73,10 +73,10 @@ export default function ProjectPicker(props: ProjectPickerProps) {
     const out = [...recentFiltered, ...folderFiltered];
     if (q) {
       const normalized = normalizeInputPath(q, home);
-      const alreadyListed = out.some((item) => item.absolute === normalized || item.absolute === q);
+      const alreadyListed = out.some((item) => item.absolute === normalized);
       if (!alreadyListed) {
         out.unshift({
-          absolute: q,
+          absolute: normalized,
           name: basename(normalized),
           parent: `Add ${tildeify(parentOf(normalized), home)}`,
           group: "manual",
@@ -108,7 +108,7 @@ export default function ProjectPicker(props: ProjectPickerProps) {
       e.preventDefault();
       const item = items[highlight];
       if (item) commit(item.absolute);
-      else if (input.trim()) commit(input.trim()); // allow free-form path
+      else if (input.trim()) commit(normalizeInputPath(input, home));
     } else if (e.key === "Escape") {
       setOpen(false);
     }
@@ -200,5 +200,7 @@ function normalizeInputPath(input: string, home: string): string {
   if (!v) return v;
   if (v === "~") return home || v;
   if (v.startsWith("~/") && home) return home + v.slice(1);
+  if (v.startsWith("/")) return v;
+  if (home) return home + "/" + v;
   return v;
 }
