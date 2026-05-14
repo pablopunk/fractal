@@ -26,6 +26,7 @@ function buildExecEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const pathEntries = new Set((next.PATH ?? "").split(delimiter).filter(Boolean));
   const candidates = [
     join(home, ".pi/agent/bin"),
+    join(home, ".opencode/bin"),
     join(home, ".bun/bin"),
     join(home, ".local/bin"),
     join(home, ".local/share/mise/shims"),

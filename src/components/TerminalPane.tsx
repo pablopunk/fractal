@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Columns2, Rows2, X, Terminal as TerminalIcon } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 import type { Terminal as XTermTerminal } from "@xterm/xterm";
+import Tooltip from "./Tooltip.js";
 
 type TerminalTab = {
   id: string;
@@ -119,24 +120,28 @@ export default function TerminalPane(props: {
       />
       <div className="terminal-tabs">
         {props.tabs.map((tab) => (
-          <button key={tab.id} className={`terminal-tab ${tab.id === active.id ? "active" : ""}`} onClick={() => props.onSelect(tab.id)} title={tab.session}>
-            <TerminalIcon size={13} />
-            <span>{tab.title}</span>
-            <span
-              className="terminal-tab-close"
-              role="button"
-              tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); props.onClose(tab.id); }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); props.onClose(tab.id); } }}
-              aria-label={`Close ${tab.title}`}
-            >
-              <X size={12} />
-            </span>
-          </button>
+          <Tooltip key={tab.id} content={tab.session}>
+            <button className={`terminal-tab ${tab.id === active.id ? "active" : ""}`} onClick={() => props.onSelect(tab.id)}>
+              <TerminalIcon size={13} />
+              <span>{tab.title}</span>
+              <span
+                className="terminal-tab-close"
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); props.onClose(tab.id); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); props.onClose(tab.id); } }}
+                aria-label={`Close ${tab.title}`}
+              >
+                <X size={12} />
+              </span>
+            </button>
+          </Tooltip>
         ))}
-        <button className="terminal-pane-toggle" onClick={props.onTogglePosition} title={props.position === "right" ? "Move terminal to bottom" : "Move terminal to right"} aria-label="Toggle terminal position">
-          {props.position === "right" ? <Rows2 size={14} /> : <Columns2 size={14} />}
-        </button>
+        <Tooltip content={props.position === "right" ? "Move terminal to bottom" : "Move terminal to right"}>
+          <button className="terminal-pane-toggle" onClick={props.onTogglePosition} aria-label="Toggle terminal position">
+            {props.position === "right" ? <Rows2 size={14} /> : <Columns2 size={14} />}
+          </button>
+        </Tooltip>
       </div>
       <TerminalView key={active.id} tab={active} onClose={props.onClose} focusKey={props.focusKey} />
     </aside>

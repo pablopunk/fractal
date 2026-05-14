@@ -26,6 +26,7 @@ import {
   Copy,
   FolderKanban,
   FolderRoot,
+  Info,
   Pencil,
   Play,
   SquareTerminal,
@@ -38,13 +39,14 @@ import ModelPicker from "./ModelPicker.js";
 import PresetPicker from "./PresetPicker.js";
 import TerminalPane from "./TerminalPane.js";
 import CommandMenu from "./CommandMenu.js";
+import Tooltip, { TooltipProvider } from "./Tooltip.js";
 import { Toaster, toast } from "sonner";
 
 type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
 
 type Project = { id: string; name: string; path: string };
 type ModelProfile = "fast" | "smart";
-type AgentPreset = { id: string; name: string; kind: "pi" | "claude" | "custom"; binary: string; argsTemplate: string; model?: string; promptTemplate?: string };
+type AgentPreset = { id: string; name: string; kind: "pi" | "claude" | "opencode" | "custom"; binary: string; argsTemplate: string; model?: string; promptTemplate?: string };
 type Prompt = {
   id: string;
   projectId: string;
@@ -63,7 +65,7 @@ type Prompt = {
   isRunning?: boolean;
 };
 type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string; lastProjectId: string };
-type PiModel = { id: string; provider: string; model: string; agent?: "pi" | "claude" };
+type PiModel = { id: string; provider: string; model: string; agent?: "pi" | "claude" | "opencode" };
 type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
 type TerminalTab = { id: string; promptId: string; session: string; title: string; cwd?: string };
 
@@ -76,6 +78,7 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
 
 const COLLAPSED_KEY = "fractal:collapsedColumns";
 const TERMINAL_TABS_KEY = "fractal:terminalTabs";
+const ACTIVE_TERMINAL_TAB_KEY = "fractal:activeTerminalTab";
 const TERMINAL_WIDTH_KEY = "fractal:terminalWidth";
 const TERMINAL_HEIGHT_KEY = "fractal:terminalHeight";
 const TERMINAL_POSITION_KEY = "fractal:terminalPosition";
@@ -101,6 +104,13 @@ function loadTerminalTabs(): TerminalTab[] {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_TABS_KEY) : null;
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
+}
+
+function loadActiveTerminalId(tabs: TerminalTab[]): string | null {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(ACTIVE_TERMINAL_TAB_KEY) : null;
+    return raw && tabs.some((tab) => tab.id === raw) ? raw : tabs[0]?.id ?? null;
+  } catch { return tabs[0]?.id ?? null; }
 }
 
 function loadTerminalWidth(): number {
@@ -172,6 +182,7 @@ export default function Board() {
   const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", lastProjectId: "" });
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
+  const [opencodeModels, setOpenCodeModels] = useState<PiModel[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed());
@@ -179,7 +190,7 @@ export default function Board() {
   const [pendingDeleteChanges, setPendingDeleteChanges] = useState<string[] | null>(null);
   const [archiveBlockedMessage, setArchiveBlockedMessage] = useState<string | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>(() => loadTerminalTabs());
-  const [activeTerminalId, setActiveTerminalId] = useState<string | null>(() => loadTerminalTabs()[0]?.id ?? null);
+  const [activeTerminalId, setActiveTerminalId] = useState<string | null>(() => loadActiveTerminalId(loadTerminalTabs()));
   const [terminalWidth, setTerminalWidth] = useState<number>(() => loadTerminalWidth());
   const [terminalHeight, setTerminalHeight] = useState<number>(() => loadTerminalHeight());
   const [terminalPosition, setTerminalPosition] = useState<"right" | "bottom">(() => loadTerminalPosition());
@@ -245,6 +256,13 @@ export default function Board() {
   useEffect(() => {
     try { localStorage.setItem(TERMINAL_TABS_KEY, JSON.stringify(terminalTabs)); } catch {}
   }, [terminalTabs]);
+
+  useEffect(() => {
+    try {
+      if (activeTerminalId) localStorage.setItem(ACTIVE_TERMINAL_TAB_KEY, activeTerminalId);
+      else localStorage.removeItem(ACTIVE_TERMINAL_TAB_KEY);
+    } catch {}
+  }, [activeTerminalId]);
 
   useEffect(() => {
     try { localStorage.setItem(TERMINAL_WIDTH_KEY, String(terminalWidth)); } catch {}
@@ -660,8 +678,8 @@ export default function Board() {
   }
 
   useEffect(() => {
-    void api<{ models: PiModel[]; claudeModels: PiModel[] }>("/api/models")
-      .then((data) => { setModels(data.models ?? []); setClaudeModels(data.claudeModels ?? []); })
+    void api<{ models: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[] }>("/api/models")
+      .then((data) => { setModels(data.models ?? []); setClaudeModels(data.claudeModels ?? []); setOpenCodeModels(data.opencodeModels ?? []); })
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
@@ -682,7 +700,7 @@ export default function Board() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Toaster richColors closeButton position="top-center" theme="dark" />
       <CommandMenu
         projects={projects}
@@ -713,13 +731,15 @@ export default function Board() {
         ) : (
           <>
             <div className="topbar">
-              <button type="button" className="topbar-title topbar-title-button" onClick={() => void openProjectTerminal(activeProject)} disabled={isOpeningProjectTerminal} title={isOpeningProjectTerminal ? "Opening project terminal…" : "Open project terminal"}>
-                <span className="topbar-title-row">
-                  <h1>{activeProject.name}</h1>
-                  {isOpeningProjectTerminal ? <span className="btn-spinner" aria-hidden="true" /> : <SquareTerminal className="topbar-title-icon" aria-hidden="true" />}
-                </span>
-                <span className="path" title={activeProject.path}>{tildeify(activeProject.path, home)}</span>
-              </button>
+              <Tooltip content={isOpeningProjectTerminal ? "Opening project terminal…" : "Open project terminal"}>
+                <button type="button" className="topbar-title topbar-title-button" onClick={() => void openProjectTerminal(activeProject)} disabled={isOpeningProjectTerminal}>
+                  <span className="topbar-title-row">
+                    <h1>{activeProject.name}</h1>
+                    {isOpeningProjectTerminal ? <span className="btn-spinner" aria-hidden="true" /> : <SquareTerminal className="topbar-title-icon" aria-hidden="true" />}
+                  </span>
+                  <span className="path">{tildeify(activeProject.path, home)}</span>
+                </button>
+              </Tooltip>
               <div className="topbar-spacer" />
               <PresetSettings
                 presets={settings.agentPresets}
@@ -727,6 +747,7 @@ export default function Board() {
                 onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
                 piModels={models}
                 claudeModels={claudeModels}
+                opencodeModels={opencodeModels}
                 onChange={(agentPresets) => void saveSettings({ agentPresets })}
               />
             </div>
@@ -849,7 +870,7 @@ export default function Board() {
         )}
       </main>
       </div>
-    </>
+    </TooltipProvider>
   );
 }
 
@@ -905,17 +926,18 @@ function Sidebar(props: {
             <ProjectIcon name={p.name} path={p.path} active={p.id === props.activeId} />
             <span className="name">{p.name}</span>
             {props.showShortcuts && index < 9 && <span className="project-shortcut">⌘{index + 1}</span>}
-            <button
-              className="remove"
-              onClick={(e) => {
-                e.stopPropagation();
-                props.onRemove(p.id);
-              }}
-              aria-label="Remove project"
-              title="Remove project"
-            >
-              ×
-            </button>
+            <Tooltip content="Remove project">
+              <button
+                className="remove"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onRemove(p.id);
+                }}
+                aria-label="Remove project"
+              >
+                ×
+              </button>
+            </Tooltip>
           </div>
         ))}
       </div>
@@ -1035,19 +1057,20 @@ function ColumnView(props: {
 
   if (props.collapsed) {
     return (
-      <div
-        className={`column column-collapsed ${isOverColumn ? "drop-active" : ""}`}
-        onClick={props.onToggleCollapse}
-        title={`Expand ${props.title}`}
-      >
-        <div ref={setNodeRef} className="column-collapsed-inner">
-          <Icon className="column-icon collapsed" />
-          <span className="column-collapsed-title">{props.title}</span>
-          {props.prompts.length > 0 && (
-            <span className="count-chip">{props.prompts.length}</span>
-          )}
+      <Tooltip content={`Expand ${props.title}`}>
+        <div
+          className={`column column-collapsed ${isOverColumn ? "drop-active" : ""}`}
+          onClick={props.onToggleCollapse}
+        >
+          <div ref={setNodeRef} className="column-collapsed-inner">
+            <Icon className="column-icon collapsed" />
+            <span className="column-collapsed-title">{props.title}</span>
+            {props.prompts.length > 0 && (
+              <span className="count-chip">{props.prompts.length}</span>
+            )}
+          </div>
         </div>
-      </div>
+      </Tooltip>
     );
   }
 
@@ -1058,20 +1081,21 @@ function ColumnView(props: {
         <span className="column-title">{props.title}</span>
         <span className="count-chip">{props.prompts.length}</span>
         {props.onClearDone && props.prompts.length > 0 && (
-          <button
-            type="button"
-            className="btn ghost sm"
-            title={props.isClearingDone ? "Clearing DONE prompts…" : "Clear DONE prompts"}
-            aria-label={props.isClearingDone ? "Clearing DONE prompts" : "Clear DONE prompts"}
-            disabled={props.isClearingDone}
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onClearDone?.();
-            }}
-          >
-            {props.isClearingDone ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 style={{ width: 14, height: 14 }} />}
-            {props.isClearingDone ? "Clearing…" : "Clear"}
-          </button>
+          <Tooltip content={props.isClearingDone ? "Clearing DONE prompts…" : "Clear DONE prompts"}>
+            <button
+              type="button"
+              className="btn ghost sm"
+              aria-label={props.isClearingDone ? "Clearing DONE prompts" : "Clear DONE prompts"}
+              disabled={props.isClearingDone}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onClearDone?.();
+              }}
+            >
+              {props.isClearingDone ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 style={{ width: 14, height: 14 }} />}
+              {props.isClearingDone ? "Clearing…" : "Clear"}
+            </button>
+          </Tooltip>
         )}
         <ChevronLeft className="column-collapse-icon" />
       </div>
@@ -1156,7 +1180,7 @@ function SortablePresetItem({ preset, active, isDefault, onSelect }: { preset: A
   );
 }
 
-function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; onSetDefault: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void }) {
+function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; onSetDefault: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void }) {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(props.presets[0]?.id ?? null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
@@ -1176,8 +1200,8 @@ function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string
   }
 
   const selected = props.presets.find((preset) => preset.id === selectedId) ?? props.presets[0] ?? null;
-  const selectedKind: AgentPreset["kind"] = selected?.binary === "pi" ? "pi" : selected?.binary === "claude" ? "claude" : "custom";
-  const selectedModels = selectedKind === "claude" ? props.claudeModels : props.piModels;
+  const selectedKind: AgentPreset["kind"] = selected?.binary === "pi" ? "pi" : selected?.binary === "claude" ? "claude" : selected?.binary === "opencode" ? "opencode" : "custom";
+  const selectedModels = selectedKind === "claude" ? props.claudeModels : selectedKind === "opencode" ? props.opencodeModels : props.piModels;
 
   return (
     <>
@@ -1223,12 +1247,21 @@ function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string
                     <span>Binary</span>
                     <input value={selected.binary} onChange={(e) => {
                       const binary = e.target.value;
-                      const kind = binary === "pi" ? "pi" : binary === "claude" ? "claude" : "custom";
+                      const kind = binary === "pi" ? "pi" : binary === "claude" ? "claude" : binary === "opencode" ? "opencode" : "custom";
                       update(selected.id, { binary, kind });
-                    }} placeholder="pi, claude, codex, …" />
+                    }} placeholder="pi, claude, opencode, codex, …" />
                   </label>
                   <label>
-                    <span>Model</span>
+                    <span className="preset-modal-label-row">
+                      Model
+                      {selectedKind !== "custom" && (
+                        <Tooltip content="Models are loaded from supported agent CLIs. Other agents still work, with manual model entry.">
+                          <span>
+                            <Info className="preset-modal-info" aria-label="Model list info" />
+                          </span>
+                        </Tooltip>
+                      )}
+                    </span>
                     {selectedKind === "custom" ? (
                       <input value={selected.model ?? ""} onChange={(e) => update(selected.id, { model: e.target.value })} placeholder="optional, available as {{model}}" />
                     ) : (
@@ -1336,16 +1369,19 @@ function Composer(props: { value: string; onChange: (v: string) => void; imagePa
       <div className="composer-actions">
         <PresetPicker presets={props.presets} value={props.presetId} onChange={props.onPresetChange} onCreate={props.onCreatePreset} />
         <div style={{ flex: 1 }} />
-        <button
-          className="btn primary sm composer-submit"
-          onClick={props.onSubmit}
-          disabled={props.isSubmitting || ((!props.value.trim() && props.imagePaths.length === 0) || props.presets.length === 0)}
-          aria-label={props.isSubmitting ? "Adding prompt" : "Add prompt"}
-          title={props.presets.length === 0 ? "Create a preset first" : "Add prompt"}
-        >
-          {props.isSubmitting && <span className="btn-spinner" aria-hidden="true" />}
-          {props.isSubmitting ? "Adding…" : "Add"}
-        </button>
+        <Tooltip content={props.presets.length === 0 ? "Create a preset first" : "Add prompt"}>
+          <span>
+            <button
+              className="btn primary sm composer-submit"
+              onClick={props.onSubmit}
+              disabled={props.isSubmitting || ((!props.value.trim() && props.imagePaths.length === 0) || props.presets.length === 0)}
+              aria-label={props.isSubmitting ? "Adding prompt" : "Add prompt"}
+            >
+              {props.isSubmitting && <span className="btn-spinner" aria-hidden="true" />}
+              {props.isSubmitting ? "Adding…" : "Add"}
+            </button>
+          </span>
+        </Tooltip>
       </div>
     </div>
   );
@@ -1650,9 +1686,11 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
       {...listeners}
     >
       {prompt.tmuxSession && prompt.isRunning && (
-        <div className={`terminal-card-button ${isActiveTerminal ? "active" : ""}`} title={isActiveTerminal ? "Active terminal" : "Terminal open"} aria-hidden="true">
-          <SquareTerminal size={18} />
-        </div>
+        <Tooltip content={isActiveTerminal ? "Active terminal" : "Terminal open"}>
+          <div className={`terminal-card-button ${isActiveTerminal ? "active" : ""}`} aria-hidden="true">
+            <SquareTerminal size={18} />
+          </div>
+        </Tooltip>
       )}
       <div className="text"><LinkifiedText text={prompt.text} /></div>
       {imagePaths.length > 0 && (
@@ -1664,94 +1702,102 @@ function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpe
         <div className="card-meta">
           {isRunning && <span className="tag accent">running</span>}
           {prompt.tmuxSession && (
-            <button
-              type="button"
-              className="tag tag-button"
-              title={`Copy ${prompt.tmuxSession}`}
-              aria-label={`Copy ${prompt.tmuxSession}`}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                copyWorktreeName();
-              }}
-            >
-              {prompt.tmuxSession}
-            </button>
-          )}
-        </div>
-      )}
-      {prompt.error && <span className="tag error">{prompt.error}</span>}
-      <div className="card-actions">
-        <span className="model-badge" title={prompt.presetId}>{presetName}</span>
-        <div className="card-actions-group">
-          {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
-          <button
-            className="icon-btn"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditText(prompt.text);
-              setEditPresetId(prompt.presetId);
-              setIsEditing(true);
-            }}
-            title="Edit prompt"
-            aria-label="Edit prompt"
-          >
-            <Pencil size={14} />
-          </button>
-          {prompt.tmuxSession && (
-            <>
+            <Tooltip content={`Copy ${prompt.tmuxSession}`}>
               <button
                 type="button"
-                className="icon-btn"
+                className="tag tag-button"
+                aria-label={`Copy ${prompt.tmuxSession}`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   copyWorktreeName();
                 }}
-                title="Copy worktree name"
-                aria-label="Copy worktree name"
               >
-                <Copy size={14} />
+                {prompt.tmuxSession}
               </button>
+            </Tooltip>
+          )}
+        </div>
+      )}
+      {prompt.error && <span className="tag error">{prompt.error}</span>}
+      <div className="card-actions">
+        <Tooltip content={prompt.presetId}>
+          <span className="model-badge">{presetName}</span>
+        </Tooltip>
+        <div className="card-actions-group">
+          {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
+          <Tooltip content="Edit prompt">
+            <button
+              className="icon-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditText(prompt.text);
+                setEditPresetId(prompt.presetId);
+                setIsEditing(true);
+              }}
+              aria-label="Edit prompt"
+            >
+              <Pencil size={14} />
+            </button>
+          </Tooltip>
+          {prompt.tmuxSession && (
+            <>
+              <Tooltip content="Copy worktree name">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyWorktreeName();
+                  }}
+                  aria-label="Copy worktree name"
+                >
+                  <Copy size={14} />
+                </button>
+              </Tooltip>
             </>
           )}
           {isArchivedCol ? (
-            <button
-              className="icon-btn"
-              onPointerDown={(e) => e.stopPropagation()}
-              disabled={!!pendingAction}
-              onClick={(e) => { e.stopPropagation(); void runCardAction("unarchive", () => onUnarchive(prompt.id)); }}
-              title="Move prompt out of DONE"
-              aria-label="Move prompt out of DONE"
-            >
-              {pendingAction === "unarchive" ? <span className="btn-spinner" aria-hidden="true" /> : <Undo2 size={14} />}
-            </button>
+            <Tooltip content="Move prompt out of DONE">
+              <button
+                className="icon-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={!!pendingAction}
+                onClick={(e) => { e.stopPropagation(); void runCardAction("unarchive", () => onUnarchive(prompt.id)); }}
+                aria-label="Move prompt out of DONE"
+              >
+                {pendingAction === "unarchive" ? <span className="btn-spinner" aria-hidden="true" /> : <Undo2 size={14} />}
+              </button>
+            </Tooltip>
           ) : (
+            <Tooltip content="Mark prompt as done">
+              <button
+                className="icon-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={!!pendingAction}
+                onClick={(e) => { e.stopPropagation(); void runCardAction("archive", () => onArchive(prompt.id)); }}
+                aria-label="Mark prompt as done"
+              >
+                {pendingAction === "archive" ? <span className="btn-spinner" aria-hidden="true" /> : <Check size={14} />}
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip content="Delete prompt and cleanup resources">
             <button
-              className="icon-btn"
+              className="icon-btn danger"
               onPointerDown={(e) => e.stopPropagation()}
               disabled={!!pendingAction}
-              onClick={(e) => { e.stopPropagation(); void runCardAction("archive", () => onArchive(prompt.id)); }}
-              title="Mark prompt as done"
-              aria-label="Mark prompt as done"
+              onClick={(e) => {
+                e.stopPropagation();
+                void runCardAction("delete", () => onDelete(prompt.id));
+              }}
+              aria-label="Delete prompt and cleanup resources"
             >
-              {pendingAction === "archive" ? <span className="btn-spinner" aria-hidden="true" /> : <Check size={14} />}
+              {pendingAction === "delete" ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 size={14} />}
             </button>
-          )}
-          <button
-            className="icon-btn danger"
-            onPointerDown={(e) => e.stopPropagation()}
-            disabled={!!pendingAction}
-            onClick={(e) => {
-              e.stopPropagation();
-              void runCardAction("delete", () => onDelete(prompt.id));
-            }}
-            title="Delete prompt and cleanup resources"
-            aria-label="Delete prompt and cleanup resources"
-          >
-            {pendingAction === "delete" ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 size={14} />}
-          </button>
+          </Tooltip>
         </div>
       </div>
     </div>

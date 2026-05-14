@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { exec } from "./exec.js";
 
-export type AgentKind = "pi" | "claude" | "custom";
+export type AgentKind = "pi" | "claude" | "opencode" | "custom";
 
 export type AgentPreset = {
   id: string;
@@ -17,13 +17,15 @@ export type AgentPreset = {
 export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
   { id: "pi", name: "Pi", kind: "pi", binary: "pi", argsTemplate: "--model {{model}} {{prompt}}", model: "" },
   { id: "claude", name: "Claude Code", kind: "claude", binary: "claude", argsTemplate: "--model {{model}} {{prompt}}", model: "sonnet" },
+  { id: "opencode", name: "OpenCode", kind: "opencode", binary: "opencode", argsTemplate: "--model {{model}} --prompt {{prompt}}", model: "" },
 ];
 
-export type AgentModel = { id: string; provider: string; model: string; agent: "pi" | "claude" };
+export type AgentModel = { id: string; provider: string; model: string; agent: "pi" | "claude" | "opencode" };
 
 function findBin(name: string): string {
   const home = process.env.HOME ?? "";
   const candidates = [
+    join(home, `.opencode/bin/${name}`),
     join(home, `.bun/bin/${name}`),
     join(home, `.local/share/mise/shims/${name}`),
     join(home, `.local/share/mise/installs/node/22.21.1/bin/${name}`),
@@ -67,6 +69,16 @@ export function listClaudeModels(): AgentModel[] {
     "claude-3-5-haiku",
   ];
   return ids.map((model) => ({ id: model, provider: "anthropic", model, agent: "claude" as const }));
+}
+
+export async function listOpenCodeModels(): Promise<AgentModel[]> {
+  const { stdout } = await exec(findBin("opencode"), ["models"], { timeoutMs: 30000 });
+  return stdout.split(/\r?\n/).flatMap((line) => {
+    const id = line.trim();
+    if (!id || !id.includes("/")) return [];
+    const slash = id.indexOf("/");
+    return [{ id, provider: id.slice(0, slash), model: id.slice(slash + 1), agent: "opencode" as const }];
+  });
 }
 
 function shellQuote(value: string): string {

@@ -104,6 +104,9 @@ export function getSettings(): AppSettings {
     if (row.key === "defaultPresetId") out.defaultPresetId = row.value;
     if (row.key === "lastProjectId") out.lastProjectId = row.value;
   }
+  for (const preset of DEFAULT_AGENT_PRESETS) {
+    if (!out.agentPresets.some((p) => p.id === preset.id)) out.agentPresets.push(preset);
+  }
   return out;
 }
 
