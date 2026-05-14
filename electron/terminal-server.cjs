@@ -6,19 +6,46 @@ const { spawn, spawnSync } = require("node:child_process");
 const { WebSocketServer } = require("ws");
 const pty = require("node-pty");
 
+function buildTerminalEnv() {
+  const env = { ...process.env };
+  const entries = new Set(String(env.PATH || "").split(path.delimiter).filter(Boolean));
+  for (const candidate of [
+    path.join(os.homedir(), ".pi/agent/bin"),
+    path.join(os.homedir(), ".bun/bin"),
+    path.join(os.homedir(), ".local/bin"),
+    path.join(os.homedir(), ".local/share/mise/shims"),
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+  ]) {
+    if (fs.existsSync(candidate)) entries.add(candidate);
+  }
+  env.PATH = Array.from(entries).join(path.delimiter);
+  return env;
+}
+
 function sanitizeSessionName(name) {
   return String(name || "").replace(/[.:\s]/g, "-").replace(/-+/g, "-").slice(0, 80);
 }
 
 function hasTmuxSession(name) {
   if (!name || sanitizeSessionName(name) !== name) return false;
-  const res = spawnSync("tmux", ["has-session", "-t", name], { stdio: "ignore" });
+  const res = spawnSync("tmux", ["has-session", "-t", name], { stdio: "ignore", env: buildTerminalEnv() });
+  return res.status === 0;
+}
+
+function ensureTmuxSession(name, cwd) {
+  if (hasTmuxSession(name)) return true;
+  if (!cwd || !path.isAbsolute(cwd) || !fs.existsSync(cwd)) return false;
+  const res = spawnSync("tmux", ["new-session", "-d", "-s", name, "-c", cwd], { stdio: "ignore", env: buildTerminalEnv() });
   return res.status === 0;
 }
 
 function ensureNodePtySpawnHelperExecutable() {
   try {
-    const pkgRoot = path.dirname(require.resolve("node-pty/package.json"));
+    let pkgRoot = path.dirname(require.resolve("node-pty/package.json"));
+    if (pkgRoot.includes("app.asar")) pkgRoot = pkgRoot.replace("app.asar", "app.asar.unpacked");
     const prebuilds = path.join(pkgRoot, "prebuilds");
     for (const platformDir of fs.readdirSync(prebuilds)) {
       const helper = path.join(prebuilds, platformDir, "spawn-helper");
@@ -40,8 +67,10 @@ function createTerminalServer() {
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const session = url.searchParams.get("session") || "";
+    const cwd = url.searchParams.get("cwd") || "";
 
-    if (!hasTmuxSession(session)) {
+    if (!ensureTmuxSession(session, cwd)) {
+      console.error(`[fractal-terminal] tmux session not found: ${session}`);
       ws.send(JSON.stringify({ type: "error", message: `tmux session not found: ${session}` }));
       ws.close(1008, "tmux session not found");
       return;
@@ -59,7 +88,7 @@ function createTerminalServer() {
         cols: 120,
         rows: 34,
         cwd: os.homedir(),
-        env: { ...process.env, TERM: "xterm-256color" },
+        env: { ...buildTerminalEnv(), TERM: "xterm-256color" },
       });
       disposable = term.onData((data) => {
         if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: "data", data }));
@@ -74,7 +103,7 @@ function createTerminalServer() {
       console.error("[fractal-terminal] node-pty failed, falling back to script(1):", error);
       const child = spawn("script", ["-q", "/dev/null", "tmux", "attach-session", "-t", session], {
         cwd: os.homedir(),
-        env: { ...process.env, TERM: "xterm-256color" },
+        env: { ...buildTerminalEnv(), TERM: "xterm-256color" },
         stdio: "pipe",
       });
       child.stdout.on("data", (data) => {

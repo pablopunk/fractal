@@ -64,7 +64,7 @@ type Prompt = {
 type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string };
 type PiModel = { id: string; provider: string; model: string; agent?: "pi" | "claude" };
 type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
-type TerminalTab = { id: string; promptId: string; session: string; title: string };
+type TerminalTab = { id: string; promptId: string; session: string; title: string; cwd?: string };
 
 const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
@@ -373,10 +373,13 @@ export default function Board() {
       const { session, title } = await api<{ session: string; title: string }>(`/api/projects/${project.id}/terminal`, { method: "POST" });
       const existing = terminalTabs.find((tab) => tab.id === session);
       if (existing) {
+        if (!existing.cwd) {
+          setTerminalTabs((tabs) => tabs.map((tab) => tab.id === existing.id ? { ...tab, cwd: project.path } : tab));
+        }
         setActiveTerminalId(existing.id);
         return;
       }
-      const tab: TerminalTab = { id: session, promptId: project.id, session, title };
+      const tab: TerminalTab = { id: session, promptId: project.id, session, title, cwd: project.path };
       setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
       setActiveTerminalId(tab.id);
     } catch (e) {

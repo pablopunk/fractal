@@ -7,6 +7,7 @@ type TerminalTab = {
   id: string;
   session: string;
   title: string;
+  cwd?: string;
 };
 
 type ElectronGlobals = typeof window & {
@@ -194,7 +195,9 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
         return;
       }
 
-      ws = new WebSocket(`ws://127.0.0.1:${port}/terminal?session=${encodeURIComponent(tab.session)}`);
+      const params = new URLSearchParams({ session: tab.session });
+      if (tab.cwd) params.set("cwd", tab.cwd);
+      ws = new WebSocket(`ws://127.0.0.1:${port}/terminal?${params.toString()}`);
       const sendResize = () => {
         fit.fit();
         if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
@@ -208,9 +211,9 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
         if (msg.type === "data" && msg.data) term.write(msg.data);
         if (msg.type === "error") term.writeln(`\r\n${msg.message ?? "Terminal error"}`);
       });
-      ws.addEventListener("close", () => {
+      ws.addEventListener("close", (event) => {
         if (disposed) return;
-        onCloseRef.current(tab.id);
+        term.writeln(`\r\nTerminal disconnected${event.reason ? `: ${event.reason}` : ""}`);
       });
 
       input = term.onData(sendData);
@@ -226,7 +229,7 @@ function TerminalView({ tab, onClose }: { tab: TerminalTab; onClose: (id: string
       ws?.close();
       term?.dispose();
     };
-  }, [tab.id, tab.session]);
+  }, [tab.id, tab.session, tab.cwd]);
 
   return <div ref={hostRef} className="terminal-host" />;
 }
