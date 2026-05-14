@@ -15,7 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx ./scripts/migrate.ts",
     "db:push": "drizzle-kit push",
-    "rebuild:electron": "mise exec -- pnpm exec electron-builder install-app-deps && mise exec -- pnpm exec electron-rebuild --force --only=better-sqlite3",
+    "rebuild:electron": "mise exec -- pnpm exec electron-builder install-app-deps && mise exec -- pnpm exec electron-rebuild --force --only=better-sqlite3,node-pty",
     "rebuild:node": "mise exec -- pnpm rebuild",
     "electron": "mise exec -- pnpm exec electron .",
     "electron:dev": "concurrently -k \"mise exec -- pnpm dev\" \"mise exec -- pnpm exec wait-on tcp:127.0.0.1:7666 && ELECTRON_RENDERER_URL=http://127.0.0.1:7666 mise exec -- pnpm exec electron .\"",

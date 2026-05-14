@@ -51,6 +51,9 @@ git push origin "$TAG"
 echo "Building signed/notarized macOS arm64 release..."
 mise exec -- pnpm run dist:mac:arm64
 
+# dist rebuilds native modules for Electron's ABI; restore them for local Node/Astro dev.
+mise exec -- pnpm run rebuild:node
+
 if ! ls release/Fractal-"$VERSION"-arm64.zip release/latest-mac.yml >/dev/null 2>&1; then
   echo "Error: expected release artifacts for $VERSION were not produced." >&2
   exit 1
