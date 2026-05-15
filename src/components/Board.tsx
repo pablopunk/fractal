@@ -273,6 +273,19 @@ export default function Board() {
     activateTerminal(tab.id);
   }
 
+  function reorderTerminal(fromId: string, toId: string) {
+    if (fromId === toId) return;
+    setTerminalTabs((tabs) => {
+      const fromIndex = tabs.findIndex((tab) => tab.id === fromId);
+      const toIndex = tabs.findIndex((tab) => tab.id === toId);
+      if (fromIndex < 0 || toIndex < 0) return tabs;
+      const next = tabs.slice();
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }
+
   function closeTerminal(id: string) {
     setTerminalTabs((tabs) => {
       const next = tabs.filter((tab) => tab.id !== id);
@@ -747,6 +760,7 @@ export default function Board() {
                   onTogglePosition={() => setTerminalPosition((position) => position === "right" ? "bottom" : "right")}
                   onSelect={activateTerminal}
                   onClose={closeTerminal}
+                  onReorder={reorderTerminal}
                   focusKey={terminalFocusKey}
                   theme={theme}
                 />

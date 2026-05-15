@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Columns2, Rows2, X, Terminal as TerminalIcon } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 import type { ITheme, Terminal as XTermTerminal } from "@xterm/xterm";
@@ -61,11 +61,14 @@ export default function TerminalPane(props: {
   onTogglePosition: () => void;
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
+  onReorder: (fromId: string, toId: string) => void;
   focusKey: number;
   theme: ThemeMode;
 }) {
   const active = props.tabs.find((tab) => tab.id === props.activeId) ?? props.tabs[0];
   const dragging = useRef(false);
+  const [draggingTabId, setDraggingTabId] = useState<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
@@ -99,7 +102,26 @@ export default function TerminalPane(props: {
       <div className="terminal-tabs">
         {props.tabs.map((tab) => (
           <Tooltip key={tab.id} content={tab.session}>
-            <button className={`terminal-tab ${tab.id === active.id ? "active" : ""}`} onClick={() => props.onSelect(tab.id)}>
+            <button
+              className={`terminal-tab ${tab.id === active.id ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
+              onClick={() => props.onSelect(tab.id)}
+              draggable
+              onDragStart={(e) => {
+                setDraggingTabId(tab.id);
+                e.dataTransfer.effectAllowed = "move";
+                try { e.dataTransfer.setData("text/plain", tab.id); } catch {}
+              }}
+              onDragEnter={(e) => { e.preventDefault(); if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id); }}
+              onDragOver={(e) => { if (draggingTabId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
+              onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOverTabId((id) => id === tab.id ? null : id); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (draggingTabId && draggingTabId !== tab.id) props.onReorder(draggingTabId, tab.id);
+                setDraggingTabId(null);
+                setDragOverTabId(null);
+              }}
+              onDragEnd={() => { setDraggingTabId(null); setDragOverTabId(null); }}
+            >
               <TerminalIcon size={13} />
               <span>{tab.title}</span>
               <span
@@ -247,7 +269,7 @@ function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onC
       term.attachCustomKeyEventHandler((event) => {
         if (event.type !== "keydown") return true;
 
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+        if (event.metaKey && !event.ctrlKey && event.key.toLowerCase() === "w") {
           event.preventDefault();
           onCloseRef.current(tab.id);
           return false;

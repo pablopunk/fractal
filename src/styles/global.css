@@ -1303,6 +1303,8 @@ a { color: inherit; }
   cursor: pointer;
 }
 .terminal-tab:hover { color: var(--text); border-color: var(--border-strong); }
+.terminal-tab.dragging { opacity: 0.4; }
+.terminal-tab.drag-over { border-color: var(--accent); box-shadow: inset 2px 0 0 0 var(--accent); }
 .terminal-tab.active {
   color: var(--text);
   background: var(--surface-3);
