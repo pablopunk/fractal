@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Check, Copy, Pencil, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import PresetPicker from "./PresetPicker.js";
 import Tooltip from "./Tooltip.js";
+import PresetIcon from "./PresetIcon.js";
 import { LocalImageAttachment, LinkifiedText, extractImagePaths, parseImagePaths } from "./PromptMedia.js";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 
@@ -24,7 +25,8 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
     transition,
   };
   const isRunning = !!prompt.isRunning;
-  const presetName = presets.find((preset) => preset.id === prompt.presetId)?.name ?? prompt.presetId;
+  const presetForBadge = presets.find((preset) => preset.id === prompt.presetId);
+  const presetName = presetForBadge?.name ?? prompt.presetId;
   const imagePaths = useMemo(() => [...new Set([...parseImagePaths(prompt.imagePaths), ...extractImagePaths(prompt.text)])], [prompt.imagePaths, prompt.text]);
   const [copied, setCopied] = useState(false);
   const [pendingAction, setPendingAction] = useState<"save" | "archive" | "unarchive" | "delete" | null>(null);
@@ -171,7 +173,10 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
           />
         ) : (
           <Tooltip content={prompt.presetId}>
-            <span className="model-badge">{presetName}</span>
+            <span className="model-badge">
+              {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
+              {presetName}
+            </span>
           </Tooltip>
         )}
         <div className="card-actions-group">

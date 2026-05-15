@@ -39,7 +39,7 @@ import {
   saveTheme,
   type ThemeMode,
 } from "~/lib/client/persistence.js";
-import type { AgentPreset, AppSettings, Column, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
+import type { AppSettings, Column, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
 
 const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
@@ -78,6 +78,7 @@ export default function Board() {
   const [composer, setComposer] = useState("");
   const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
   const [composerPresetId, setComposerPresetId] = useState("");
+  const [presetSettingsOpen, setPresetSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", lastProjectId: "" });
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
@@ -604,13 +605,6 @@ export default function Board() {
     }
   }
 
-  async function createPreset(): Promise<string | undefined> {
-    const id = `custom-${Date.now()}`;
-    const nextPreset: AgentPreset = { id, name: "Custom", kind: "custom", binary: "codex", argsTemplate: "{{prompt}}", model: "", promptTemplate: "{{prompt}}" };
-    const next = await saveSettings({ agentPresets: [...settings.agentPresets, nextPreset] });
-    return next ? id : undefined;
-  }
-
   useEffect(() => {
     void api<{ models: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[] }>("/api/models")
       .then((data) => { setModels(data.models ?? []); setClaudeModels(data.claudeModels ?? []); setOpenCodeModels(data.opencodeModels ?? []); })
@@ -689,6 +683,8 @@ export default function Board() {
                 claudeModels={claudeModels}
                 opencodeModels={opencodeModels}
                 onChange={(agentPresets) => void saveSettings({ agentPresets })}
+                open={presetSettingsOpen}
+                onOpenChange={setPresetSettingsOpen}
               />
               <Tooltip content={`Theme: ${theme}`}>
                 <button type="button" className="theme-toggle" onClick={() => setTheme(nextTheme(theme))} aria-label={`Theme: ${theme}`}>
@@ -739,10 +735,7 @@ export default function Board() {
                             presets={settings.agentPresets}
                             presetId={composerPresetId}
                             onPresetChange={setComposerPresetId}
-                            onCreatePreset={async () => {
-                              const id = await createPreset();
-                              if (id) setComposerPresetId(id);
-                            }}
+                            onCreatePreset={() => setPresetSettingsOpen(true)}
                           />
                         ) : null
                       }

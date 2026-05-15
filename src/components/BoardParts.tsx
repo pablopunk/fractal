@@ -10,6 +10,7 @@ import Tooltip from "./Tooltip.js";
 import { Card } from "./Card.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import { clampSidebarWidth } from "~/lib/client/persistence.js";
+import PresetIcon from "./PresetIcon.js";
 import type { AgentPreset, Column, ModelProfile, PiModel, Project, Prompt, UrlPreview } from "~/lib/client/types.js";
 
 export function Sidebar(props: {
@@ -399,14 +400,17 @@ function SortablePresetItem({ preset, active, isDefault, onSelect }: { preset: A
       {...attributes}
       {...listeners}
     >
+      <PresetIcon preset={preset} size={14} />
       <span className="preset-modal-list-name">{preset.name}{isDefault ? " ★" : ""}</span>
       <span className="preset-modal-list-binary">{preset.binary}</span>
     </button>
   );
 }
 
-export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; onSetDefault: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void }) {
-  const [open, setOpen] = useState(false);
+export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; onSetDefault: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = props.open ?? internalOpen;
+  const setOpen = (v: boolean) => { if (props.onOpenChange) props.onOpenChange(v); else setInternalOpen(v); };
   const [selectedId, setSelectedId] = useState<string | null>(props.presets[0]?.id ?? null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
 

@@ -1174,6 +1174,31 @@ a { color: inherit; }
 }
 .picker-item.active { background: var(--accent-soft); color: var(--text); }
 .picker-name { font-weight: 500; }
+.preset-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -2px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.preset-icon img { display: block; width: 100%; height: 100%; }
+.preset-icon-letter {
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  font-family: var(--font-sans, -apple-system, system-ui, sans-serif);
+  user-select: none;
+}
+.preset-icon .preset-icon-dark { display: none; }
+html[data-theme="dark"] .preset-icon .preset-icon-light { display: none; }
+html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .preset-icon .preset-icon-light { display: none; }
+  html:not([data-theme="light"]) .preset-icon .preset-icon-dark { display: block; }
+}
+.picker-item .preset-icon { align-self: center; }
 .picker-path {
   color: var(--text-faint);
   font-family: var(--font-mono);

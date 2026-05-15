@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import fuzzysort from "fuzzysort";
+import PresetIcon from "./PresetIcon";
 
-type Preset = { id: string; name: string; binary: string };
+type Preset = { id: string; name: string; binary: string; kind: "pi" | "claude" | "opencode" | "custom" };
 
 type Props = {
   presets: Preset[];
@@ -91,6 +92,7 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
   return (
     <>
       <div ref={triggerRef} className="model-picker-trigger preset-picker-trigger" onClick={() => setOpen((o) => !o)}>
+        {selected && <PresetIcon preset={selected} size={14} />}
         <span className="model-picker-value">{selected?.name ?? "Select preset"}</span>
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ flexShrink: 0 }}>
           <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -109,6 +111,7 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
             )}
             {filtered.map((preset, i) => (
               <div key={preset.id} className={`picker-item ${i + (onCreate ? 1 : 0) === highlight ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); commit(preset.id); }} onMouseEnter={() => setHighlight(i + (onCreate ? 1 : 0))}>
+                <PresetIcon preset={preset} size={14} />
                 <span className="picker-name">{preset.name}</span>
                 <span className="picker-path">{preset.binary}</span>
               </div>
