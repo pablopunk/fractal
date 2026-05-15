@@ -1290,7 +1290,8 @@ a { color: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: 120px;
   max-width: 220px;
   padding: 5px 7px;
   border: 1px solid var(--border);
@@ -1311,7 +1312,10 @@ a { color: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1 1 auto;
+  text-align: left;
 }
+.terminal-tab > svg { flex: none; }
 .terminal-tab-close {
   display: inline-flex;
   align-items: center;
@@ -1319,6 +1323,7 @@ a { color: inherit; }
   color: var(--text-faint);
   border-radius: 4px;
   flex: none;
+  margin-left: auto;
 }
 .terminal-tab-close:hover { color: var(--text); background: var(--surface); }
 .terminal-host {

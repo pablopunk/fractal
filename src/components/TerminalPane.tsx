@@ -247,6 +247,12 @@ function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onC
       term.attachCustomKeyEventHandler((event) => {
         if (event.type !== "keydown") return true;
 
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+          event.preventDefault();
+          onCloseRef.current(tab.id);
+          return false;
+        }
+
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && term.hasSelection()) {
           event.preventDefault();
           void writeClipboard(term.getSelection());
