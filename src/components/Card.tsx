@@ -162,10 +162,18 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
         </div>
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
-      <div className="card-actions">
-        <Tooltip content={prompt.presetId}>
-          <span className="model-badge">{presetName}</span>
-        </Tooltip>
+      <div className="card-actions" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+        {prompt.column === "PROMPTS" ? (
+          <PresetPicker
+            presets={presets}
+            value={prompt.presetId}
+            onChange={(id) => { if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id }); }}
+          />
+        ) : (
+          <Tooltip content={prompt.presetId}>
+            <span className="model-badge">{presetName}</span>
+          </Tooltip>
+        )}
         <div className="card-actions-group">
           {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
           <Tooltip content="Edit prompt">
