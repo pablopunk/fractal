@@ -276,6 +276,25 @@ a { color: inherit; }
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+.project-shortcut-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.18));
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.project-shortcut-icon.active {
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+}
 .sidebar-resize-handle {
   position: absolute;
   top: 0;

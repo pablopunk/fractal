@@ -118,9 +118,14 @@ function SortableProjectItem(props: { project: Project; index: number; active: b
       {...attributes}
       {...listeners}
     >
-      <ProjectIcon id={props.project.id} name={props.project.name} path={props.project.path} active={props.active} />
+      {props.showShortcuts && props.index < 9 ? (
+        <span className={`project-shortcut-icon ${props.active ? "active" : ""}`} aria-hidden="true">
+          ⌘{props.index + 1}
+        </span>
+      ) : (
+        <ProjectIcon id={props.project.id} name={props.project.name} path={props.project.path} active={props.active} />
+      )}
       <span className="name">{props.project.name}</span>
-      {props.showShortcuts && props.index < 9 && <span className="project-shortcut">⌘{props.index + 1}</span>}
       <Tooltip content="Remove project">
         <button
           className="remove"
