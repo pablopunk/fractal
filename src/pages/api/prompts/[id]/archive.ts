@@ -60,12 +60,15 @@ export const POST: APIRoute = async ({ params }) => {
     }
   }
 
+  let worktreePath = prompt.worktreePath;
+
   // Clean up worktree if branch has been merged
   if (prompt.runMode === "worktree" && prompt.worktreePath && prompt.projectId && merged) {
     const project = getProject(prompt.projectId);
     if (project && existsSync(prompt.worktreePath)) {
       try {
         await removeWorktree(project.path, prompt.worktreePath);
+        worktreePath = null;
       } catch (e) {
         // Log but don't fail if worktree removal fails
         console.error(`Failed to remove worktree ${prompt.worktreePath}:`, e);
@@ -73,7 +76,7 @@ export const POST: APIRoute = async ({ params }) => {
     }
   }
 
-  const updated = updatePrompt(id, { isArchived: true } as never);
+  const updated = updatePrompt(id, { isArchived: true, tmuxSession: null, worktreePath } as never);
   return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
 };
 

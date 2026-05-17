@@ -460,6 +460,8 @@ export default function Board() {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+      const oldSession = prompts.find((x) => x.id === id)?.tmuxSession;
+      if (oldSession) closeTerminal(oldSession);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         const body = e.body as { detail?: string } | undefined;
