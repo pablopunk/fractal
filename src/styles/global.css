@@ -841,6 +841,8 @@ a { color: inherit; }
   transition: border-color 80ms ease, transform 80ms ease;
 }
 .card:hover { border-color: var(--border-strong); }
+.card.active-terminal { border-color: var(--accent); }
+.card.active-terminal:hover { border-color: var(--accent); }
 .card:active { cursor: grabbing; }
 .card.locked { cursor: default; }
 .card.locked:active { cursor: default; }

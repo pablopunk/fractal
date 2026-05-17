@@ -121,7 +121,7 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
   return (
     <div
       ref={setNodeRef}
-      className={`card ${isDragging ? "dragging" : ""}`}
+      className={`card ${isDragging ? "dragging" : ""} ${isActiveTerminal ? "active-terminal" : ""}`}
       style={style}
       onClick={() => {
         if (prompt.tmuxSession) onOpenTerminal(prompt);
