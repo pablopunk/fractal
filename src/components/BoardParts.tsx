@@ -400,8 +400,10 @@ function SortablePresetItem({ preset, active, isDefault, onSelect }: { preset: A
       {...attributes}
       {...listeners}
     >
-      <PresetIcon preset={preset} size={14} />
-      <span className="preset-modal-list-name">{preset.name}{isDefault ? " ★" : ""}</span>
+      <div className="preset-modal-list-item-header">
+        <span className="preset-modal-list-name">{preset.name}{isDefault ? " ★" : ""}</span>
+        <PresetIcon preset={preset} size={14} />
+      </div>
       <span className="preset-modal-list-binary">{preset.binary}</span>
     </button>
   );

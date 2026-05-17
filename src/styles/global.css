@@ -1507,9 +1507,10 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
 .preset-modal-header h2 { margin: 0; font-size: 15px; }
 .preset-modal-body { display: grid; grid-template-columns: 220px 1fr; gap: 0; flex: 1; min-height: 0; }
 .preset-modal-list { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-right: 1px solid var(--border); overflow-y: auto; }
-.preset-modal-list-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text); cursor: pointer; text-align: left; }
+.preset-modal-list-item { display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 8px 10px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text); cursor: pointer; text-align: left; }
 .preset-modal-list-item:hover { background: var(--surface-2); }
 .preset-modal-list-item.active { background: var(--surface-2); border-color: var(--border-strong); }
+.preset-modal-list-item-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .preset-modal-list-name { font-weight: 500; font-size: 13px; }
 .preset-modal-list-binary { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 .preset-modal-form { display: flex; flex-direction: column; gap: 12px; padding: 18px; overflow-y: auto; }
