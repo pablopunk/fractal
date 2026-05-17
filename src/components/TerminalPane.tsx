@@ -17,6 +17,7 @@ type ElectronGlobals = typeof window & {
   electron?: {
     terminalPort?: number | null;
     getPathForFile?: (file: File) => string;
+    openExternal?: (url: string) => Promise<boolean>;
   };
 };
 
@@ -24,6 +25,31 @@ function isLightTheme(theme: ThemeMode): boolean {
   if (theme === "light") return true;
   if (theme === "dark") return false;
   return window.matchMedia?.("(prefers-color-scheme: light)").matches ?? false;
+}
+
+const URL_RE = /https?:\/\/[^\s<>()"']+/gi;
+
+function trimUrl(url: string): string {
+  return url.replace(/[),.;:!?\]}]+$/g, "");
+}
+
+function terminalLinkAt(term: XTermTerminal, host: HTMLElement, event: MouseEvent): string | null {
+  const screen = host.querySelector<HTMLElement>(".xterm-screen");
+  const rect = screen?.getBoundingClientRect();
+  if (!rect) return null;
+
+  const col = Math.floor(((event.clientX - rect.left) / rect.width) * term.cols);
+  const viewportRow = Math.floor(((event.clientY - rect.top) / rect.height) * term.rows);
+  if (col < 0 || viewportRow < 0 || col >= term.cols || viewportRow >= term.rows) return null;
+
+  const bufferRow = term.buffer.active.baseY + viewportRow;
+  const line = term.buffer.active.getLine(bufferRow)?.translateToString(true) ?? "";
+  for (const match of line.matchAll(URL_RE)) {
+    const url = trimUrl(match[0]);
+    const start = match.index ?? 0;
+    if (col >= start && col <= start + url.length) return url;
+  }
+  return null;
 }
 
 function terminalTheme(theme: ThemeMode): ITheme {
@@ -210,6 +236,14 @@ function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onC
       event.stopPropagation();
       term?.focus();
     };
+    const onLinkMouseDown = (event: MouseEvent) => {
+      if (!event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey || event.button !== 0 || !term) return;
+      const url = terminalLinkAt(term, host, event);
+      if (!url) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void (window as ElectronGlobals).electron?.openExternal?.(url);
+    };
     const onShiftMouseDown = (event: MouseEvent) => {
       // xterm.js forces selection with Shift on Linux/Windows, but with Option on macOS.
       // Re-dispatch Shift+drag as Option+drag so this app matches other terminals.
@@ -303,6 +337,7 @@ function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onC
       host.addEventListener("paste", onPaste);
       host.addEventListener("dragover", onDragOver);
       host.addEventListener("drop", onDrop);
+      host.addEventListener("mousedown", onLinkMouseDown, { capture: true });
       host.addEventListener("mousedown", onShiftMouseDown, { capture: true });
       fit.fit();
 
@@ -346,6 +381,7 @@ function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onC
       host.removeEventListener("paste", onPaste);
       host.removeEventListener("dragover", onDragOver);
       host.removeEventListener("drop", onDrop);
+      host.removeEventListener("mousedown", onLinkMouseDown, { capture: true });
       host.removeEventListener("mousedown", onShiftMouseDown, { capture: true });
       ws?.close();
       termRef.current = null;

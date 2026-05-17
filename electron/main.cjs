@@ -1,7 +1,7 @@
 /* Electron main process — boots the Astro Node server in-process and shows it
  * in a BrowserWindow. Plain CommonJS to avoid ESM/Electron edge cases.
  */
-const { app, BrowserWindow, shell, Menu, dialog } = require("electron");
+const { app, BrowserWindow, shell, Menu, dialog, ipcMain } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const net = require("node:net");
@@ -368,6 +368,12 @@ function buildMenu() {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
+
+ipcMain.handle("open-external", (_event, url) => {
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return false;
+  void shell.openExternal(url);
+  return true;
+});
 
 app.whenReady().then(() => {
   buildMenu();

@@ -1,4 +1,4 @@
-const { contextBridge, webUtils } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 const terminalArg = process.argv.find((arg) => arg.startsWith("--fractal-terminal-port="));
 const terminalPort = terminalArg ? Number(terminalArg.split("=")[1]) : null;
@@ -12,5 +12,8 @@ contextBridge.exposeInMainWorld("electron", {
     } catch {
       return "";
     }
+  },
+  openExternal(url) {
+    return ipcRenderer.invoke("open-external", url);
   },
 });
