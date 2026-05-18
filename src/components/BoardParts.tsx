@@ -409,6 +409,17 @@ function SortablePresetItem({ preset, active, isDefault, onSelect }: { preset: A
   );
 }
 
+function presetKindForBinary(binary: string): AgentPreset["kind"] {
+  if (binary === "pi" || binary === "claude" || binary === "opencode") return binary;
+  return "custom";
+}
+
+function defaultArgsForBinary(binary: string): string {
+  if (binary === "opencode") return "--model {{model}} --prompt {{prompt}}";
+  if (binary === "pi" || binary === "claude") return "--model {{model}} {{prompt}}";
+  return "{{prompt}}";
+}
+
 export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; onSetDefault: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = props.open ?? internalOpen;
@@ -431,7 +442,7 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
   }
 
   const selected = props.presets.find((preset) => preset.id === selectedId) ?? props.presets[0] ?? null;
-  const selectedKind: AgentPreset["kind"] = selected?.binary === "pi" ? "pi" : selected?.binary === "claude" ? "claude" : selected?.binary === "opencode" ? "opencode" : "custom";
+  const selectedKind: AgentPreset["kind"] = selected ? presetKindForBinary(selected.binary) : "custom";
   const selectedModels = selectedKind === "claude" ? props.claudeModels : selectedKind === "opencode" ? props.opencodeModels : props.piModels;
 
   return (
@@ -485,8 +496,8 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
                     </span>
                     <input value={selected.binary} onChange={(e) => {
                       const binary = e.target.value;
-                      const kind = binary === "pi" ? "pi" : binary === "claude" ? "claude" : binary === "opencode" ? "opencode" : "custom";
-                      update(selected.id, { binary, kind });
+                      const kind = presetKindForBinary(binary);
+                      update(selected.id, { binary, kind, argsTemplate: defaultArgsForBinary(binary) });
                     }} placeholder="pi, claude, opencode, codex, …" />
                   </label>
                   <label>
