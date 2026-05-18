@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Check, Copy, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import PresetPicker from "./PresetPicker.js";
 import Tooltip from "./Tooltip.js";
 import PresetIcon from "./PresetIcon.js";
-import { LocalImageAttachment, LinkifiedText, extractImagePaths, parseImagePaths } from "./PromptMedia.js";
+import { LocalImageAttachment, UrlPreviewLink, extractImagePaths, parseImagePaths } from "./PromptMedia.js";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 
 export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, onSummarize, isSummarizing, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void | Promise<void>; onArchive: (id: string) => void | Promise<void>; onUnarchive: (id: string) => void | Promise<void>; onOpenTerminal: (prompt: Prompt) => void; onSummarize?: (id: string) => void | Promise<void>; isSummarizing?: boolean; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
@@ -139,7 +141,17 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
         </Tooltip>
       )}
       <Tooltip content={displayText === prompt.text ? "" : <><span className="ai-helper-tooltip-title">Generated summary from</span><br />{prompt.text}</>}>
-        <div className="text"><LinkifiedText text={displayText} />{isShowingSummary && <span className="ai-helper-mark" aria-label="Prompt summary was generated">∗</span>}</div>
+        <div className="text markdown-text">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ href, children }) => href ? <UrlPreviewLink url={href}>{children}</UrlPreviewLink> : <>{children}</>,
+            }}
+          >
+            {displayText}
+          </ReactMarkdown>
+          {isShowingSummary && <span className="ai-helper-mark" aria-label="Prompt summary was generated">∗</span>}
+        </div>
       </Tooltip>
       {imagePaths.length > 0 && (
         <div className="image-attachments">

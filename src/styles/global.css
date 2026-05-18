@@ -859,12 +859,66 @@ a { color: inherit; }
   text-underline-offset: 2px;
 }
 .card .text a:hover { color: color-mix(in oklab, var(--accent) 82%, white); }
+.markdown-text > :first-child { margin-top: 0; }
+.markdown-text > :last-child { margin-bottom: 0; }
+.markdown-text p,
+.markdown-text ul,
+.markdown-text ol,
+.markdown-text blockquote,
+.markdown-text pre { margin: 0 0 8px; }
+.markdown-text ul,
+.markdown-text ol { padding-left: 18px; }
+.markdown-text li { margin: 2px 0; }
+.markdown-text code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+.markdown-text pre {
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.markdown-text pre code { padding: 0; background: transparent; }
+.markdown-text blockquote {
+  padding-left: 10px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-muted);
+}
+.markdown-text table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.markdown-text th,
+.markdown-text td {
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+}
+.markdown-text h1,
+.markdown-text h2,
+.markdown-text h3,
+.markdown-text h4,
+.markdown-text h5,
+.markdown-text h6 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
 .ai-helper-mark,
 .ai-helper-tooltip-title {
   color: #eab308;
   font-weight: 700;
 }
-.ai-helper-mark { margin-left: 4px; }
+.ai-helper-mark {
+  display: inline;
+  margin-left: 4px;
+}
+.markdown-text:has(.ai-helper-mark) > p:last-of-type { display: inline; }
 .image-attachments {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));

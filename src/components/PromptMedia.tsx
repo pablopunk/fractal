@@ -28,7 +28,7 @@ function basename(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
 }
 
-function UrlPreviewLink({ url }: { url: string }) {
+export function UrlPreviewLink({ url, children }: { url: string; children?: React.ReactNode }) {
   const [showPreview, setShowPreview] = useState(false);
   const [preview, setPreview] = useState<UrlPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -76,7 +76,7 @@ function UrlPreviewLink({ url }: { url: string }) {
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        {url}
+        {children ?? url}
       </a>
       {showPreview && (
         <span className="url-preview-popover" style={popoverStyle ?? undefined} aria-hidden="true">
