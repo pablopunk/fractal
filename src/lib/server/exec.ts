@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { delimiter, join } from "node:path";
 
@@ -20,8 +20,38 @@ export class ExecError extends Error {
   }
 }
 
+let secretsEnv: NodeJS.ProcessEnv | null = null;
+
+function getSecretsEnv(): NodeJS.ProcessEnv {
+  if (secretsEnv) return secretsEnv;
+  secretsEnv = {};
+  const home = process.env.HOME ?? "";
+  const secretsPath = join(home, ".zshrc.d", "01-secrets.sh");
+  if (!existsSync(secretsPath)) return secretsEnv;
+
+  try {
+    const output = execFileSync("/bin/zsh", ["-c", "source $HOME/.zshrc.d/01-secrets.sh >/dev/null 2>&1; /usr/bin/env -0"], {
+      encoding: "utf8",
+      timeout: 5_000,
+      maxBuffer: 1024 * 1024,
+      env: process.env,
+    });
+    for (const entry of output.split("\0")) {
+      const eq = entry.indexOf("=");
+      if (eq <= 0) continue;
+      const key = entry.slice(0, eq);
+      if (["_", "PWD", "OLDPWD", "SHLVL"].includes(key)) continue;
+      secretsEnv[key] = entry.slice(eq + 1);
+    }
+  } catch (err) {
+    console.error("[fractal-exec] failed to load secrets env:", err);
+  }
+
+  return secretsEnv;
+}
+
 function buildExecEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const next = { ...env };
+  const next = { ...getSecretsEnv(), ...env };
   const home = next.HOME ?? "";
   const pathEntries = new Set((next.PATH ?? "").split(delimiter).filter(Boolean));
   const candidates = [
