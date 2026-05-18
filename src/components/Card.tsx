@@ -10,6 +10,19 @@ import PresetIcon from "./PresetIcon.js";
 import { LocalImageAttachment, UrlPreviewLink, extractImagePaths, parseImagePaths } from "./PromptMedia.js";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 
+function PromptMarkdown({ text }: { text: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        a: ({ href, children }) => href ? <UrlPreviewLink url={href}>{children}</UrlPreviewLink> : <>{children}</>,
+      }}
+    >
+      {text}
+    </ReactMarkdown>
+  );
+}
+
 export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, onSummarize, isSummarizing, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void | Promise<void>; onArchive: (id: string) => void | Promise<void>; onUnarchive: (id: string) => void | Promise<void>; onOpenTerminal: (prompt: Prompt) => void; onSummarize?: (id: string) => void | Promise<void>; isSummarizing?: boolean; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
@@ -140,16 +153,9 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
           </div>
         </Tooltip>
       )}
-      <Tooltip content={displayText === prompt.text ? "" : <><span className="ai-helper-tooltip-title">Generated summary from</span><br />{prompt.text}</>}>
+      <Tooltip content={displayText === prompt.text ? "" : <><span className="ai-helper-tooltip-title">Generated summary from</span><div className="markdown-text tooltip-markdown"><PromptMarkdown text={prompt.text} /></div></>}>
         <div className="text markdown-text">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              a: ({ href, children }) => href ? <UrlPreviewLink url={href}>{children}</UrlPreviewLink> : <>{children}</>,
-            }}
-          >
-            {displayText}
-          </ReactMarkdown>
+          <PromptMarkdown text={displayText} />
           {isShowingSummary && <span className="ai-helper-mark" aria-label="Prompt summary was generated">∗</span>}
         </div>
       </Tooltip>

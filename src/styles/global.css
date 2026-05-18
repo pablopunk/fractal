@@ -909,6 +909,11 @@ a { color: inherit; }
   font-size: 13px;
   line-height: 1.35;
 }
+.tooltip-markdown {
+  margin-top: 6px;
+  max-height: 280px;
+  overflow: auto;
+}
 .ai-helper-mark,
 .ai-helper-tooltip-title {
   color: #eab308;
