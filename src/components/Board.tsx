@@ -111,6 +111,13 @@ export default function Board() {
     setTerminalFocusKey((key) => key + 1);
   };
 
+  const resetInitialTerminalSplitSize = () => {
+    const rect = boardElement?.parentElement?.getBoundingClientRect();
+    if (!rect) return;
+    if (terminalPosition === "right") setTerminalWidth(Math.floor(rect.width / 2));
+    else setTerminalHeight(Math.floor(rect.height / 2));
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor),
@@ -271,6 +278,7 @@ export default function Board() {
       title: prompt.tmuxSession.replace(/^fractal-/, ""),
       cwd,
     };
+    if (terminalTabs.length === 0) resetInitialTerminalSplitSize();
     setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
     activateTerminal(tab.id);
   }
@@ -351,6 +359,7 @@ export default function Board() {
         return;
       }
       const tab: TerminalTab = { id: session, promptId: project.id, session, title, cwd: project.path };
+      if (terminalTabs.length === 0) resetInitialTerminalSplitSize();
       setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
       activateTerminal(tab.id);
     } catch (e) {
