@@ -260,6 +260,8 @@ export function ColumnView(props: {
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onOpenTerminal: (prompt: Prompt) => void;
+  onSummarize?: (id: string) => void;
+  summarizingIds?: Set<string>;
   openTerminalIds: Set<string>;
   activeTerminalId?: string | null;
   composer: React.ReactNode;
@@ -343,6 +345,8 @@ export function ColumnView(props: {
                 onArchive={props.onArchive}
                 onUnarchive={props.onUnarchive}
                 onOpenTerminal={props.onOpenTerminal}
+                onSummarize={props.onSummarize}
+                isSummarizing={props.summarizingIds?.has(p.id)}
                 isTerminalOpen={!!p.tmuxSession && props.openTerminalIds.has(p.tmuxSession)}
                 isActiveTerminal={!!p.tmuxSession && p.tmuxSession === props.activeTerminalId}
                 home={props.home}
@@ -420,7 +424,18 @@ function defaultArgsForBinary(binary: string): string {
   return "{{prompt}}";
 }
 
-export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; onSetDefault: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+function thinkingLevelsForKind(kind: AgentPreset["kind"]): PiModel[] {
+  const levels = kind === "pi"
+    ? ["off", "minimal", "low", "medium", "high", "xhigh"]
+    : kind === "claude"
+      ? ["low", "medium", "high", "xhigh", "max"]
+      : kind === "opencode"
+        ? ["minimal", "high", "max"]
+        : [];
+  return levels.map((level) => ({ id: level, model: level, provider: "thinking" }));
+}
+
+export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; helperPresetId: string; onSetDefault: (id: string) => void; onSetHelper: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = props.open ?? internalOpen;
   const setOpen = (v: boolean) => { if (props.onOpenChange) props.onOpenChange(v); else setInternalOpen(v); };
@@ -508,6 +523,12 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
                       <ModelPicker models={selectedModels} value={selected.model ?? ""} onChange={(model) => update(selected.id, { model })} />
                     )}
                   </label>
+                  {selectedKind !== "custom" && (
+                    <label className="preset-modal-compact-field">
+                      <span>Thinking</span>
+                      <ModelPicker models={thinkingLevelsForKind(selectedKind)} value={selected.thinking ?? ""} onChange={(thinking) => update(selected.id, { thinking })} searchPlaceholder="Search thinking…" />
+                    </label>
+                  )}
 
                   <label>
                     <span>Args template</span>
@@ -520,6 +541,10 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
                   <label className="preset-modal-default">
                     <input type="checkbox" checked={selected.id === props.defaultPresetId} onChange={(e) => { if (e.target.checked) props.onSetDefault(selected.id); }} />
                     <span>Use as default for new prompts</span>
+                  </label>
+                  <label className="preset-modal-default">
+                    <input type="checkbox" checked={selected.id === props.helperPresetId} onChange={(e) => { if (e.target.checked) props.onSetHelper(selected.id); }} />
+                    <span>Use for Fractal AI helpers</span>
                   </label>
                   <div className="preset-modal-form-actions">
                     {props.presets.length > 1 && (

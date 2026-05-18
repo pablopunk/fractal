@@ -11,6 +11,7 @@ export type AgentPreset = {
   binary: string;
   argsTemplate: string;
   model?: string;
+  thinking?: string;
   promptTemplate?: string;
 };
 
@@ -89,10 +90,19 @@ function renderTemplate(template: string, vars: Record<string, string | undefine
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => shellQuote(vars[key] ?? ""));
 }
 
+export function thinkingArgsForPreset(preset: Pick<AgentPreset, "kind" | "binary" | "thinking">): string[] {
+  if (!preset.thinking) return [];
+  if (preset.kind === "pi" || preset.binary === "pi") return ["--thinking", preset.thinking];
+  if (preset.kind === "claude" || preset.binary === "claude") return ["--effort", preset.thinking];
+  if (preset.kind === "opencode" || preset.binary === "opencode") return ["--variant", preset.thinking];
+  return [];
+}
+
 export function renderAgentCommand(preset: AgentPreset, prompt: string): string {
   const renderedPrompt = preset.promptTemplate?.trim()
     ? preset.promptTemplate.replace(/{{\s*prompt\s*}}/g, () => prompt)
     : prompt;
+  const thinkingArgs = thinkingArgsForPreset(preset).map(shellQuote).join(" ");
   const args = renderTemplate(preset.argsTemplate, { prompt: renderedPrompt, model: preset.model });
-  return [preset.binary, args].filter(Boolean).join(" ");
+  return [preset.binary, thinkingArgs, args].filter(Boolean).join(" ");
 }

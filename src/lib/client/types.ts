@@ -2,11 +2,12 @@ export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED"
 
 export type Project = { id: string; name: string; path: string; icon?: string | null; iconMime?: string | null; sortOrder?: number };
 export type ModelProfile = "fast" | "smart";
-export type AgentPreset = { id: string; name: string; kind: "pi" | "claude" | "opencode" | "custom"; binary: string; argsTemplate: string; model?: string; promptTemplate?: string };
+export type AgentPreset = { id: string; name: string; kind: "pi" | "claude" | "opencode" | "custom"; binary: string; argsTemplate: string; model?: string; thinking?: string; promptTemplate?: string };
 export type Prompt = {
   id: string;
   projectId: string;
   text: string;
+  summary?: string | null;
   imagePaths: string;
   modelProfile: ModelProfile;
   presetId: string;
@@ -20,7 +21,7 @@ export type Prompt = {
   launchedAt?: number | null;
   isRunning?: boolean;
 };
-export type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string; lastProjectId: string };
+export type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string; helperPresetId: string; lastProjectId: string };
 export type PiModel = { id: string; provider: string; model: string; agent?: "pi" | "claude" | "opencode" };
 export type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
 export type TerminalTab = { id: string; promptId: string; session: string; title: string; cwd?: string };

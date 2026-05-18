@@ -79,7 +79,7 @@ export default function Board() {
   const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
   const [composerPresetId, setComposerPresetId] = useState("");
   const [presetSettingsOpen, setPresetSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", lastProjectId: "" });
+  const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", helperPresetId: "", lastProjectId: "" });
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
   const [opencodeModels, setOpenCodeModels] = useState<PiModel[]>([]);
@@ -99,6 +99,7 @@ export default function Board() {
   const [showProjectShortcuts, setShowProjectShortcuts] = useState(false);
   const [isClearingDone, setIsClearingDone] = useState(false);
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
+  const [summarizingIds, setSummarizingIds] = useState<Set<string>>(() => new Set());
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const [boardRows, setBoardRows] = useState(false);
@@ -300,7 +301,7 @@ export default function Board() {
       const data = await api<{ home: string; projects: Project[]; prompts: Prompt[]; settings: AppSettings }>("/api/state");
       setProjects(data.projects);
       setPrompts(data.prompts);
-      const nextSettings = data.settings ?? { fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", lastProjectId: "" };
+      const nextSettings = data.settings ?? { fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", helperPresetId: "", lastProjectId: "" };
       setSettings(nextSettings);
       setComposerPresetId((cur) => {
         if (nextSettings.agentPresets.some((p) => p.id === cur)) return cur;
@@ -460,6 +461,7 @@ export default function Board() {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+      if (!prompt.summary) void refreshPromptSummary(id);
       const oldSession = prompts.find((x) => x.id === id)?.tmuxSession;
       if (oldSession) closeTerminal(oldSession);
     } catch (e) {
@@ -481,6 +483,21 @@ export default function Board() {
     }
   }
 
+  async function refreshPromptSummary(id: string) {
+    setSummarizingIds((ids) => new Set(ids).add(id));
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/summary`, { method: "POST" });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+    } catch {
+    } finally {
+      setSummarizingIds((ids) => {
+        const next = new Set(ids);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
   async function launch(id: string, target: Column) {
     if (target === "PROMPTS") return;
     const url = target === "RUN_IN_PLACE" ? `/api/prompts/${id}/run-in-place` : `/api/prompts/${id}/run-in-worktree`;
@@ -489,6 +506,7 @@ export default function Board() {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(url, { method: "POST" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+      if (!prompt.summary) void refreshPromptSummary(id);
     } catch (e) {
       setPrompts(prev);
       toast.error(e instanceof Error ? e.message : String(e));
@@ -680,7 +698,9 @@ export default function Board() {
               <PresetSettings
                 presets={settings.agentPresets}
                 defaultPresetId={settings.defaultPresetId}
+                helperPresetId={settings.helperPresetId}
                 onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
+                onSetHelper={(id) => void saveSettings({ helperPresetId: id })}
                 piModels={models}
                 claudeModels={claudeModels}
                 opencodeModels={opencodeModels}
@@ -715,6 +735,8 @@ export default function Board() {
                       onArchive={archivePrompt}
                       onUnarchive={unarchivePrompt}
                       onOpenTerminal={openTerminal}
+                      onSummarize={(id) => void refreshPromptSummary(id)}
+                      summarizingIds={summarizingIds}
                       openTerminalIds={openTerminalIds}
                       activeTerminalId={activeTerminalId}
                       home={home}

@@ -859,6 +859,12 @@ a { color: inherit; }
   text-underline-offset: 2px;
 }
 .card .text a:hover { color: color-mix(in oklab, var(--accent) 82%, white); }
+.ai-helper-mark,
+.ai-helper-tooltip-title {
+  color: #eab308;
+  font-weight: 700;
+}
+.ai-helper-mark { margin-left: 4px; }
 .image-attachments {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -1515,6 +1521,7 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
 .preset-modal-list-binary { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 .preset-modal-form { display: flex; flex-direction: column; gap: 12px; padding: 18px; overflow-y: auto; }
 .preset-modal-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.preset-modal-compact-field { width: min(360px, 100%); }
 .preset-modal-form label > span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 .preset-modal-label-row { display: flex; align-items: center; gap: 6px; line-height: 1; }
 .preset-modal-label-row > span { display: inline-flex; align-items: center; }
@@ -1523,6 +1530,7 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
 .tooltip-arrow { fill: var(--surface-3); }
 @keyframes tooltip-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
 .preset-modal-form input,
+.preset-modal-form select,
 .preset-modal-form textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; padding: 6px 8px; font-family: var(--font-mono); }
 .preset-modal-form textarea { font-size: 12px; resize: vertical; min-height: 80px; }
 .preset-modal-form-actions { display: flex; justify-content: flex-end; }

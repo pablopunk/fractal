@@ -10,7 +10,10 @@ export const PATCH: APIRoute = async ({ params, request }) => {
   if (!getPrompt(id)) return Response.json({ error: "not found" }, { status: 404 });
   const body = (await request.json().catch(() => ({}))) as { text?: string; isArchived?: boolean; modelProfile?: "fast" | "smart"; presetId?: string; column?: "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" };
   const patch: Record<string, unknown> = {};
-  if (typeof body.text === "string") patch.text = body.text;
+  if (typeof body.text === "string") {
+    patch.text = body.text;
+    patch.summary = null;
+  }
   if (typeof body.isArchived === "boolean") patch.isArchived = body.isArchived;
   if (body.modelProfile === "fast" || body.modelProfile === "smart") patch.modelProfile = body.modelProfile;
   if (typeof body.presetId === "string") patch.presetId = body.presetId;

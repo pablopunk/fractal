@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, Copy, Pencil, SquareTerminal, Trash2, Undo2 } from "lucide-react";
+import { Check, Copy, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import PresetPicker from "./PresetPicker.js";
 import Tooltip from "./Tooltip.js";
 import PresetIcon from "./PresetIcon.js";
 import { LocalImageAttachment, LinkifiedText, extractImagePaths, parseImagePaths } from "./PromptMedia.js";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 
-export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void | Promise<void>; onArchive: (id: string) => void | Promise<void>; onUnarchive: (id: string) => void | Promise<void>; onOpenTerminal: (prompt: Prompt) => void; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
+export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, onSummarize, isSummarizing, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void | Promise<void>; onArchive: (id: string) => void | Promise<void>; onUnarchive: (id: string) => void | Promise<void>; onOpenTerminal: (prompt: Prompt) => void; onSummarize?: (id: string) => void | Promise<void>; isSummarizing?: boolean; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const [editPresetId, setEditPresetId] = useState(prompt.presetId);
@@ -28,6 +28,8 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
   const presetForBadge = presets.find((preset) => preset.id === prompt.presetId);
   const presetName = presetForBadge?.name ?? prompt.presetId;
   const imagePaths = useMemo(() => [...new Set([...parseImagePaths(prompt.imagePaths), ...extractImagePaths(prompt.text)])], [prompt.imagePaths, prompt.text]);
+  const displayText = prompt.column === "PROMPTS" ? prompt.text : (prompt.summary?.trim() || prompt.text);
+  const isShowingSummary = prompt.column !== "PROMPTS" && !!prompt.summary?.trim();
   const [copied, setCopied] = useState(false);
   const [pendingAction, setPendingAction] = useState<"save" | "archive" | "unarchive" | "delete" | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -136,7 +138,9 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
           </div>
         </Tooltip>
       )}
-      <div className="text"><LinkifiedText text={prompt.text} /></div>
+      <Tooltip content={displayText === prompt.text ? "" : <><span className="ai-helper-tooltip-title">Generated summary from</span><br />{prompt.text}</>}>
+        <div className="text"><LinkifiedText text={displayText} />{isShowingSummary && <span className="ai-helper-mark" aria-label="Prompt summary was generated">∗</span>}</div>
+      </Tooltip>
       {imagePaths.length > 0 && (
         <div className="image-attachments">
           {imagePaths.map((path) => <LocalImageAttachment key={path} path={path} />)}
@@ -181,6 +185,22 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
         )}
         <div className="card-actions-group">
           {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
+          {prompt.column !== "PROMPTS" && !prompt.summary?.trim() && onSummarize && (
+            <Tooltip content={isSummarizing ? "Summarizing…" : "Summarize prompt"}>
+              <button
+                className="icon-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={!!pendingAction || !!isSummarizing}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onSummarize(prompt.id);
+                }}
+                aria-label={isSummarizing ? "Summarizing prompt" : "Summarize prompt"}
+              >
+                {isSummarizing ? <span className="btn-spinner" aria-hidden="true" /> : <Sparkles size={14} />}
+              </button>
+            </Tooltip>
+          )}
           <Tooltip content="Edit prompt">
             <button
               className="icon-btn"

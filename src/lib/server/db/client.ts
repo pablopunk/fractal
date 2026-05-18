@@ -51,6 +51,7 @@ function ensureSchema(sqlite: Database.Database) {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       text TEXT NOT NULL,
+      summary TEXT,
       image_paths TEXT NOT NULL DEFAULT '[]',
       model_profile TEXT NOT NULL DEFAULT 'smart',
       preset_id TEXT NOT NULL DEFAULT 'pi',
@@ -84,6 +85,9 @@ function ensureSchema(sqlite: Database.Database) {
   } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]';");
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN summary TEXT;");
   } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN icon TEXT;");

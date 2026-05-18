@@ -11,6 +11,7 @@ export type AppSettings = {
   smartModel: string;
   agentPresets: AgentPreset[];
   defaultPresetId: string;
+  helperPresetId: string;
   lastProjectId: string;
 };
 
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   smartModel: "",
   agentPresets: DEFAULT_AGENT_PRESETS,
   defaultPresetId: "pi",
+  helperPresetId: "",
   lastProjectId: "",
 };
 
@@ -110,9 +112,16 @@ export function deletePrompt(id: string): void {
   getDb().delete(prompts).where(eq(prompts.id, id)).run();
 }
 
+function defaultHelperPresetId(presets: AgentPreset[]): string {
+  return presets.find((preset) => preset.kind === "pi" || preset.binary === "pi")?.id
+    ?? presets.find((preset) => preset.kind === "opencode" || preset.binary === "opencode")?.id
+    ?? "";
+}
+
 export function getSettings(): AppSettings {
   const rows = getDb().select().from(settings).all();
   const out = { ...DEFAULT_SETTINGS };
+  let hasStoredHelperPresetId = false;
   for (const row of rows) {
     if (row.key === "fastModel") out.fastModel = row.value;
     if (row.key === "smartModel") out.smartModel = row.value;
@@ -122,11 +131,17 @@ export function getSettings(): AppSettings {
       }
     }
     if (row.key === "defaultPresetId") out.defaultPresetId = row.value;
+    if (row.key === "helperPresetId") {
+      out.helperPresetId = row.value;
+      hasStoredHelperPresetId = true;
+    }
     if (row.key === "lastProjectId") out.lastProjectId = row.value;
   }
   for (const preset of DEFAULT_AGENT_PRESETS) {
     if (!out.agentPresets.some((p) => p.id === preset.id)) out.agentPresets.push(preset);
   }
+  if (!hasStoredHelperPresetId) out.helperPresetId = defaultHelperPresetId(out.agentPresets);
+  if (out.helperPresetId && !out.agentPresets.some((p) => p.id === out.helperPresetId)) out.helperPresetId = "";
   return out;
 }
 

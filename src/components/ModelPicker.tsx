@@ -7,12 +7,14 @@ type Props = {
   models: PiModel[];
   value: string;
   onChange: (value: string) => void;
+  defaultLabel?: string;
+  searchPlaceholder?: string;
 };
 
 const POPUP_WIDTH = 320;
 const POPUP_MAX_HEIGHT = 360;
 
-export default function ModelPicker({ models, value, onChange }: Props) {
+export default function ModelPicker({ models, value, onChange, defaultLabel = "default", searchPlaceholder = "Search models…" }: Props) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -79,7 +81,7 @@ export default function ModelPicker({ models, value, onChange }: Props) {
         className="model-picker-trigger"
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="model-picker-value">{value || "default"}</span>
+        <span className="model-picker-value">{value || defaultLabel}</span>
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ flexShrink: 0 }}>
           <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -94,7 +96,7 @@ export default function ModelPicker({ models, value, onChange }: Props) {
             <input
               ref={inputRef}
               className="model-picker-input"
-              placeholder="Search models…"
+              placeholder={searchPlaceholder}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
@@ -107,7 +109,7 @@ export default function ModelPicker({ models, value, onChange }: Props) {
               onMouseDown={(e) => { e.preventDefault(); commit(""); }}
               onMouseEnter={() => setHighlight(0)}
             >
-              <span className="picker-name">default</span>
+              <span className="picker-name">{defaultLabel}</span>
             </div>
             {filtered.map((m, i) => (
               <div
