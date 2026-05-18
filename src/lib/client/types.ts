@@ -24,4 +24,4 @@ export type Prompt = {
 export type AppSettings = { fastModel: string; smartModel: string; agentPresets: AgentPreset[]; defaultPresetId: string; helperPresetId: string; lastProjectId: string };
 export type PiModel = { id: string; provider: string; model: string; agent?: "pi" | "claude" | "opencode" };
 export type UrlPreview = { url: string; title: string; description: string; image: string; siteName: string; favicon: string };
-export type TerminalTab = { id: string; promptId: string; session: string; title: string; cwd?: string };
+export type TerminalTab = { id: string; promptId: string; projectId?: string; session: string; title: string; cwd?: string };

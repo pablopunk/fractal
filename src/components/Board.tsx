@@ -105,6 +105,17 @@ export default function Board() {
   const [boardRows, setBoardRows] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
+  const filteredTerminalTabs = useMemo(() => {
+    if (!activeProject) return [];
+    return terminalTabs.filter((tab) => {
+      if (tab.projectId) return tab.projectId === activeProject.id;
+      if (tab.promptId === activeProject.id) return true;
+      const prompt = prompts.find((p) => p.id === tab.promptId);
+      if (prompt) return prompt.projectId === activeProject.id;
+      return tab.cwd === activeProject.path;
+    });
+  }, [activeProject, prompts, terminalTabs]);
 
   const activateTerminal = (id: string) => {
     setActiveTerminalId(id);
@@ -216,10 +227,10 @@ export default function Board() {
     };
 
     const cycleTerminalTabs = (direction: 1 | -1) => {
-      if (terminalTabs.length < 2) return;
-      const current = Math.max(terminalTabs.findIndex((tab) => tab.id === activeTerminalId), 0);
-      const next = (current + direction + terminalTabs.length) % terminalTabs.length;
-      activateTerminal(terminalTabs[next].id);
+      if (filteredTerminalTabs.length < 2) return;
+      const current = Math.max(filteredTerminalTabs.findIndex((tab) => tab.id === activeTerminalId), 0);
+      const next = (current + direction + filteredTerminalTabs.length) % filteredTerminalTabs.length;
+      activateTerminal(filteredTerminalTabs[next].id);
     };
 
     const selectProjectByNumber = (index: number) => {
@@ -256,7 +267,7 @@ export default function Board() {
       window.removeEventListener("blur", updateProjectShortcuts);
       window.removeEventListener("mousemove", updateProjectShortcuts);
     };
-  }, [activeProjectId, activeTerminalId, projects, terminalTabs]);
+  }, [activeProjectId, activeTerminalId, projects, terminalTabs, filteredTerminalTabs]);
 
   function toggleCollapse(id: Column) {
     setCollapsed((c) => ({ ...c, [id]: !c[id] }));
@@ -274,6 +285,7 @@ export default function Board() {
     const tab: TerminalTab = {
       id: prompt.tmuxSession,
       promptId: prompt.id,
+      projectId: prompt.projectId,
       session: prompt.tmuxSession,
       title: prompt.tmuxSession.replace(/^fractal-/, ""),
       cwd,
@@ -358,7 +370,7 @@ export default function Board() {
         activateTerminal(existing.id);
         return;
       }
-      const tab: TerminalTab = { id: session, promptId: project.id, session, title, cwd: project.path };
+      const tab: TerminalTab = { id: session, promptId: project.id, projectId: project.id, session, title, cwd: project.path };
       if (terminalTabs.length === 0) resetInitialTerminalSplitSize();
       setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
       activateTerminal(tab.id);
@@ -640,7 +652,6 @@ export default function Board() {
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
-  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const projectPrompts = useMemo(
     () => prompts.filter((p) => p.projectId === activeProjectId && !p.isArchived),
     [prompts, activeProjectId],
@@ -651,21 +662,17 @@ export default function Board() {
   );
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
 
-  function selectCommandPrompt(prompt: Prompt) {
-    setActiveProjectId(prompt.projectId);
-    openTerminal(prompt);
-  }
-
   return (
     <TooltipProvider>
       <Toaster richColors closeButton position="top-center" theme={theme} />
       <CommandMenu
         projects={projects}
-        prompts={prompts}
+        tabs={filteredTerminalTabs}
         activeProjectId={activeProjectId}
+        activeTabId={activeTerminalId}
         home={home}
         onSelectProject={(project) => setActiveProjectId(project.id)}
-        onSelectPrompt={selectCommandPrompt}
+        onSelectTab={(tab) => activateTerminal(tab.id)}
       />
       <div className="app" style={{ ["--sidebar-width" as string]: `${sidebarWidth}px` }}>
       <Sidebar
@@ -725,7 +732,7 @@ export default function Board() {
             </div>
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
-              <div className={`workspace workspace-${terminalTabs.length > 0 ? terminalPosition : "right"}`}>
+              <div className={`workspace workspace-${filteredTerminalTabs.length > 0 ? terminalPosition : "right"}`}>
               <div ref={setBoardElement} className={`board ${boardRows ? "board-rows" : ""}`}>
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
@@ -776,9 +783,9 @@ export default function Board() {
                   );
                 })}
               </div>
-              {terminalTabs.length > 0 && (
+              {filteredTerminalTabs.length > 0 && (
                 <TerminalPane
-                  tabs={terminalTabs}
+                  tabs={filteredTerminalTabs}
                   activeId={activeTerminalId}
                   position={terminalPosition}
                   size={terminalPosition === "right" ? terminalWidth : terminalHeight}
