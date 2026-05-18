@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ params }) => {
       branch: prompt.branch,
       worktreePath: prompt.worktreePath,
       tmuxSession: prompt.tmuxSession,
-      spawnAgent: !prompt.isArchived,
+      spawnAgent: !prompt.isArchived && !prompt.tmuxSession,
     });
     const updated = updatePrompt(id, {
       column: "RUN_IN_WORKTREE",

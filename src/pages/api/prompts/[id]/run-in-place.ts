@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ params }) => {
       prompt: prompt.text,
       imagePaths: prompt.imagePaths,
       preset,
-      spawnAgent: !prompt.isArchived,
+      spawnAgent: !prompt.isArchived && !prompt.tmuxSession,
     });
     const updated = updatePrompt(id, {
       column: "RUN_IN_PLACE",
