@@ -248,6 +248,13 @@ export default function Board() {
         return;
       }
 
+      if (e.metaKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (activeProject) void openProjectTerminal(activeProject);
+        return;
+      }
+
       const ctrlOrCmd = e.ctrlKey || e.metaKey;
       if (ctrlOrCmd && !e.shiftKey && /^[1-9]$/.test(e.key)) {
         e.preventDefault();
