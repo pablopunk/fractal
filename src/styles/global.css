@@ -54,6 +54,7 @@
   --material-panel-bg: var(--surface);
   --material-card-bg: var(--surface-2);
   --material-popover-bg: var(--surface);
+  --material-terminal-tab-bg: var(--surface-2);
   --material-control-bg: var(--surface-2);
   --material-hover-bg: var(--surface-3);
   --material-overlay-bg: rgba(0, 0, 0, 0.5);
@@ -62,6 +63,14 @@
   --material-panel-filter: none;
   --material-card-filter: none;
   --material-overlay-filter: none;
+  --state-active-bg: var(--accent-soft);
+  --state-active-border: var(--accent);
+  --state-active-shadow: none;
+  --state-active-color: var(--text);
+  --state-active-accent-color: var(--accent);
+  --state-focus-border: var(--border-strong);
+  --state-focus-bg: var(--surface-2);
+  --state-drag-bg: color-mix(in oklab, var(--accent) 6%, var(--surface));
 
   --radius: 10px;
   --radius-sm: 6px;
@@ -268,7 +277,7 @@ a { color: inherit; }
   margin: 2px;
 }
 .project-icon.active {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--state-active-border), var(--state-active-shadow);
 }
 .project-icon.hidden {
   display: none;
@@ -292,7 +301,7 @@ a { color: inherit; }
   color: hsl(var(--project-hue) var(--project-icon-saturation) var(--project-icon-lightness));
 }
 .project-icon-placeholder.active {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--state-active-border), var(--state-active-shadow);
 }
 .project-icon-modal { padding: 0; overflow: hidden; }
 .project-icon-drop {
@@ -543,9 +552,9 @@ a { color: inherit; }
 }
 .theme-segmented button:hover,
 .theme-segmented button.active {
-  color: var(--text);
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  color: var(--state-active-color);
+  border-color: var(--state-active-border);
+  background: var(--state-active-bg);
 }
 .theme-picker-items {
   max-height: none;
@@ -697,8 +706,8 @@ a { color: inherit; }
 }
 .profile-tab:hover { color: var(--text); background: var(--surface-3); }
 .profile-tab.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--state-active-bg);
+  color: var(--state-active-accent-color);
 }
 .profile-tab + .profile-tab {
   border-left: 1px solid var(--border);
@@ -774,7 +783,7 @@ a { color: inherit; }
   width: 100%;
   transition: border-color 80ms ease, background 80ms ease;
 }
-.input:focus { border-color: var(--border-strong); background: var(--surface-2); }
+.input:focus { border-color: var(--state-focus-border); background: var(--state-focus-bg); }
 .input::placeholder { color: var(--text-faint); }
 
 /* ---------- Empty state ---------- */
@@ -961,8 +970,8 @@ a { color: inherit; }
   transition: background 100ms ease, border-color 100ms ease;
 }
 .composer.drag-over {
-  border-top-color: var(--accent);
-  background: color-mix(in oklab, var(--accent) 6%, var(--surface));
+  border-top-color: var(--state-active-border);
+  background: var(--state-drag-bg);
 }
 .composer textarea {
   resize: none;
@@ -1012,8 +1021,8 @@ a { color: inherit; }
   transition: border-color 80ms ease, transform 80ms ease;
 }
 .card:hover { border-color: var(--border-strong); }
-.card.active-terminal { border-color: var(--accent); }
-.card.active-terminal:hover { border-color: var(--accent); }
+.card.active-terminal { border-color: var(--state-active-border); }
+.card.active-terminal:hover { border-color: var(--state-active-border); }
 .card:active { cursor: grabbing; }
 .card.locked { cursor: default; }
 .card.locked:active { cursor: default; }
@@ -1410,7 +1419,7 @@ a { color: inherit; }
   font-size: 12.5px;
   border-radius: 5px;
 }
-.picker-item.active { background: var(--accent-soft); color: var(--text); }
+.picker-item.active { background: var(--state-active-bg); color: var(--state-active-color); }
 .picker-name { font-weight: 500; }
 .preset-icon {
   flex-shrink: 0;
@@ -1582,7 +1591,6 @@ html[data-glass="true"] .image-attachment-popover {
 }
 html[data-glass="true"] .btn,
 html[data-glass="true"] .input,
-html[data-glass="true"] .terminal-tab,
 html[data-glass="true"] .theme-toggle,
 html[data-glass="true"] .terminal-pane-toggle,
 html[data-glass="true"] .model-tab,
@@ -1597,16 +1605,31 @@ html[data-glass="true"] .preset-modal-list-item.active {
 html[data-glass="true"] .column-head:hover,
 html[data-glass="true"] .project-item:hover,
 html[data-glass="true"] .project-item.active,
-html[data-glass="true"] .terminal-tab.active,
 html[data-glass="true"] .icon-btn:hover,
 html[data-glass="true"] .picker-item.active,
 html[data-glass="true"] .cmdk-item[aria-selected="true"] {
   background: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
 }
+html[data-glass="true"] .terminal-tabs {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-glass="true"] .terminal-tab {
+  background: var(--material-terminal-tab-bg) !important;
+  border-color: var(--material-panel-border) !important;
+}
+html[data-glass="true"] .terminal-tab.active {
+  background: var(--state-active-bg) !important;
+  border-color: var(--state-active-border) !important;
+}
 html[data-glass="true"] .terminal-host .xterm,
 html[data-glass="true"] .terminal-host .xterm-viewport,
 html[data-glass="true"] .terminal-host .xterm-screen,
 html[data-glass="true"] .terminal-host .xterm-helpers,
+html[data-glass="true"] .terminal-host .xterm-rows,
+html[data-glass="true"] .terminal-host .xterm-scroll-area,
 html[data-glass="true"] .terminal-host .xterm-screen canvas {
   background: transparent !important;
 }
@@ -1618,11 +1641,8 @@ html[data-glass="true"] .cmdk-overlay {
 }
 html[data-glass="true"] .sidebar,
 html[data-glass="true"] .topbar,
-html[data-glass="true"] .terminal-pane,
 html[data-glass="true"] .terminal-tabs,
 html[data-glass="true"] .column,
-html[data-glass="true"] .composer,
-html[data-glass="true"] .card,
 html[data-glass="true"] .overlay-card,
 html[data-glass="true"] .modal,
 html[data-glass="true"] .model-picker-popup,
@@ -1631,7 +1651,6 @@ html[data-glass="true"] .picker-list,
 html[data-glass="true"] .tooltip-content,
 html[data-glass="true"] .btn,
 html[data-glass="true"] .input,
-html[data-glass="true"] .terminal-tab,
 html[data-glass="true"] .theme-toggle,
 html[data-glass="true"] .terminal-pane-toggle,
 html[data-glass="true"] .model-tab,
@@ -1651,6 +1670,54 @@ html[data-glass="true"] ::-webkit-scrollbar-thumb { border-color: transparent; }
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+html[data-glass="true"] .main {
+  background: transparent !important;
+}
+html[data-glass="true"] .workspace {
+  border-radius: var(--radius);
+  background: transparent !important;
+  overflow: visible;
+}
+html[data-glass="true"] .workspace::before {
+  content: "";
+  position: absolute;
+  width: var(--radius);
+  height: var(--radius);
+  top: 0;
+  left: 0;
+  background: radial-gradient(circle at 100% 100%, transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px));
+  pointer-events: none;
+  z-index: 0;
+}
+html[data-glass="true"] .workspace > * {
+  position: relative;
+  z-index: 1;
+}
+html[data-glass="true"] .board {
+  border-radius: inherit;
+  overflow: hidden;
+  background: transparent !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-glass="true"] .board {
+  padding: 8px;
+}
+html[data-glass="true"] .composer {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-glass="true"] .board > .column:first-child {
+  border-top-left-radius: calc(var(--radius) - 2px);
+  border-bottom-left-radius: calc(var(--radius) - 2px);
+}
+html[data-glass="true"] .workspace-right .terminal-pane,
+html[data-glass="true"] .workspace-bottom .terminal-pane {
+  border-radius: calc(var(--radius) - 2px);
 }
 .workspace > .board {
   flex: 1;
@@ -1705,11 +1772,11 @@ html[data-glass="true"] ::-webkit-scrollbar-thumb { border-color: transparent; }
 }
 .terminal-tab:hover { color: var(--text); border-color: var(--border-strong); }
 .terminal-tab.dragging { opacity: 0.4; }
-.terminal-tab.drag-over { border-color: var(--accent); box-shadow: inset 2px 0 0 0 var(--accent); }
+.terminal-tab.drag-over { border-color: var(--state-active-border); box-shadow: inset 2px 0 0 0 var(--state-active-border); }
 .terminal-tab.active {
-  color: var(--text);
+  color: var(--state-active-color);
   background: var(--surface-3);
-  border-color: var(--accent);
+  border-color: var(--state-active-border);
 }
 .terminal-tab span:first-of-type {
   overflow: hidden;
@@ -2001,6 +2068,7 @@ html[data-glass="true"] {
   --material-panel-bg: rgb(var(--surface-rgb) / var(--material-panel-alpha));
   --material-card-bg: rgb(var(--surface-2-rgb) / var(--material-card-alpha));
   --material-popover-bg: rgb(var(--surface-2-rgb) / var(--material-popover-alpha));
+  --material-terminal-tab-bg: rgb(var(--surface-rgb) / calc(var(--glass-opacity) * 0.28));
   --material-control-bg: rgb(var(--surface-3-rgb) / var(--material-control-alpha));
   --material-hover-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
   --material-overlay-bg: rgba(0, 0, 0, 0.22);
@@ -2009,15 +2077,23 @@ html[data-glass="true"] {
   --material-panel-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
   --material-card-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
   --material-overlay-filter: blur(calc(var(--glass-blur) * 0.55));
+  --material-shadow-panel: none;
+  --material-shadow-floating: none;
+  --state-active-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
+  --state-active-border: rgba(255, 248, 244, 0.72);
+  --state-active-shadow: 0 0 18px rgba(255, 106, 61, 0.22);
+  --state-active-shadow-card: 0 0 0 1px rgba(255, 248, 244, 0.28), 0 0 28px rgba(255, 106, 61, 0.34);
+  --state-active-color: var(--text);
+  --state-active-accent-color: var(--accent);
+  --state-focus-border: var(--accent);
+  --state-focus-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
+  --state-drag-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
 }
 
-html[data-glass="true"],
-html[data-glass="true"] body,
-html[data-glass="true"] #root,
-html[data-glass="true"] .app,
 html[data-glass="true"] .main,
 html[data-glass="true"] .workspace,
 html[data-glass="true"] .board,
+html[data-glass="true"] .terminal-pane,
 html[data-glass="true"] .terminal-host {
   background: var(--material-layout-bg) !important;
 }
@@ -2032,8 +2108,6 @@ html[data-glass="true"] .terminal-host {
 }
 
 .column,
-.composer,
-.terminal-pane,
 .modal,
 .cmdk-dialog,
 .empty-card {
@@ -2047,12 +2121,37 @@ html[data-glass="true"] .sidebar,
 html[data-glass="true"] .topbar,
 html[data-glass="true"] .terminal-tabs,
 html[data-glass="true"] .column,
-html[data-glass="true"] .composer,
-html[data-glass="true"] .terminal-pane,
 html[data-glass="true"] .modal,
 html[data-glass="true"] .cmdk-dialog,
 html[data-glass="true"] .empty-card {
   box-shadow: var(--material-shadow-panel);
+}
+html[data-glass="true"] .column-collapsed {
+  box-shadow: none !important;
+}
+html[data-glass="true"] .terminal-pane {
+  box-shadow: none !important;
+}
+
+.terminal-pane,
+html[data-glass="true"] .terminal-pane {
+  background: var(--material-layout-bg) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-glass="true"] .terminal-resizer,
+html[data-glass="true"] .terminal-resizer:hover {
+  background: transparent !important;
+}
+.terminal-tabs,
+html[data-glass="true"] .terminal-tabs {
+  background: transparent !important;
+  border-color: var(--material-panel-border);
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .card,
@@ -2103,13 +2202,31 @@ html[data-glass="true"] .image-attachment-popover {
 
 .column-head:hover,
 .project-item:hover,
-.project-item.active,
-.terminal-tab.active,
 .icon-btn:hover,
-.picker-item.active,
 .cmdk-item[aria-selected="true"] {
   background: var(--material-hover-bg);
   border-color: var(--material-strong-border);
+}
+.terminal-tab.active,
+.picker-item.active,
+.card.active-terminal,
+.preset-modal-list-item.active,
+.theme-segmented button.active,
+.profile-tab.active {
+  background: var(--state-active-bg);
+  border-color: var(--state-active-border) !important;
+  box-shadow: var(--state-active-shadow);
+}
+.project-item.active {
+  background: var(--state-active-bg);
+  border-color: var(--material-panel-border) !important;
+}
+html[data-glass="true"] .card.active-terminal {
+  box-shadow: var(--state-active-shadow-card) !important;
+}
+.input:focus,
+.model-picker-input:focus {
+  border-color: var(--state-focus-border) !important;
 }
 
 .modal-overlay,
@@ -2123,6 +2240,8 @@ html[data-glass="true"] .terminal-host .xterm,
 html[data-glass="true"] .terminal-host .xterm-viewport,
 html[data-glass="true"] .terminal-host .xterm-screen,
 html[data-glass="true"] .terminal-host .xterm-helpers,
+html[data-glass="true"] .terminal-host .xterm-rows,
+html[data-glass="true"] .terminal-host .xterm-scroll-area,
 html[data-glass="true"] .terminal-host .xterm-screen canvas {
   background: transparent !important;
 }
