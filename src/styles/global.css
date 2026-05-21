@@ -133,6 +133,7 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   gap: 10px;
+  overflow: hidden;
 }
 .sidebar-brand {
   font-weight: 700;
@@ -158,6 +159,7 @@ a { color: inherit; }
 .project-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 8px 12px;
   display: flex;
   flex-direction: column;
@@ -327,6 +329,31 @@ a { color: inherit; }
 }
 .project-item:hover .remove { opacity: 1; }
 .project-item .remove:hover { background: var(--surface-3); color: var(--danger); }
+
+.sidebar.collapsed .sidebar-head,
+.sidebar.collapsed .sidebar-section,
+.sidebar.collapsed .sidebar-foot,
+.sidebar.collapsed .project-item .name,
+.sidebar.collapsed .project-item .remove {
+  display: none;
+}
+.sidebar.collapsed .project-list {
+  padding: 12px 8px;
+  align-items: center;
+}
+.macos .sidebar.collapsed .project-list {
+  padding-top: 52px;
+}
+.sidebar.collapsed .project-item {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+.sidebar.collapsed .project-icon-button {
+  pointer-events: none;
+}
 
 .sidebar-foot {
   padding: 10px 12px 14px;
@@ -1284,6 +1311,9 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
 }
 .macos .topbar {
   -webkit-app-region: drag;
+}
+.macos .app.sidebar-collapsed .topbar {
+  padding-left: 48px;
 }
 .macos .topbar button,
 .macos .topbar input,

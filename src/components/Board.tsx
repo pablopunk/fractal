@@ -29,6 +29,7 @@ import {
   TERMINAL_WIDTH_KEY,
   loadActiveTerminalId,
   loadCollapsed,
+  isSidebarCollapsed,
   loadSidebarWidth,
   loadTerminalHeight,
   loadTerminalPosition,
@@ -220,6 +221,21 @@ export default function Board() {
     observer.observe(boardElement);
     return () => observer.disconnect();
   }, [boardElement]);
+
+  useEffect(() => {
+    if (!boardElement || !activeTerminalId) return;
+    const tab = terminalTabs.find((item) => item.id === activeTerminalId);
+    if (!tab || !prompts.some((prompt) => prompt.id === tab.promptId)) return;
+
+    const frame = requestAnimationFrame(() => {
+      const promptElement = Array.from(boardElement.querySelectorAll<HTMLElement>("[data-prompt-id]")).find(
+        (element) => element.dataset.promptId === tab.promptId,
+      );
+      promptElement?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [activeTerminalId, boardElement, prompts, terminalFocusKey, terminalTabs]);
 
   useEffect(() => {
     const updateProjectShortcuts = (event: KeyboardEvent | MouseEvent | FocusEvent) => {
@@ -668,6 +684,7 @@ export default function Board() {
     [prompts, activeProjectId],
   );
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
+  const sidebarCollapsed = isSidebarCollapsed(sidebarWidth);
 
   return (
     <TooltipProvider>
@@ -681,7 +698,7 @@ export default function Board() {
         onSelectProject={(project) => setActiveProjectId(project.id)}
         onSelectTab={(tab) => activateTerminal(tab.id)}
       />
-      <div className="app" style={{ ["--sidebar-width" as string]: `${sidebarWidth}px` }}>
+      <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`} style={{ ["--sidebar-width" as string]: `${sidebarWidth}px` }}>
       <Sidebar
         projects={projects}
         activeId={activeProjectId}
@@ -692,7 +709,8 @@ export default function Board() {
         setShowPicker={setShowSidebarPicker}
         home={home}
         onResize={setSidebarWidth}
-        showShortcuts={showProjectShortcuts}
+        collapsed={sidebarCollapsed}
+        showShortcuts={showProjectShortcuts && !sidebarCollapsed}
         onReorder={async (ids) => {
           const ordered = ids.map((id) => projects.find((p) => p.id === id)).filter(Boolean) as Project[];
           setProjects(ordered);

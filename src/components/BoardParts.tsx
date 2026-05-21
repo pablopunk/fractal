@@ -9,7 +9,7 @@ import PresetPicker from "./PresetPicker.js";
 import Tooltip from "./Tooltip.js";
 import { Card } from "./Card.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
-import { clampSidebarWidth } from "~/lib/client/persistence.js";
+import { snapSidebarWidth } from "~/lib/client/persistence.js";
 import PresetIcon from "./PresetIcon.js";
 import type { AgentPreset, Column, ModelProfile, PiModel, Project, Prompt, UrlPreview } from "~/lib/client/types.js";
 
@@ -23,6 +23,7 @@ export function Sidebar(props: {
   setShowPicker: (v: boolean) => void;
   home: string;
   onResize: (width: number) => void;
+  collapsed: boolean;
   showShortcuts: boolean;
   onReorder: (ids: string[]) => void | Promise<void>;
 }) {
@@ -33,7 +34,7 @@ export function Sidebar(props: {
     const startX = e.clientX;
     const startWidth = e.currentTarget.parentElement?.getBoundingClientRect().width ?? 204;
     const onMove = (event: PointerEvent) => {
-      props.onResize(clampSidebarWidth(startWidth + event.clientX - startX));
+      props.onResize(snapSidebarWidth(startWidth + event.clientX - startX));
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
@@ -44,7 +45,7 @@ export function Sidebar(props: {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${props.collapsed ? "collapsed" : ""}`}>
       <div className="sidebar-head">
         <span className="brand-dot" />
         <span className="sidebar-brand">Fractal</span>
@@ -335,7 +336,7 @@ export function ColumnView(props: {
             </div>
           )}
           {props.prompts.map((p, i) => (
-            <div key={p.id}>
+            <div key={p.id} data-prompt-id={p.id}>
               {showIndicator && overIndex === i && <div className="drop-indicator" />}
               <Card
                 prompt={p}

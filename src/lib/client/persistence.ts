@@ -10,6 +10,8 @@ export const TERMINAL_POSITION_KEY = "fractal:terminalPosition";
 export const SIDEBAR_WIDTH_KEY = "fractal:sidebarWidth";
 export const THEME_KEY = "fractal:theme";
 export type ThemeMode = "system" | "light" | "dark";
+export const SIDEBAR_COLLAPSED_WIDTH = 56;
+export const SIDEBAR_COLLAPSE_THRESHOLD = 132;
 export const SIDEBAR_MIN_WIDTH = 176;
 export const SIDEBAR_MAX_WIDTH = 260;
 
@@ -80,10 +82,19 @@ export function clampSidebarWidth(width: number): number {
   return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
 }
 
+export function snapSidebarWidth(width: number): number {
+  if (width < SIDEBAR_COLLAPSE_THRESHOLD) return SIDEBAR_COLLAPSED_WIDTH;
+  return clampSidebarWidth(width);
+}
+
+export function isSidebarCollapsed(width: number): boolean {
+  return width < SIDEBAR_COLLAPSE_THRESHOLD;
+}
+
 export function loadSidebarWidth(): number {
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(SIDEBAR_WIDTH_KEY) : null;
-    return raw ? clampSidebarWidth(Number(raw) || 204) : 204;
+    return raw ? snapSidebarWidth(Number(raw) || 204) : 204;
   } catch { return 204; }
 }
 
