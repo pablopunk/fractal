@@ -43,6 +43,7 @@
   --material-panel-alpha: calc(var(--glass-opacity) * 0.66);
   --material-card-alpha: calc(var(--glass-opacity) * 0.60);
   --material-popover-alpha: calc(var(--glass-opacity) * 0.64);
+  --material-modal-alpha: 0.82;
   --material-control-alpha: calc(var(--glass-opacity) * 0.54);
   --material-hover-alpha: calc(var(--material-control-alpha) + 0.08);
   --material-saturate: 1.35;
@@ -54,6 +55,7 @@
   --material-panel-bg: var(--surface);
   --material-card-bg: var(--surface-2);
   --material-popover-bg: var(--surface);
+  --material-modal-bg: var(--surface);
   --material-terminal-tab-bg: var(--surface-2);
   --material-control-bg: var(--surface-2);
   --material-hover-bg: var(--surface-3);
@@ -63,6 +65,7 @@
   --material-panel-filter: none;
   --material-card-filter: none;
   --material-overlay-filter: none;
+  --material-modal-filter: none;
   --state-active-bg: var(--accent-soft);
   --state-active-border: var(--accent);
   --state-active-shadow: none;
@@ -2069,15 +2072,17 @@ html[data-glass="true"] {
   --material-panel-bg: rgb(var(--surface-rgb) / var(--material-panel-alpha));
   --material-card-bg: rgb(var(--surface-2-rgb) / var(--material-card-alpha));
   --material-popover-bg: rgb(var(--surface-2-rgb) / var(--material-popover-alpha));
+  --material-modal-bg: rgb(var(--surface-rgb) / var(--material-modal-alpha));
   --material-terminal-tab-bg: rgb(var(--surface-rgb) / calc(var(--glass-opacity) * 0.28));
   --material-control-bg: rgb(var(--surface-3-rgb) / var(--material-control-alpha));
   --material-hover-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
-  --material-overlay-bg: rgba(0, 0, 0, 0.22);
+  --material-overlay-bg: rgba(0, 0, 0, 0.34);
   --material-panel-border: transparent;
   --material-strong-border: transparent;
   --material-panel-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
   --material-card-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
   --material-overlay-filter: none;
+  --material-modal-filter: blur(6px) saturate(var(--material-saturate));
   --material-shadow-panel: none;
   --material-shadow-floating: none;
   --state-active-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
@@ -2109,7 +2114,6 @@ html[data-glass="true"] .terminal-host {
 }
 
 .column,
-.modal,
 .cmdk-dialog,
 .empty-card {
   background: var(--material-panel-bg);
@@ -2127,6 +2131,13 @@ html[data-glass="true"] .cmdk-dialog,
 html[data-glass="true"] .empty-card {
   box-shadow: var(--material-shadow-panel);
 }
+.modal {
+  background: var(--material-modal-bg);
+  border-color: var(--material-panel-border);
+  backdrop-filter: var(--material-modal-filter);
+  -webkit-backdrop-filter: var(--material-modal-filter);
+}
+
 html[data-glass="true"] .column-collapsed {
   box-shadow: none !important;
 }
