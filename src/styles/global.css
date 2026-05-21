@@ -1686,10 +1686,10 @@ html[data-glass="true"] .workspace::before {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(circle at var(--radius) var(--radius), transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px), transparent calc(var(--radius) + 1px)) top left / var(--radius) var(--radius) no-repeat,
-    radial-gradient(circle at calc(100% - var(--radius)) var(--radius), transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px), transparent calc(var(--radius) + 1px)) top right / var(--radius) var(--radius) no-repeat,
-    radial-gradient(circle at var(--radius) calc(100% - var(--radius)), transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px), transparent calc(var(--radius) + 1px)) bottom left / var(--radius) var(--radius) no-repeat,
-    radial-gradient(circle at calc(100% - var(--radius)) calc(100% - var(--radius)), transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px), transparent calc(var(--radius) + 1px)) bottom right / var(--radius) var(--radius) no-repeat;
+    radial-gradient(circle at 100% 100%, transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px)) top left / var(--radius) var(--radius) no-repeat,
+    radial-gradient(circle at 0 100%, transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px)) top right / var(--radius) var(--radius) no-repeat,
+    radial-gradient(circle at 100% 0, transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px)) bottom left / var(--radius) var(--radius) no-repeat,
+    radial-gradient(circle at 0 0, transparent 0 var(--radius), var(--material-app-corner-bg, rgba(0, 0, 0, 0.34)) calc(var(--radius) + 1px)) bottom right / var(--radius) var(--radius) no-repeat;
 }
 html[data-glass="true"] .workspace > * {
   position: relative;
