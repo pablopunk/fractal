@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Check, FolderKanban, FolderRoot, Monitor, Moon, Play, SquareTerminal, Sun } from "lucide-react";
+import { Check, FolderKanban, FolderRoot, Monitor, Moon, Palette, Play, SquareTerminal, Sun } from "lucide-react";
 import TerminalPane from "./TerminalPane.js";
 import CommandMenu from "./CommandMenu.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
@@ -36,10 +36,14 @@ import {
   loadTerminalTabs,
   loadTerminalWidth,
   loadTheme,
+  loadTerminalTheme,
   saveCollapsed,
+  saveTerminalTheme,
   saveTheme,
   type ThemeMode,
+  type TerminalThemeName,
 } from "~/lib/client/persistence.js";
+import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/terminal-themes.js";
 import type { AppSettings, Column, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
 
 const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -50,15 +54,95 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
 ];
 const THEME_OPTIONS: ThemeMode[] = ["system", "light", "dark"];
 const BOARD_ROWS_MAX_WIDTH = 960;
-
-function nextTheme(theme: ThemeMode): ThemeMode {
-  return THEME_OPTIONS[(THEME_OPTIONS.indexOf(theme) + 1) % THEME_OPTIONS.length];
-}
+const THEME_POPUP_WIDTH = 320;
 
 function ThemeIcon(props: { theme: ThemeMode }) {
   if (props.theme === "light") return <Sun size={14} />;
   if (props.theme === "dark") return <Moon size={14} />;
   return <Monitor size={14} />;
+}
+
+function ThemeSettingsPicker(props: {
+  theme: ThemeMode;
+  terminalThemeName: TerminalThemeName;
+  onThemeChange: (theme: ThemeMode) => void;
+  onTerminalThemeChange: (theme: TerminalThemeName) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<React.CSSProperties | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const margin = 8;
+    let left = rect.right - THEME_POPUP_WIDTH;
+    if (left < margin) left = margin;
+    setPos({ top: rect.bottom + 6, left, width: THEME_POPUP_WIDTH });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocPointerDown(e: PointerEvent) {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t) || popupRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    document.addEventListener("pointerdown", onDocPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <Tooltip content="Themes">
+        <button ref={triggerRef} type="button" className="theme-toggle" onClick={() => setOpen((value) => !value)} aria-label="Themes">
+          <Palette size={14} />
+        </button>
+      </Tooltip>
+      {open && pos && (
+        <div ref={popupRef} className="model-picker-popup theme-popup" style={pos}>
+          <div className="theme-popup-section">
+            <div className="theme-popup-label">App theme</div>
+            <div className="theme-segmented" role="radiogroup" aria-label="App theme">
+              {THEME_OPTIONS.map((option) => (
+                <button key={option} type="button" className={props.theme === option ? "active" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => props.onThemeChange(option)}>
+                  <ThemeIcon theme={option} />
+                  <span>{option}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="theme-popup-section">
+            <div className="theme-popup-label">Terminal theme</div>
+            <div className="model-picker-items theme-picker-items">
+              {TERMINAL_THEME_OPTIONS.map((option) => {
+                const preview = terminalThemePreview(props.theme, option.id);
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`picker-item theme-picker-item ${props.terminalThemeName === option.id ? "active" : ""}`}
+                    style={{ "--theme-preview-bg": preview.background, "--theme-preview-fg": preview.foreground, "--theme-preview-accent": preview.accent } as React.CSSProperties}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => props.onTerminalThemeChange(option.id)}
+                  >
+                    <span className="theme-swatch" />
+                    <span className="picker-name">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 const columnAwareCollisionDetection: CollisionDetection = (args) => {
@@ -103,6 +187,7 @@ export default function Board() {
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(() => new Set());
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
+  const [terminalThemeName, setTerminalThemeName] = useState<TerminalThemeName>(() => loadTerminalTheme());
   const [boardRows, setBoardRows] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
@@ -140,6 +225,10 @@ export default function Board() {
     document.documentElement.style.colorScheme = theme === "system" ? "" : theme;
     saveTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    saveTerminalTheme(terminalThemeName);
+  }, [terminalThemeName]);
 
   useEffect(() => {
     void refresh();
@@ -749,11 +838,12 @@ export default function Board() {
                 open={presetSettingsOpen}
                 onOpenChange={setPresetSettingsOpen}
               />
-              <Tooltip content={`Theme: ${theme}`}>
-                <button type="button" className="theme-toggle" onClick={() => setTheme(nextTheme(theme))} aria-label={`Theme: ${theme}`}>
-                  <ThemeIcon theme={theme} />
-                </button>
-              </Tooltip>
+              <ThemeSettingsPicker
+                theme={theme}
+                terminalThemeName={terminalThemeName}
+                onThemeChange={setTheme}
+                onTerminalThemeChange={setTerminalThemeName}
+              />
             </div>
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
@@ -821,6 +911,7 @@ export default function Board() {
                   onReorder={reorderTerminal}
                   focusKey={terminalFocusKey}
                   theme={theme}
+                  terminalThemeName={terminalThemeName}
                 />
               )}
               </div>

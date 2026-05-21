@@ -9,7 +9,9 @@ export const TERMINAL_HEIGHT_KEY = "fractal:terminalHeight";
 export const TERMINAL_POSITION_KEY = "fractal:terminalPosition";
 export const SIDEBAR_WIDTH_KEY = "fractal:sidebarWidth";
 export const THEME_KEY = "fractal:theme";
+export const TERMINAL_THEME_KEY = "fractal:terminalTheme";
 export type ThemeMode = "system" | "light" | "dark";
+export type TerminalThemeName = "fractal" | "catppuccin" | "tokyo-night" | "solarized";
 export const SIDEBAR_COLLAPSED_WIDTH = 56;
 export const SIDEBAR_COLLAPSE_THRESHOLD = 132;
 export const SIDEBAR_MIN_WIDTH = 176;
@@ -107,4 +109,15 @@ export function loadTheme(): ThemeMode {
 
 export function saveTheme(theme: ThemeMode): void {
   try { localStorage.setItem(THEME_KEY, theme); } catch {}
+}
+
+export function loadTerminalTheme(): TerminalThemeName {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_THEME_KEY) : null;
+    return raw === "catppuccin" || raw === "tokyo-night" || raw === "solarized" ? raw : "fractal";
+  } catch { return "fractal"; }
+}
+
+export function saveTerminalTheme(theme: TerminalThemeName): void {
+  try { localStorage.setItem(TERMINAL_THEME_KEY, theme); } catch {}
 }

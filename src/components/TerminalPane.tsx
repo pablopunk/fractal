@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Columns2, Rows2, X, Terminal as TerminalIcon } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
-import type { ITheme, Terminal as XTermTerminal } from "@xterm/xterm";
+import type { Terminal as XTermTerminal } from "@xterm/xterm";
 import Tooltip from "./Tooltip.js";
 import { getImagePaths, handleOsc52, imagePathsAsTerminalPaste, writeClipboard } from "~/lib/client/terminal-utils.js";
 import type { ThemeMode } from "~/lib/client/persistence.js";
+import { terminalTheme, type TerminalThemeName } from "~/lib/client/terminal-themes.js";
 
 type TerminalTab = {
   id: string;
@@ -20,12 +21,6 @@ type ElectronGlobals = typeof window & {
     openExternal?: (url: string) => Promise<boolean>;
   };
 };
-
-function isLightTheme(theme: ThemeMode): boolean {
-  if (theme === "light") return true;
-  if (theme === "dark") return false;
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ?? false;
-}
 
 const URL_RE = /https?:\/\/[^\s<>()"']+/gi;
 
@@ -52,32 +47,6 @@ function terminalLinkAt(term: XTermTerminal, host: HTMLElement, event: MouseEven
   return null;
 }
 
-function terminalTheme(theme: ThemeMode): ITheme {
-  if (!isLightTheme(theme)) return { background: "#0b0b0d", foreground: "#ededf0", cursor: "#ff6a3d" };
-  return {
-    background: "#fafafa",
-    foreground: "#15151a",
-    cursor: "#ea580c",
-    selectionBackground: "#d4d4d8",
-    black: "#24242b",
-    red: "#dc2626",
-    green: "#16a34a",
-    yellow: "#ca8a04",
-    blue: "#2563eb",
-    magenta: "#9333ea",
-    cyan: "#0891b2",
-    white: "#e4e4e7",
-    brightBlack: "#71717a",
-    brightRed: "#ef4444",
-    brightGreen: "#22c55e",
-    brightYellow: "#eab308",
-    brightBlue: "#3b82f6",
-    brightMagenta: "#a855f7",
-    brightCyan: "#06b6d4",
-    brightWhite: "#fafafa",
-  };
-}
-
 export default function TerminalPane(props: {
   tabs: TerminalTab[];
   activeId: string | null;
@@ -90,6 +59,7 @@ export default function TerminalPane(props: {
   onReorder: (fromId: string, toId: string) => void;
   focusKey: number;
   theme: ThemeMode;
+  terminalThemeName: TerminalThemeName;
 }) {
   const active = props.tabs.find((tab) => tab.id === props.activeId) ?? props.tabs[0];
   const dragging = useRef(false);
@@ -169,12 +139,12 @@ export default function TerminalPane(props: {
           </button>
         </Tooltip>
       </div>
-      <TerminalView key={active.id} tab={active} onClose={props.onClose} focusKey={props.focusKey} theme={props.theme} />
+      <TerminalView key={active.id} tab={active} onClose={props.onClose} focusKey={props.focusKey} theme={props.theme} terminalThemeName={props.terminalThemeName} />
     </aside>
   );
 }
 
-function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onClose: (id: string) => void; focusKey: number; theme: ThemeMode }) {
+function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName }: { tab: TerminalTab; onClose: (id: string) => void; focusKey: number; theme: ThemeMode; terminalThemeName: TerminalThemeName }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<XTermTerminal | null>(null);
   const onCloseRef = useRef(onClose);
@@ -189,14 +159,14 @@ function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onC
 
   useEffect(() => {
     const applyTheme = () => {
-      if (termRef.current) termRef.current.options.theme = terminalTheme(theme);
+      if (termRef.current) termRef.current.options.theme = terminalTheme(theme, terminalThemeName);
     };
     applyTheme();
     if (theme !== "system") return;
     const media = window.matchMedia?.("(prefers-color-scheme: light)");
     media?.addEventListener("change", applyTheme);
     return () => media?.removeEventListener("change", applyTheme);
-  }, [theme]);
+  }, [theme, terminalThemeName]);
 
   useEffect(() => {
     const port = (window as ElectronGlobals).electron?.terminalPort;
@@ -294,7 +264,7 @@ function TerminalView({ tab, onClose, focusKey, theme }: { tab: TerminalTab; onC
         fontWeightBold: "700",
         letterSpacing: 0,
         lineHeight: 1,
-        theme: terminalTheme(theme),
+        theme: terminalTheme(theme, terminalThemeName),
         allowProposedApi: false,
         macOptionClickForcesSelection: true,
         rightClickSelectsWord: true,
