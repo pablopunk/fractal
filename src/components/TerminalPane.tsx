@@ -60,6 +60,7 @@ export default function TerminalPane(props: {
   focusKey: number;
   theme: ThemeMode;
   terminalThemeName: TerminalThemeName;
+  glassEnabled: boolean;
 }) {
   const active = props.tabs.find((tab) => tab.id === props.activeId) ?? props.tabs[0];
   const dragging = useRef(false);
@@ -139,12 +140,12 @@ export default function TerminalPane(props: {
           </button>
         </Tooltip>
       </div>
-      <TerminalView key={active.id} tab={active} onClose={props.onClose} focusKey={props.focusKey} theme={props.theme} terminalThemeName={props.terminalThemeName} />
+      <TerminalView key={active.id} tab={active} onClose={props.onClose} focusKey={props.focusKey} theme={props.theme} terminalThemeName={props.terminalThemeName} glassEnabled={props.glassEnabled} />
     </aside>
   );
 }
 
-function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName }: { tab: TerminalTab; onClose: (id: string) => void; focusKey: number; theme: ThemeMode; terminalThemeName: TerminalThemeName }) {
+function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassEnabled }: { tab: TerminalTab; onClose: (id: string) => void; focusKey: number; theme: ThemeMode; terminalThemeName: TerminalThemeName; glassEnabled: boolean }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<XTermTerminal | null>(null);
   const onCloseRef = useRef(onClose);
@@ -159,14 +160,14 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName }: { ta
 
   useEffect(() => {
     const applyTheme = () => {
-      if (termRef.current) termRef.current.options.theme = terminalTheme(theme, terminalThemeName);
+      if (termRef.current) termRef.current.options.theme = terminalTheme(theme, terminalThemeName, glassEnabled);
     };
     applyTheme();
     if (theme !== "system") return;
     const media = window.matchMedia?.("(prefers-color-scheme: light)");
     media?.addEventListener("change", applyTheme);
     return () => media?.removeEventListener("change", applyTheme);
-  }, [theme, terminalThemeName]);
+  }, [theme, terminalThemeName, glassEnabled]);
 
   useEffect(() => {
     const port = (window as ElectronGlobals).electron?.terminalPort;
@@ -264,8 +265,9 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName }: { ta
         fontWeightBold: "700",
         letterSpacing: 0,
         lineHeight: 1,
-        theme: terminalTheme(theme, terminalThemeName),
+        theme: terminalTheme(theme, terminalThemeName, glassEnabled),
         allowProposedApi: false,
+        allowTransparency: true,
         macOptionClickForcesSelection: true,
         rightClickSelectsWord: true,
       });
@@ -298,7 +300,7 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName }: { ta
       term.loadAddon(fit);
       term.open(host);
       try {
-        const WebglAddon = webglMod?.WebglAddon;
+        const WebglAddon = glassEnabled ? null : webglMod?.WebglAddon;
         if (WebglAddon) term.loadAddon(new WebglAddon());
       } catch (err) {
         console.warn("[fractal-terminal] webgl renderer unavailable, falling back to DOM", err);
@@ -358,7 +360,7 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName }: { ta
       osc52?.dispose();
       term?.dispose();
     };
-  }, [tab.id, tab.session, tab.cwd]);
+  }, [tab.id, tab.session, tab.cwd, glassEnabled]);
 
   return <div ref={hostRef} className="terminal-host" />;
 }

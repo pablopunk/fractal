@@ -10,7 +10,9 @@ export const TERMINAL_POSITION_KEY = "fractal:terminalPosition";
 export const SIDEBAR_WIDTH_KEY = "fractal:sidebarWidth";
 export const THEME_KEY = "fractal:theme";
 export const TERMINAL_THEME_KEY = "fractal:terminalTheme";
+export const GLASS_SETTINGS_KEY = "fractal:glassSettings";
 export type ThemeMode = "system" | "light" | "dark";
+export type GlassSettings = { enabled: boolean; opacity: number; blur: number };
 export type TerminalThemeName = "fractal" | "catppuccin" | "tokyo-night" | "solarized";
 export const SIDEBAR_COLLAPSED_WIDTH = 56;
 export const SIDEBAR_COLLAPSE_THRESHOLD = 132;
@@ -120,4 +122,22 @@ export function loadTerminalTheme(): TerminalThemeName {
 
 export function saveTerminalTheme(theme: TerminalThemeName): void {
   try { localStorage.setItem(TERMINAL_THEME_KEY, theme); } catch {}
+}
+
+export function loadGlassSettings(): GlassSettings {
+  const fallback = { enabled: false, opacity: 0.68, blur: 22 };
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(GLASS_SETTINGS_KEY) : null;
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<GlassSettings>;
+    return {
+      enabled: Boolean(parsed.enabled),
+      opacity: Math.min(1, Math.max(0.45, Number(parsed.opacity) || fallback.opacity)),
+      blur: Math.min(60, Math.max(0, Number(parsed.blur) || fallback.blur)),
+    };
+  } catch { return fallback; }
+}
+
+export function saveGlassSettings(settings: GlassSettings): void {
+  try { localStorage.setItem(GLASS_SETTINGS_KEY, JSON.stringify(settings)); } catch {}
 }

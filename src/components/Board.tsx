@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -15,6 +15,7 @@ import {
 import { arrayMove } from "@dnd-kit/sortable";
 import { Check, FolderKanban, FolderRoot, Monitor, Moon, Palette, Play, SquareTerminal, Sun } from "lucide-react";
 import TerminalPane from "./TerminalPane.js";
+import Portal from "./Portal.js";
 import CommandMenu from "./CommandMenu.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
 import { Toaster, toast } from "sonner";
@@ -37,9 +38,12 @@ import {
   loadTerminalWidth,
   loadTheme,
   loadTerminalTheme,
+  loadGlassSettings,
   saveCollapsed,
   saveTerminalTheme,
   saveTheme,
+  saveGlassSettings,
+  type GlassSettings,
   type ThemeMode,
   type TerminalThemeName,
 } from "~/lib/client/persistence.js";
@@ -54,7 +58,6 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
 ];
 const THEME_OPTIONS: ThemeMode[] = ["system", "light", "dark"];
 const BOARD_ROWS_MAX_WIDTH = 960;
-const THEME_POPUP_WIDTH = 320;
 
 function ThemeIcon(props: { theme: ThemeMode }) {
   if (props.theme === "light") return <Sun size={14} />;
@@ -66,47 +69,33 @@ function ThemeSettingsPicker(props: {
   theme: ThemeMode;
   terminalThemeName: TerminalThemeName;
   onThemeChange: (theme: ThemeMode) => void;
+  glass: GlassSettings;
+  onGlassChange: (settings: GlassSettings) => void;
   onTerminalThemeChange: (theme: TerminalThemeName) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<React.CSSProperties | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popupRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const margin = 8;
-    let left = rect.right - THEME_POPUP_WIDTH;
-    if (left < margin) left = margin;
-    setPos({ top: rect.bottom + 6, left, width: THEME_POPUP_WIDTH });
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    function onDocPointerDown(e: PointerEvent) {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || popupRef.current?.contains(t)) return;
-      setOpen(false);
-    }
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
-    document.addEventListener("pointerdown", onDocPointerDown);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDocPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (
     <>
       <Tooltip content="Themes">
-        <button ref={triggerRef} type="button" className="theme-toggle" onClick={() => setOpen((value) => !value)} aria-label="Themes">
+        <button type="button" className="theme-toggle" onClick={() => setOpen((value) => !value)} aria-label="Themes">
           <Palette size={14} />
         </button>
       </Tooltip>
-      {open && pos && (
-        <div ref={popupRef} className="model-picker-popup theme-popup" style={pos}>
+      {open && <Portal>
+        <div className="modal-overlay theme-modal-overlay" onClick={() => setOpen(false)}>
+        <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="theme-modal-header">
+            <h2>Appearance</h2>
+            <button className="icon-btn" type="button" onClick={() => setOpen(false)} aria-label="Close themes">×</button>
+          </div>
           <div className="theme-popup-section">
             <div className="theme-popup-label">App theme</div>
             <div className="theme-segmented" role="radiogroup" aria-label="App theme">
@@ -117,6 +106,21 @@ function ThemeSettingsPicker(props: {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="theme-popup-section">
+            <div className="theme-popup-label">Glass</div>
+            <label className="theme-check-row">
+              <input type="checkbox" checked={props.glass.enabled} onChange={(e) => props.onGlassChange({ ...props.glass, enabled: e.currentTarget.checked })} />
+              <span>Opacity + blur</span>
+            </label>
+            <label className="theme-range-row">
+              <span>Opacity</span>
+              <input type="range" min="0.45" max="1" step="0.01" value={props.glass.opacity} onChange={(e) => props.onGlassChange({ ...props.glass, opacity: Number(e.currentTarget.value) })} />
+            </label>
+            <label className="theme-range-row">
+              <span>Blur</span>
+              <input type="range" min="0" max="60" step="1" value={props.glass.blur} onChange={(e) => props.onGlassChange({ ...props.glass, blur: Number(e.currentTarget.value) })} />
+            </label>
           </div>
           <div className="theme-popup-section">
             <div className="theme-popup-label">Terminal theme</div>
@@ -140,7 +144,8 @@ function ThemeSettingsPicker(props: {
             </div>
           </div>
         </div>
-      )}
+        </div>
+      </Portal>}
     </>
   );
 }
@@ -188,6 +193,7 @@ export default function Board() {
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const [terminalThemeName, setTerminalThemeName] = useState<TerminalThemeName>(() => loadTerminalTheme());
+  const [glassSettings, setGlassSettings] = useState<GlassSettings>(() => loadGlassSettings());
   const [boardRows, setBoardRows] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
@@ -225,6 +231,13 @@ export default function Board() {
     document.documentElement.style.colorScheme = theme === "system" ? "" : theme;
     saveTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.glass = glassSettings.enabled ? "true" : "";
+    document.documentElement.style.setProperty("--glass-opacity", String(glassSettings.opacity));
+    document.documentElement.style.setProperty("--glass-blur", `${glassSettings.blur}px`);
+    saveGlassSettings(glassSettings);
+  }, [glassSettings]);
 
   useEffect(() => {
     saveTerminalTheme(terminalThemeName);
@@ -842,6 +855,8 @@ export default function Board() {
                 theme={theme}
                 terminalThemeName={terminalThemeName}
                 onThemeChange={setTheme}
+                glass={glassSettings}
+                onGlassChange={setGlassSettings}
                 onTerminalThemeChange={setTerminalThemeName}
               />
             </div>
@@ -912,6 +927,7 @@ export default function Board() {
                   focusKey={terminalFocusKey}
                   theme={theme}
                   terminalThemeName={terminalThemeName}
+                  glassEnabled={glassSettings.enabled}
                 />
               )}
               </div>
@@ -921,7 +937,7 @@ export default function Board() {
             </DndContext>
 
             {/* Confirm deletion with uncommitted changes */}
-            {pendingDeletePromptId && pendingDeleteChanges && (
+            {pendingDeletePromptId && pendingDeleteChanges && <Portal>
               <div className="modal-overlay" onClick={() => { setPendingDeletePromptId(null); setPendingDeleteChanges(null); }}>
                 <div className="modal" onClick={(e) => e.stopPropagation()}>
                   <h2>Confirm deletion</h2>
@@ -948,9 +964,9 @@ export default function Board() {
                   </div>
                 </div>
               </div>
-            )}
+            </Portal>}
 
-            {archiveBlockedMessage && (
+            {archiveBlockedMessage && <Portal>
               <div className="modal-overlay" onClick={() => setArchiveBlockedMessage(null)}>
                 <div className="modal" onClick={(e) => e.stopPropagation()}>
                   <h2>Can't mark this worktree as done yet</h2>
@@ -960,7 +976,7 @@ export default function Board() {
                   </div>
                 </div>
               </div>
-            )}
+            </Portal>}
 
           </>
         )}

@@ -11,6 +11,7 @@ import { Card } from "./Card.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import { snapSidebarWidth } from "~/lib/client/persistence.js";
 import PresetIcon from "./PresetIcon.js";
+import Portal from "./Portal.js";
 import type { AgentPreset, Column, ModelProfile, PiModel, Project, Prompt, UrlPreview } from "~/lib/client/types.js";
 
 export function Sidebar(props: {
@@ -211,7 +212,7 @@ function ProjectIcon({ id, name, path, active }: { id: string; name: string; pat
           onError={() => setStatus("error")}
         />
       </button>
-      {open && (
+      {open && <Portal>
         <div className="modal-overlay" onClick={() => setOpen(false)}>
           <div className="modal project-icon-modal" onClick={(e) => e.stopPropagation()}>
             <header className="preset-modal-header">
@@ -228,7 +229,7 @@ function ProjectIcon({ id, name, path, active }: { id: string; name: string; pat
             </label>
           </div>
         </div>
-      )}
+      </Portal>}
     </>
   );
 }
@@ -464,7 +465,7 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
   return (
     <>
       <button className="btn ghost sm" onClick={() => setOpen(true)}>Presets</button>
-      {open && (
+      {open && <Portal>
         <div className="modal-overlay" onClick={() => setOpen(false)}>
           <div className="modal preset-modal" onClick={(e) => e.stopPropagation()}>
             <header className="preset-modal-header">
@@ -559,7 +560,7 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
             </div>
           </div>
         </div>
-      )}
+      </Portal>}
     </>
   );
 }

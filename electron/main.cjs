@@ -276,7 +276,10 @@ async function createWindow() {
     height: 820,
     minWidth: 880,
     minHeight: 560,
-    backgroundColor: "#0b0b0d",
+    backgroundColor: "#00000000",
+    transparent: true,
+    vibrancy: process.platform === "darwin" ? "under-window" : undefined,
+    visualEffectState: process.platform === "darwin" ? "active" : undefined,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     show: false,
     webPreferences: {

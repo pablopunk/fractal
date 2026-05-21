@@ -1,0 +1,4 @@
+interface:
+  display_name: "Liquid Glass Design"
+  short_description: "Design liquid glass UI systems and polish glassmorphism."
+  default_prompt: "Use $liquid-glass-design to redesign this interface with a credible liquid glass system."
