@@ -1636,8 +1636,8 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 html[data-glass="true"] .modal-overlay,
 html[data-glass="true"] .cmdk-overlay {
   background: rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(calc(var(--glass-blur) * 0.55));
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.55));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 html[data-glass="true"] .sidebar,
 html[data-glass="true"] .topbar,
@@ -2077,13 +2077,13 @@ html[data-glass="true"] {
   --material-strong-border: transparent;
   --material-panel-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
   --material-card-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
-  --material-overlay-filter: blur(calc(var(--glass-blur) * 0.55));
+  --material-overlay-filter: none;
   --material-shadow-panel: none;
   --material-shadow-floating: none;
   --state-active-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
-  --state-active-border: rgba(255, 248, 244, 0.72);
-  --state-active-shadow: 0 0 18px rgba(255, 106, 61, 0.22);
-  --state-active-shadow-card: 0 0 0 1px rgba(255, 248, 244, 0.28), 0 0 28px rgba(255, 106, 61, 0.34);
+  --state-active-border: rgba(255, 208, 204, 0.72);
+  --state-active-shadow: 0 0 16px rgba(255, 106, 61, 0.22);
+  --state-active-shadow-card: 0 0 0 1px rgba(255, 248, 244, 0.28), 0 0 16px rgba(255, 106, 61, 0.34);
   --state-active-color: var(--text);
   --state-active-accent-color: var(--accent);
   --state-focus-border: var(--accent);
