@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { DndContext, KeyboardSensor, PointerSensor, closestCorners, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, ChevronLeft, Copy, Info, Pencil, SquareTerminal, Trash2, Undo2 } from "lucide-react";
+import { Check, ChevronLeft, Copy, Info, Pencil, Plus, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import ProjectPicker from "./ProjectPicker.js";
 import ModelPicker from "./ModelPicker.js";
 import PresetPicker from "./PresetPicker.js";
@@ -83,7 +83,11 @@ export function Sidebar(props: {
         </DndContext>
       </div>
       <div className="sidebar-foot">
-        {props.showPicker ? (
+        {props.collapsed ? (
+          <button className="btn block icon-only" onClick={() => props.setShowPicker(true)} aria-label="Add project" title="Add project">
+            <Plus size={16} aria-hidden="true" />
+          </button>
+        ) : props.showPicker ? (
           <div>
             <ProjectPicker
               recentProjects={props.projects}
