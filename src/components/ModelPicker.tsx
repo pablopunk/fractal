@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import fuzzysort from "fuzzysort";
+import Portal from "./Portal";
 
 type PiModel = { id: string; provider: string; model: string };
 
@@ -87,43 +88,45 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
         </svg>
       </div>
       {open && pos && (
-        <div
-          ref={popupRef}
-          className="model-picker-popup"
-          style={{ top: pos.top, left: pos.left, width: POPUP_WIDTH, maxHeight: POPUP_MAX_HEIGHT }}
-        >
-          <div className="model-picker-search">
-            <input
-              ref={inputRef}
-              className="model-picker-input"
-              placeholder={searchPlaceholder}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              spellCheck={false}
-            />
-          </div>
-          <div className="model-picker-items">
-            <div
-              className={`picker-item ${highlight === 0 ? "active" : ""}`}
-              onMouseDown={(e) => { e.preventDefault(); commit(""); }}
-              onMouseEnter={() => setHighlight(0)}
-            >
-              <span className="picker-name">{defaultLabel}</span>
+        <Portal>
+          <div
+            ref={popupRef}
+            className="model-picker-popup"
+            style={{ top: pos.top, left: pos.left, width: POPUP_WIDTH, maxHeight: POPUP_MAX_HEIGHT }}
+          >
+            <div className="model-picker-search">
+              <input
+                ref={inputRef}
+                className="model-picker-input"
+                placeholder={searchPlaceholder}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                spellCheck={false}
+              />
             </div>
-            {filtered.map((m, i) => (
+            <div className="model-picker-items">
               <div
-                key={m.id}
-                className={`picker-item ${i + 1 === highlight ? "active" : ""}`}
-                onMouseDown={(e) => { e.preventDefault(); commit(m.id); }}
-                onMouseEnter={() => setHighlight(i + 1)}
+                className={`picker-item ${highlight === 0 ? "active" : ""}`}
+                onMouseDown={(e) => { e.preventDefault(); commit(""); }}
+                onMouseEnter={() => setHighlight(0)}
               >
-                <span className="picker-name">{m.model}</span>
-                <span className="picker-path">{m.provider}</span>
+                <span className="picker-name">{defaultLabel}</span>
               </div>
-            ))}
+              {filtered.map((m, i) => (
+                <div
+                  key={m.id}
+                  className={`picker-item ${i + 1 === highlight ? "active" : ""}`}
+                  onMouseDown={(e) => { e.preventDefault(); commit(m.id); }}
+                  onMouseEnter={() => setHighlight(i + 1)}
+                >
+                  <span className="picker-name">{m.model}</span>
+                  <span className="picker-path">{m.provider}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </>
   );

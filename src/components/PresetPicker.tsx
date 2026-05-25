@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import fuzzysort from "fuzzysort";
 import PresetIcon from "./PresetIcon";
+import Portal from "./Portal";
 
 type Preset = { id: string; name: string; binary: string; kind: "pi" | "claude" | "opencode" | "custom" };
 
@@ -99,25 +100,27 @@ export default function PresetPicker({ presets, value, onChange, onCreate }: Pro
         </svg>
       </div>
       {open && pos && (
-        <div ref={popupRef} className="model-picker-popup" style={pos}>
-          <div className="model-picker-search">
-            <input ref={inputRef} className="model-picker-input" placeholder="Search presets…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKeyDown} spellCheck={false} />
+        <Portal>
+          <div ref={popupRef} className="model-picker-popup" style={pos}>
+            <div className="model-picker-search">
+              <input ref={inputRef} className="model-picker-input" placeholder="Search presets…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKeyDown} spellCheck={false} />
+            </div>
+            <div className="model-picker-items">
+              {onCreate && (
+                <div className={`picker-item ${highlight === 0 ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); create(); }} onMouseEnter={() => setHighlight(0)}>
+                  <span className="picker-name">+ Create preset</span>
+                </div>
+              )}
+              {filtered.map((preset, i) => (
+                <div key={preset.id} className={`picker-item ${i + (onCreate ? 1 : 0) === highlight ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); commit(preset.id); }} onMouseEnter={() => setHighlight(i + (onCreate ? 1 : 0))}>
+                  <PresetIcon preset={preset} size={14} />
+                  <span className="picker-name">{preset.name}</span>
+                  <span className="picker-path">{preset.binary}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="model-picker-items">
-            {onCreate && (
-              <div className={`picker-item ${highlight === 0 ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); create(); }} onMouseEnter={() => setHighlight(0)}>
-                <span className="picker-name">+ Create preset</span>
-              </div>
-            )}
-            {filtered.map((preset, i) => (
-              <div key={preset.id} className={`picker-item ${i + (onCreate ? 1 : 0) === highlight ? "active" : ""}`} onMouseDown={(e) => { e.preventDefault(); commit(preset.id); }} onMouseEnter={() => setHighlight(i + (onCreate ? 1 : 0))}>
-                <PresetIcon preset={preset} size={14} />
-                <span className="picker-name">{preset.name}</span>
-                <span className="picker-path">{preset.binary}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        </Portal>
       )}
     </>
   );
