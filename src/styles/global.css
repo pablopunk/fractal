@@ -1648,7 +1648,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 }
 html[data-glass="true"] .modal-overlay,
 html[data-glass="true"] .cmdk-overlay {
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--material-overlay-bg);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
