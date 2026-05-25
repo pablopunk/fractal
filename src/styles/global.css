@@ -585,6 +585,11 @@ a { color: inherit; }
 .theme-range-row input { width: 170px; accent-color: var(--accent); }
 .theme-picker-item {
   width: 100%;
+  min-height: 72px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
   border: 1px solid color-mix(in oklab, var(--theme-preview-fg) 18%, var(--theme-preview-bg));
   background: var(--theme-preview-bg);
   color: var(--theme-preview-fg);
@@ -692,6 +697,11 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.model-picker-items.theme-picker-items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
 }
 
 /* ---------- Profile toggle tabs ---------- */

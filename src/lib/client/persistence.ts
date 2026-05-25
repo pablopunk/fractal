@@ -125,7 +125,7 @@ export function saveTerminalTheme(theme: TerminalThemeName): void {
 }
 
 export function loadGlassSettings(): GlassSettings {
-  const fallback = { enabled: false, opacity: 0.68, blur: 22 };
+  const fallback = { enabled: false, opacity: 0.68, blur: 6 };
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(GLASS_SETTINGS_KEY) : null;
     if (!raw) return fallback;
@@ -133,7 +133,7 @@ export function loadGlassSettings(): GlassSettings {
     return {
       enabled: Boolean(parsed.enabled),
       opacity: Math.min(1, Math.max(0.45, Number(parsed.opacity) || fallback.opacity)),
-      blur: Math.min(60, Math.max(0, Number(parsed.blur) || fallback.blur)),
+      blur: Math.min(6, Math.max(0, Number(parsed.blur) || fallback.blur)),
     };
   } catch { return fallback; }
 }
