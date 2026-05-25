@@ -2,6 +2,27 @@ import { exec } from "./exec.js";
 import { type AgentPreset } from "./agents.js";
 
 const SUMMARY_TIMEOUT_MS = 60_000;
+const MIN_SUMMARY_CHARACTERS = 96;
+const MIN_SUMMARY_WORDS = 14;
+
+function normalizePromptForSummary(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\S+\.(?:png|jpe?g|gif|webp|heic|svg)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+export function shouldSummarizePromptText(text: string): boolean {
+  const normalized = normalizePromptForSummary(text);
+  return normalized.length >= MIN_SUMMARY_CHARACTERS || wordCount(normalized) >= MIN_SUMMARY_WORDS;
+}
 
 function cleanOutput(value: string): string {
   return value
@@ -37,11 +58,6 @@ Prompt: let's review the summarize prompt feature. this was not useful at all. b
 Summary:
 Improve prompt summaries
 Rethink the summary prompt so cards capture the real task instead of boilerplate.
-
-Prompt: explore repo for extension builder
-Summary:
-Review extension builder
-Understand how the extension builder works and identify what needs to change.
 
 Task:
 ${text}`;
@@ -80,5 +96,6 @@ export async function runPresetForText(input: { preset: AgentPreset; cwd: string
 }
 
 export async function summarizePromptText(input: { preset: AgentPreset; cwd: string; text: string }): Promise<string> {
+  if (!shouldSummarizePromptText(input.text)) return "";
   return runPresetForText({ preset: input.preset, cwd: input.cwd, prompt: helperPrompt(input.text) });
 }
