@@ -86,8 +86,26 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+function heredocDelimiter(value: string): string {
+  let delimiter = "EOF";
+  let i = 0;
+  while (value.split(/\r?\n/).includes(delimiter)) {
+    i += 1;
+    delimiter = `EOF_${i}`;
+  }
+  return delimiter;
+}
+
+function shellPrompt(value: string): string {
+  const delimiter = heredocDelimiter(value);
+  return `"$(cat <<'${delimiter}'\n${value}\n${delimiter}\n)"`;
+}
+
 function renderTemplate(template: string, vars: Record<string, string | undefined>): string {
-  return template.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => shellQuote(vars[key] ?? ""));
+  return template.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => {
+    const value = vars[key] ?? "";
+    return key === "prompt" ? shellPrompt(value) : shellQuote(value);
+  });
 }
 
 export function thinkingArgsForPreset(preset: Pick<AgentPreset, "kind" | "binary" | "thinking">): string[] {
