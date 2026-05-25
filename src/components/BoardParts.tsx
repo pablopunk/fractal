@@ -9,6 +9,7 @@ import PresetPicker from "./PresetPicker.js";
 import Tooltip from "./Tooltip.js";
 import { Card } from "./Card.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
+import { api } from "~/lib/client/api.js";
 import { snapSidebarWidth } from "~/lib/client/persistence.js";
 import PresetIcon from "./PresetIcon.js";
 import Portal from "./Portal.js";
@@ -569,10 +570,65 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
   );
 }
 
-export function Composer(props: { value: string; onChange: (v: string) => void; imagePaths: string[]; onImagePathsChange: (paths: string[]) => void; onSubmit: () => void; isSubmitting?: boolean; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void }) {
+type FileMention = { path: string; name: string };
+
+type ActiveMention = { start: number; query: string };
+
+export function Composer(props: { value: string; onChange: (v: string) => void; imagePaths: string[]; onImagePathsChange: (paths: string[]) => void; onSubmit: () => void; isSubmitting?: boolean; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void; projectId?: string | null }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragDepth = useRef(0);
   const [dragOver, setDragOver] = useState(false);
+  const [files, setFiles] = useState<FileMention[]>([]);
+  const [caret, setCaret] = useState(0);
+  const [highlight, setHighlight] = useState(0);
+  const [dismissedMentionStart, setDismissedMentionStart] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!props.projectId) {
+      setFiles([]);
+      return;
+    }
+    const controller = new AbortController();
+    void api<{ files: FileMention[] }>(`/api/projects/${props.projectId}/files`, { signal: controller.signal })
+      .then((data) => setFiles(data.files ?? []))
+      .catch(() => { if (!controller.signal.aborted) setFiles([]); });
+    return () => controller.abort();
+  }, [props.projectId]);
+
+  const mention = useMemo(() => activeMention(props.value, caret), [props.value, caret]);
+  const mentionItems = useMemo(() => {
+    if (!mention) return [];
+    const query = mention.query.toLowerCase();
+    return files
+      .filter((file) => !query || file.path.toLowerCase().includes(query))
+      .slice(0, 50);
+  }, [files, mention]);
+  const showMentionPicker = !!mention && mention.start !== dismissedMentionStart && mentionItems.length > 0;
+
+  useEffect(() => {
+    setHighlight((value) => Math.min(Math.max(value, 0), Math.max(mentionItems.length - 1, 0)));
+  }, [mentionItems.length]);
+
+  function syncCaret(target: HTMLTextAreaElement) {
+    setCaret(target.selectionStart ?? 0);
+  }
+
+  function commitMention(file: FileMention) {
+    if (!mention) return;
+    const insert = `@${file.path}`;
+    const after = props.value.slice(caret);
+    const spacer = after.length === 0 || /^\s/.test(after) ? "" : " ";
+    const next = props.value.slice(0, mention.start) + insert + spacer + after;
+    const nextCaret = mention.start + insert.length + spacer.length;
+    props.onChange(next);
+    setCaret(nextCaret);
+    setHighlight(0);
+    setDismissedMentionStart(null);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextCaret, nextCaret);
+    });
+  }
 
   function onDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -613,19 +669,59 @@ export function Composer(props: { value: string; onChange: (v: string) => void; 
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
     >
-      <textarea
-        ref={textareaRef}
-        className="input"
-        placeholder="Describe a task for pi and/or drop images…"
-        value={props.value}
-        onChange={(e) => props.onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-            e.preventDefault();
-            if (!props.isSubmitting) props.onSubmit();
-          }
-        }}
-      />
+      <div className="composer-input-wrap">
+        <textarea
+          ref={textareaRef}
+          className="input"
+          placeholder="Describe a task for pi and/or drop images…"
+          value={props.value}
+          onChange={(e) => {
+            props.onChange(e.target.value);
+            syncCaret(e.target);
+            setDismissedMentionStart(null);
+          }}
+          onClick={(e) => syncCaret(e.currentTarget)}
+          onKeyUp={(e) => syncCaret(e.currentTarget)}
+          onSelect={(e) => syncCaret(e.currentTarget)}
+          onKeyDown={(e) => {
+            if (showMentionPicker && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === "Tab" || e.key === "Escape")) {
+              e.preventDefault();
+              if (e.key === "ArrowDown") setHighlight((value) => Math.min(mentionItems.length - 1, value + 1));
+              else if (e.key === "ArrowUp") setHighlight((value) => Math.max(0, value - 1));
+              else if (e.key === "Escape") setDismissedMentionStart(mention?.start ?? null);
+              else commitMention(mentionItems[highlight]);
+              return;
+            }
+            if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+              e.preventDefault();
+              if (!props.isSubmitting) props.onSubmit();
+            }
+          }}
+        />
+        {showMentionPicker && (
+          <div className="picker-list composer-file-list" role="listbox">
+            <div className="picker-group">
+              <div className="picker-group-title">Project files</div>
+              {mentionItems.map((file, index) => (
+                <div
+                  key={file.path}
+                  className={`picker-item ${index === highlight ? "active" : ""}`}
+                  role="option"
+                  aria-selected={index === highlight}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commitMention(file);
+                  }}
+                  onMouseEnter={() => setHighlight(index)}
+                >
+                  <span className="picker-name">{file.name}</span>
+                  <span className="picker-path">{file.path}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       {props.imagePaths.length > 0 && (
         <div className="image-attachments">
           {props.imagePaths.map((path) => (
@@ -656,6 +752,14 @@ export function Composer(props: { value: string; onChange: (v: string) => void; 
       </div>
     </div>
   );
+}
+
+function activeMention(value: string, caret: number): ActiveMention | null {
+  if (caret < 0) return null;
+  const before = value.slice(0, caret);
+  const match = before.match(/(^|\s)@([^\s@]*)$/);
+  if (!match) return null;
+  return { start: before.length - match[2].length - 1, query: match[2] };
 }
 
 function trimMid(s: string, n = 28): string {

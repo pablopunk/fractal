@@ -906,6 +906,7 @@ export default function Board() {
                             presetId={composerPresetId}
                             onPresetChange={setComposerPresetId}
                             onCreatePreset={() => setPresetSettingsOpen(true)}
+                            projectId={activeProjectId}
                           />
                         ) : null
                       }
