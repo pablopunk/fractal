@@ -101,10 +101,19 @@ function shellPrompt(value: string): string {
   return `"$(cat <<'${delimiter}'\n${value}\n${delimiter}\n)"`;
 }
 
-function renderTemplate(template: string, vars: Record<string, string | undefined>): string {
+function isPiPreset(preset: Pick<AgentPreset, "kind" | "binary">): boolean {
+  return preset.kind === "pi" || preset.binary === "pi";
+}
+
+function promptArgForPreset(preset: Pick<AgentPreset, "kind" | "binary">, value: string): string {
+  if (isPiPreset(preset) && (value.startsWith("@") || value.startsWith("-"))) return ` ${value}`;
+  return value;
+}
+
+function renderTemplate(template: string, vars: Record<string, string | undefined>, preset: Pick<AgentPreset, "kind" | "binary">): string {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => {
     const value = vars[key] ?? "";
-    return key === "prompt" ? shellPrompt(value) : shellQuote(value);
+    return key === "prompt" ? shellPrompt(promptArgForPreset(preset, value)) : shellQuote(value);
   });
 }
 
@@ -121,6 +130,6 @@ export function renderAgentCommand(preset: AgentPreset, prompt: string): string 
     ? preset.promptTemplate.replace(/{{\s*prompt\s*}}/g, () => prompt)
     : prompt;
   const thinkingArgs = thinkingArgsForPreset(preset).map(shellQuote).join(" ");
-  const args = renderTemplate(preset.argsTemplate, { prompt: renderedPrompt, model: preset.model });
+  const args = renderTemplate(preset.argsTemplate, { prompt: renderedPrompt, model: preset.model }, preset);
   return [preset.binary, thinkingArgs, args].filter(Boolean).join(" ");
 }

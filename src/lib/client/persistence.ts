@@ -12,7 +12,7 @@ export const THEME_KEY = "fractal:theme";
 export const TERMINAL_THEME_KEY = "fractal:terminalTheme";
 export const GLASS_SETTINGS_KEY = "fractal:glassSettings";
 export type ThemeMode = "system" | "light" | "dark";
-export type GlassSettings = { enabled: boolean; opacity: number; blur: number };
+export type GlassSettings = { enabled: boolean; opacity: number; blur: number; version?: number };
 export type TerminalThemeName = "fractal" | "catppuccin" | "tokyo-night" | "solarized";
 export const SIDEBAR_COLLAPSED_WIDTH = 56;
 export const SIDEBAR_COLLAPSE_THRESHOLD = 132;
@@ -124,20 +124,33 @@ export function saveTerminalTheme(theme: TerminalThemeName): void {
   try { localStorage.setItem(TERMINAL_THEME_KEY, theme); } catch {}
 }
 
+function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
+function migrateGlassBlur(parsed: Partial<GlassSettings>, fallback: number): number {
+  const rawBlur = Number(parsed.blur);
+  if (!Number.isFinite(rawBlur)) return fallback;
+  if (!parsed.version && rawBlur > 0 && rawBlur <= 6) return Math.round((rawBlur / 6) * fallback);
+  return rawBlur;
+}
+
 export function loadGlassSettings(): GlassSettings {
-  const fallback = { enabled: false, opacity: 0.68, blur: 6 };
+  const fallback = { enabled: false, opacity: 0.68, blur: 22, version: 2 };
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(GLASS_SETTINGS_KEY) : null;
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<GlassSettings>;
     return {
+      version: 2,
       enabled: Boolean(parsed.enabled),
-      opacity: Math.min(1, Math.max(0.45, Number(parsed.opacity) || fallback.opacity)),
-      blur: Math.min(6, Math.max(0, Number(parsed.blur) || fallback.blur)),
+      opacity: clampNumber(parsed.opacity, fallback.opacity, 0.45, 1),
+      blur: clampNumber(migrateGlassBlur(parsed, fallback.blur), fallback.blur, 0, 40),
     };
   } catch { return fallback; }
 }
 
 export function saveGlassSettings(settings: GlassSettings): void {
-  try { localStorage.setItem(GLASS_SETTINGS_KEY, JSON.stringify(settings)); } catch {}
+  try { localStorage.setItem(GLASS_SETTINGS_KEY, JSON.stringify({ ...settings, version: 2 })); } catch {}
 }

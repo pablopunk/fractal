@@ -64,6 +64,7 @@
   --material-strong-border: var(--border-strong);
   --material-panel-filter: none;
   --material-card-filter: none;
+  --material-popover-filter: none;
   --material-overlay-filter: none;
   --material-modal-filter: none;
   --state-active-bg: var(--accent-soft);
@@ -1561,132 +1562,6 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 6px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-html[data-glass="true"],
-html[data-glass="true"] body,
-html[data-glass="true"] #root,
-html[data-glass="true"] .app,
-html[data-glass="true"] .main,
-html[data-glass="true"] .workspace,
-html[data-glass="true"] .board,
-html[data-glass="true"] .terminal-host {
-  background: transparent !important;
-}
-html[data-glass="true"] .sidebar,
-html[data-glass="true"] .topbar,
-html[data-glass="true"] .terminal-tabs {
-  background: rgb(var(--surface-rgb) / var(--material-chrome-alpha));
-  border-color: var(--material-border);
-  box-shadow: var(--material-shadow-panel);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
-}
-html[data-glass="true"] .column,
-html[data-glass="true"] .composer,
-html[data-glass="true"] .terminal-pane,
-html[data-glass="true"] .modal,
-html[data-glass="true"] .cmdk-dialog,
-html[data-glass="true"] .empty-card {
-  background: rgb(var(--surface-rgb) / var(--material-panel-alpha));
-  border-color: var(--material-border);
-  box-shadow: var(--material-shadow-panel);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
-}
-html[data-glass="true"] .card,
-html[data-glass="true"] .overlay-card {
-  background: rgb(var(--surface-2-rgb) / var(--material-card-alpha));
-  border-color: var(--material-border);
-  box-shadow: var(--material-shadow-floating);
-  backdrop-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
-}
-html[data-glass="true"] .picker,
-html[data-glass="true"] .model-picker-popup,
-html[data-glass="true"] .picker-list,
-html[data-glass="true"] .tooltip-content,
-html[data-glass="true"] .url-preview-popover,
-html[data-glass="true"] .image-attachment-popover {
-  background: rgb(var(--surface-2-rgb) / var(--material-popover-alpha));
-  border-color: var(--material-border);
-  box-shadow: var(--material-shadow-floating);
-  backdrop-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
-}
-html[data-glass="true"] .btn,
-html[data-glass="true"] .input,
-html[data-glass="true"] .theme-toggle,
-html[data-glass="true"] .terminal-pane-toggle,
-html[data-glass="true"] .model-tab,
-html[data-glass="true"] .model-picker-trigger,
-html[data-glass="true"] .profile-toggle,
-html[data-glass="true"] .count-chip,
-html[data-glass="true"] .tag,
-html[data-glass="true"] .preset-modal-list-item.active {
-  background: rgb(var(--surface-3-rgb) / var(--material-control-alpha));
-  border-color: var(--material-border);
-}
-html[data-glass="true"] .column-head:hover,
-html[data-glass="true"] .project-item:hover,
-html[data-glass="true"] .project-item.active,
-html[data-glass="true"] .icon-btn:hover,
-html[data-glass="true"] .picker-item.active,
-html[data-glass="true"] .cmdk-item[aria-selected="true"] {
-  background: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
-}
-html[data-glass="true"] .terminal-tabs {
-  background: transparent !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-html[data-glass="true"] .terminal-tab {
-  background: var(--material-terminal-tab-bg) !important;
-  border-color: var(--material-panel-border) !important;
-}
-html[data-glass="true"] .terminal-tab.active {
-  background: var(--state-active-bg) !important;
-  border-color: var(--state-active-border) !important;
-}
-html[data-glass="true"] .terminal-host .xterm,
-html[data-glass="true"] .terminal-host .xterm-viewport,
-html[data-glass="true"] .terminal-host .xterm-screen,
-html[data-glass="true"] .terminal-host .xterm-helpers,
-html[data-glass="true"] .terminal-host .xterm-rows,
-html[data-glass="true"] .terminal-host .xterm-scroll-area,
-html[data-glass="true"] .terminal-host .xterm-screen canvas {
-  background: transparent !important;
-}
-html[data-glass="true"] .modal-overlay,
-html[data-glass="true"] .cmdk-overlay {
-  background: var(--material-overlay-bg);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-html[data-glass="true"] .sidebar,
-html[data-glass="true"] .topbar,
-html[data-glass="true"] .terminal-tabs,
-html[data-glass="true"] .column,
-html[data-glass="true"] .overlay-card,
-html[data-glass="true"] .modal,
-html[data-glass="true"] .model-picker-popup,
-html[data-glass="true"] .picker,
-html[data-glass="true"] .picker-list,
-html[data-glass="true"] .tooltip-content,
-html[data-glass="true"] .btn,
-html[data-glass="true"] .input,
-html[data-glass="true"] .theme-toggle,
-html[data-glass="true"] .terminal-pane-toggle,
-html[data-glass="true"] .model-tab,
-html[data-glass="true"] .model-picker-trigger,
-html[data-glass="true"] .profile-toggle,
-html[data-glass="true"] .count-chip,
-html[data-glass="true"] .tag,
-html[data-glass="true"] .preset-modal-list,
-html[data-glass="true"] .preset-modal-header {
-  border-color: transparent !important;
-}
-html[data-glass="true"] ::-webkit-scrollbar-thumb { border-color: transparent; }
-
 .workspace {
   position: relative;
   display: flex;
@@ -1729,11 +1604,11 @@ html[data-glass="true"] .board {
   padding: 8px;
 }
 html[data-glass="true"] .composer {
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background: var(--material-panel-bg);
+  border-color: var(--material-panel-border);
+  box-shadow: var(--material-shadow-panel);
+  backdrop-filter: var(--material-panel-filter);
+  -webkit-backdrop-filter: var(--material-panel-filter);
 }
 html[data-glass="true"] .board > .column:first-child {
   border-top-left-radius: calc(var(--radius) - 2px);
@@ -2101,6 +1976,7 @@ html[data-glass="true"] {
   --material-strong-border: transparent;
   --material-panel-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
   --material-card-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
+  --material-popover-filter: blur(calc(var(--glass-blur) * 0.86)) saturate(var(--material-saturate));
   --material-overlay-filter: none;
   --material-modal-filter: blur(calc(var(--glass-blur) * 1.15)) saturate(var(--material-saturate));
   --material-shadow-panel: none;
@@ -2116,6 +1992,10 @@ html[data-glass="true"] {
   --state-drag-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
 }
 
+html[data-glass="true"],
+html[data-glass="true"] body,
+html[data-glass="true"] #root,
+html[data-glass="true"] .app,
 html[data-glass="true"] .main,
 html[data-glass="true"] .workspace,
 html[data-glass="true"] .board,
@@ -2134,6 +2014,7 @@ html[data-glass="true"] .terminal-host {
 }
 
 .column,
+.composer,
 .cmdk-dialog,
 .empty-card {
   background: var(--material-panel-bg);
@@ -2202,8 +2083,8 @@ html[data-glass="true"] .terminal-tabs {
 .image-attachment-popover {
   background: var(--material-popover-bg);
   border-color: var(--material-panel-border);
-  backdrop-filter: var(--material-card-filter);
-  -webkit-backdrop-filter: var(--material-card-filter);
+  backdrop-filter: var(--material-popover-filter);
+  -webkit-backdrop-filter: var(--material-popover-filter);
 }
 
 html[data-glass="true"] .card,

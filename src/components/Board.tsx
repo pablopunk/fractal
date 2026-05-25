@@ -119,7 +119,7 @@ function ThemeSettingsPicker(props: {
             </label>
             <label className="theme-range-row">
               <span>Blur</span>
-              <input type="range" min="0" max="6" step="1" value={props.glass.blur} onChange={(e) => props.onGlassChange({ ...props.glass, blur: Number(e.currentTarget.value) })} />
+              <input type="range" min="0" max="40" step="1" value={props.glass.blur} onChange={(e) => props.onGlassChange({ ...props.glass, blur: Number(e.currentTarget.value) })} />
             </label>
           </div>
           <div className="theme-popup-section">
