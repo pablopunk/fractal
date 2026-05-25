@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -17,6 +17,7 @@ import { Check, FolderKanban, FolderRoot, Monitor, Moon, Palette, Play, SquareTe
 import TerminalPane from "./TerminalPane.js";
 import Portal from "./Portal.js";
 import CommandMenu from "./CommandMenu.js";
+import PresetPicker from "./PresetPicker.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
 import { Toaster, toast } from "sonner";
 import { Sidebar, EmptyState, ColumnView, PresetSettings, Composer, tildeify, truncate } from "./BoardParts.js";
@@ -169,6 +170,9 @@ export default function Board() {
   const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
   const [composerPresetId, setComposerPresetId] = useState("");
   const [presetSettingsOpen, setPresetSettingsOpen] = useState(false);
+  const [commandEditPromptId, setCommandEditPromptId] = useState<string | null>(null);
+  const [commandEditText, setCommandEditText] = useState("");
+  const [commandEditPresetId, setCommandEditPresetId] = useState("");
   const [settings, setSettings] = useState<AppSettings>({ fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", helperPresetId: "", lastProjectId: "" });
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
@@ -603,6 +607,24 @@ export default function Board() {
     }
   }
 
+  function openCommandPromptEditor(prompt: Prompt) {
+    setCommandEditPromptId(prompt.id);
+    setCommandEditText(prompt.text);
+    setCommandEditPresetId(prompt.presetId);
+  }
+
+  function closeCommandPromptEditor() {
+    setCommandEditPromptId(null);
+    setCommandEditText("");
+    setCommandEditPresetId("");
+  }
+
+  async function saveCommandPromptEditor() {
+    if (!commandEditPromptId || !commandEditText.trim()) return;
+    await editPrompt(commandEditPromptId, { text: commandEditText, presetId: commandEditPresetId });
+    closeCommandPromptEditor();
+  }
+
   async function archivePrompt(id: string) {
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
@@ -785,6 +807,11 @@ export default function Board() {
     () => prompts.filter((p) => p.projectId === activeProjectId && p.isArchived),
     [prompts, activeProjectId],
   );
+  const commandMenuPrompts = useMemo(
+    () => prompts.filter((p) => p.projectId === activeProjectId),
+    [prompts, activeProjectId],
+  );
+  const commandEditPrompt = commandEditPromptId ? prompts.find((p) => p.id === commandEditPromptId) ?? null : null;
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
   const sidebarCollapsed = isSidebarCollapsed(sidebarWidth);
 
@@ -793,12 +820,36 @@ export default function Board() {
       <Toaster richColors closeButton position="top-center" theme={theme} />
       <CommandMenu
         projects={projects}
+        prompts={commandMenuPrompts}
         tabs={filteredTerminalTabs}
+        columns={COLUMNS}
+        collapsedColumns={collapsed}
+        activeProject={activeProject}
         activeProjectId={activeProjectId}
         activeTabId={activeTerminalId}
         home={home}
+        theme={theme}
+        terminalThemeName={terminalThemeName}
+        hasDonePrompts={archivedPrompts.length > 0}
         onSelectProject={(project) => setActiveProjectId(project.id)}
         onSelectTab={(tab) => activateTerminal(tab.id)}
+        onCloseTab={(tab) => closeTerminal(tab.id)}
+        onRunPrompt={(prompt, target) => void launch(prompt.id, target)}
+        onArchivePrompt={(prompt) => void archivePrompt(prompt.id)}
+        onUnarchivePrompt={(prompt) => void unarchivePrompt(prompt.id)}
+        onDeletePrompt={(prompt) => void deletePrompt(prompt.id)}
+        onEditPrompt={openCommandPromptEditor}
+        onOpenPromptTerminal={openTerminal}
+        onOpenPresets={() => setPresetSettingsOpen(true)}
+        onOpenProjectTerminal={(project) => void openProjectTerminal(project)}
+        onClearDone={() => void clearDonePrompts()}
+        onToggleTerminalPosition={() => setTerminalPosition((position) => position === "right" ? "bottom" : "right")}
+        onTerminalThemeChange={setTerminalThemeName}
+        onToggleColumn={toggleCollapse}
+        onFocusComposer={() => {
+          setCollapsed((value) => ({ ...value, PROMPTS: false }));
+          window.setTimeout(() => document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(), 0);
+        }}
       />
       <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`} style={{ ["--sidebar-width" as string]: `${sidebarWidth}px` }}>
       <Sidebar
@@ -962,6 +1013,31 @@ export default function Board() {
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button className="btn ghost" onClick={() => { setPendingDeletePromptId(null); setPendingDeleteChanges(null); }}>Cancel</button>
                     <button className="btn danger" onClick={() => void deletePrompt(pendingDeletePromptId, true)}>Delete & Discard Changes</button>
+                  </div>
+                </div>
+              </div>
+            </Portal>}
+
+            {commandEditPrompt && <Portal>
+              <div className="modal-overlay" onClick={closeCommandPromptEditor}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <h2>Edit prompt</h2>
+                  <textarea
+                    className="input"
+                    style={{ minHeight: 140, resize: "vertical", fontFamily: "var(--font-sans)", fontSize: 13, marginBottom: 12 }}
+                    value={commandEditText}
+                    onChange={(e) => setCommandEditText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") closeCommandPromptEditor();
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void saveCommandPromptEditor();
+                    }}
+                    autoFocus
+                  />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <PresetPicker presets={settings.agentPresets} value={commandEditPresetId} onChange={setCommandEditPresetId} onCreate={() => setPresetSettingsOpen(true)} />
+                    <div style={{ flex: 1 }} />
+                    <button className="btn ghost" onClick={closeCommandPromptEditor}>Cancel</button>
+                    <button className="btn primary" onClick={() => void saveCommandPromptEditor()} disabled={!commandEditText.trim()}>Save</button>
                   </div>
                 </div>
               </div>
