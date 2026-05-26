@@ -87,6 +87,24 @@ export default function CommandMenu(props: Props) {
       <Command.List className="cmdk-list">
         <Command.Empty className="cmdk-empty">No results found.</Command.Empty>
 
+        <Command.Group heading="Projects" className="cmdk-group">
+          {props.projects.map((project) => (
+            <Command.Item
+              key={`project:${project.id}`}
+              value={`project ${project.name} ${project.path}`}
+              className="cmdk-item"
+              onSelect={() => run(() => props.onSelectProject(project))}
+            >
+              <FolderKanban className="cmdk-icon" aria-hidden="true" />
+              <span className="cmdk-item-main">
+                <span>{project.name}</span>
+                <span className="cmdk-item-sub">{tildeify(project.path, props.home)}</span>
+              </span>
+              {project.id === props.activeProjectId && <span className="cmdk-badge">current</span>}
+            </Command.Item>
+          ))}
+        </Command.Group>
+
         <Command.Group heading="Actions" className="cmdk-group">
           {props.activeProject && (
             <ActionItem
@@ -172,23 +190,6 @@ export default function CommandMenu(props: Props) {
           </Command.Group>
         )}
 
-        <Command.Group heading="Projects" className="cmdk-group">
-          {props.projects.map((project) => (
-            <Command.Item
-              key={`project:${project.id}`}
-              value={`project ${project.name} ${project.path}`}
-              className="cmdk-item"
-              onSelect={() => run(() => props.onSelectProject(project))}
-            >
-              <FolderKanban className="cmdk-icon" aria-hidden="true" />
-              <span className="cmdk-item-main">
-                <span>{project.name}</span>
-                <span className="cmdk-item-sub">{tildeify(project.path, props.home)}</span>
-              </span>
-              {project.id === props.activeProjectId && <span className="cmdk-badge">current</span>}
-            </Command.Item>
-          ))}
-        </Command.Group>
 
         {props.tabs.length > 0 && (
           <Command.Group heading="Tabs" className="cmdk-group">
