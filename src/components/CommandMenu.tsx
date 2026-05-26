@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { Command } from "cmdk";
-import { Check, Copy, FolderKanban, FolderRoot, Pencil, Play, Settings, SquareTerminal, Trash2, Undo2, X } from "lucide-react";
+import { Check, Copy, Droplets, FolderKanban, FolderRoot, Minus, Pencil, Play, Plus, Settings, SquareTerminal, Trash2, Undo2, X } from "lucide-react";
 import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/terminal-themes.js";
 import type { Column, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
-import type { TerminalThemeName, ThemeMode } from "~/lib/client/persistence.js";
+import type { GlassSettings, TerminalThemeName, ThemeMode } from "~/lib/client/persistence.js";
 
 type CommandColumn = { id: Column; title: string; icon: ComponentType<{ className?: string }> };
 
@@ -19,6 +19,7 @@ type Props = {
   home: string;
   theme: ThemeMode;
   terminalThemeName: TerminalThemeName;
+  glass: GlassSettings;
   hasDonePrompts: boolean;
   onSelectProject: (project: Project) => void;
   onSelectTab: (tab: TerminalTab) => void;
@@ -34,6 +35,7 @@ type Props = {
   onClearDone: () => void;
   onToggleTerminalPosition: () => void;
   onTerminalThemeChange: (theme: TerminalThemeName) => void;
+  onGlassChange: (settings: GlassSettings) => void;
   onToggleColumn: (column: Column) => void;
   onFocusComposer: () => void;
 };
@@ -77,6 +79,13 @@ export default function CommandMenu(props: Props) {
     void navigator.clipboard?.writeText(value).catch(() => {});
   }
 
+  function updateGlass(patch: Partial<GlassSettings>) {
+    props.onGlassChange({ ...props.glass, ...patch });
+  }
+
+  const glassOpacity = Math.round(props.glass.opacity * 100);
+  const glassBlur = Math.round(props.glass.blur);
+  const glassSubtitle = `Opacity ${glassOpacity}% · Blur ${glassBlur}px`;
   const runnablePrompts = props.prompts.filter((prompt) => !prompt.isArchived && !prompt.tmuxSession && prompt.column === "PROMPTS");
   const activePrompts = props.prompts.filter((prompt) => !prompt.isArchived && (prompt.tmuxSession || prompt.column !== "PROMPTS"));
   const archivedPrompts = props.prompts.filter((prompt) => prompt.isArchived);
@@ -132,6 +141,14 @@ export default function CommandMenu(props: Props) {
               onSelect={() => run(() => props.onToggleColumn(column.id))}
             />
           ))}
+        </Command.Group>
+
+        <Command.Group heading="Glass" className="cmdk-group">
+          <ActionItem icon={Droplets} title={`${props.glass.enabled ? "Disable" : "Enable"} opacity + blur`} subtitle={glassSubtitle} value={`glass opacity blur ${props.glass.enabled ? "disable off" : "enable on"} ${glassOpacity} ${glassBlur}`} onSelect={() => run(() => updateGlass({ enabled: !props.glass.enabled }))} />
+          <ActionItem icon={Minus} title="Decrease glass opacity" subtitle={`${Math.round(clamp(props.glass.opacity - 0.05, 0.45, 1) * 100)}%`} value="glass opacity decrease lower more transparent" onSelect={() => run(() => updateGlass({ opacity: roundGlass(clamp(props.glass.opacity - 0.05, 0.45, 1)) }))} />
+          <ActionItem icon={Plus} title="Increase glass opacity" subtitle={`${Math.round(clamp(props.glass.opacity + 0.05, 0.45, 1) * 100)}%`} value="glass opacity increase higher less transparent" onSelect={() => run(() => updateGlass({ opacity: roundGlass(clamp(props.glass.opacity + 0.05, 0.45, 1)) }))} />
+          <ActionItem icon={Minus} title="Decrease glass blur" subtitle={`${Math.round(clamp(props.glass.blur - 4, 0, 40))}px`} value="glass blur decrease lower sharper" onSelect={() => run(() => updateGlass({ blur: Math.round(clamp(props.glass.blur - 4, 0, 40)) }))} />
+          <ActionItem icon={Plus} title="Increase glass blur" subtitle={`${Math.round(clamp(props.glass.blur + 4, 0, 40))}px`} value="glass blur increase higher softer" onSelect={() => run(() => updateGlass({ blur: Math.round(clamp(props.glass.blur + 4, 0, 40)) }))} />
         </Command.Group>
 
         <Command.Group heading="Terminal themes" className="cmdk-group">
@@ -294,4 +311,12 @@ function tildeify(abs: string, home: string): string {
   if (abs === home) return "~";
   if (abs.startsWith(home + "/")) return "~" + abs.slice(home.length);
   return abs;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function roundGlass(value: number): number {
+  return Math.round(value * 100) / 100;
 }

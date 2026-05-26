@@ -830,6 +830,7 @@ export default function Board() {
         home={home}
         theme={theme}
         terminalThemeName={terminalThemeName}
+        glass={glassSettings}
         hasDonePrompts={archivedPrompts.length > 0}
         onSelectProject={(project) => setActiveProjectId(project.id)}
         onSelectTab={(tab) => activateTerminal(tab.id)}
@@ -845,6 +846,7 @@ export default function Board() {
         onClearDone={() => void clearDonePrompts()}
         onToggleTerminalPosition={() => setTerminalPosition((position) => position === "right" ? "bottom" : "right")}
         onTerminalThemeChange={setTerminalThemeName}
+        onGlassChange={setGlassSettings}
         onToggleColumn={toggleCollapse}
         onFocusComposer={() => {
           setCollapsed((value) => ({ ...value, PROMPTS: false }));
