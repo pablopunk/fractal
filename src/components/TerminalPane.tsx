@@ -23,6 +23,8 @@ type ElectronGlobals = typeof window & {
 };
 
 const URL_RE = /https?:\/\/[^\s<>()"']+/gi;
+const BOARD_ICON_RAIL_MIN_WIDTH = 56;
+const BOARD_STACK_MIN_HEIGHT = 96;
 
 function trimUrl(url: string): string {
   return url.replace(/[),.;:!?\]}]+$/g, "");
@@ -64,16 +66,22 @@ export default function TerminalPane(props: {
 }) {
   const active = props.tabs.find((tab) => tab.id === props.activeId) ?? props.tabs[0];
   const dragging = useRef(false);
+  const paneRef = useRef<HTMLElement | null>(null);
   const [draggingTabId, setDraggingTabId] = useState<string | null>(null);
   const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
       if (!dragging.current) return;
+      const workspaceRect = paneRef.current?.parentElement?.getBoundingClientRect();
       if (props.position === "right") {
-        props.onResize(Math.min(Math.max(window.innerWidth - e.clientX, 320), Math.floor(window.innerWidth * 0.72)));
+        const right = workspaceRect?.right ?? window.innerWidth;
+        const width = workspaceRect?.width ?? window.innerWidth;
+        props.onResize(Math.min(Math.max(right - e.clientX, 320), Math.max(320, width - BOARD_ICON_RAIL_MIN_WIDTH)));
       } else {
-        props.onResize(Math.min(Math.max(window.innerHeight - e.clientY, 180), Math.floor(window.innerHeight * 0.72)));
+        const bottom = workspaceRect?.bottom ?? window.innerHeight;
+        const height = workspaceRect?.height ?? window.innerHeight;
+        props.onResize(Math.min(Math.max(bottom - e.clientY, 180), Math.max(180, height - BOARD_STACK_MIN_HEIGHT)));
       }
     }
     function onUp() { dragging.current = false; }
@@ -88,7 +96,7 @@ export default function TerminalPane(props: {
   if (!active) return null;
 
   return (
-    <aside className={`terminal-pane terminal-pane-${props.position}`} style={props.position === "right" ? { width: props.size } : { height: props.size }}>
+    <aside ref={paneRef} className={`terminal-pane terminal-pane-${props.position}`} style={props.position === "right" ? { width: props.size } : { height: props.size }}>
       <div
         className={`terminal-resizer terminal-resizer-${props.position}`}
         onPointerDown={(e) => {

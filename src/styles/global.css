@@ -919,6 +919,99 @@ a { color: inherit; }
   text-transform: uppercase;
   color: var(--text-muted);
 }
+.board-compact {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.board-compact > .column {
+  flex: 0 0 auto;
+  width: 38px;
+  min-width: 38px;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+.column.column-compact,
+html[data-glass="true"] .column.column-compact {
+  align-items: center;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.column-compact-head {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+}
+.column-compact-head:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.column-compact-head .count-chip {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  padding: 0 4px;
+  font-size: 9.5px;
+  line-height: 14px;
+}
+.column-compact-items {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+  padding: 8px 3px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.column-compact-item {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.column-compact-item:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+.column-compact-item.open {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+}
+.column-compact-item.active {
+  color: var(--state-active-color);
+  background: var(--state-active-bg);
+  border-color: var(--state-active-border);
+  box-shadow: var(--state-active-shadow-card);
+}
+.column-compact-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
 .column.drop-active {
   border-color: var(--accent);
   background: color-mix(in oklab, var(--accent) 6%, var(--surface));
@@ -1673,7 +1766,7 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   position: relative;
   flex: 0 0 auto;
   min-width: 320px;
-  max-width: 72vw;
+  max-width: calc(100% - 56px);
   min-height: 0;
   border-left: 1px solid var(--border);
   background: var(--bg);

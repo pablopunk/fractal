@@ -276,6 +276,7 @@ export function ColumnView(props: {
   activeId?: string | null;
   overId?: string | null;
   collapsed?: boolean;
+  compact?: boolean;
   onToggleCollapse?: () => void;
   isArchivedCol?: boolean;
   onClearDone?: () => void;
@@ -289,6 +290,42 @@ export function ColumnView(props: {
   const showIndicator = props.activeId && dragIndex === -1 && isOverColumn;
 
   const Icon = props.icon;
+
+  if (props.compact) {
+    return (
+      <div ref={setNodeRef} className={`column column-compact ${isOverColumn ? "drop-active" : ""}`}>
+        <Tooltip content={props.title}>
+          <div className="column-compact-head" aria-label={`${props.title} column`}>
+            <Icon className="column-icon" />
+            <span className="count-chip">{props.prompts.length}</span>
+          </div>
+        </Tooltip>
+        <div className="column-compact-items" aria-label={`${props.title} prompts`}>
+          {props.prompts.map((prompt) => {
+            const preset = props.presets.find((item) => item.id === prompt.presetId);
+            const terminalOpen = !!prompt.tmuxSession && props.openTerminalIds.has(prompt.tmuxSession);
+            const terminalActive = !!prompt.tmuxSession && prompt.tmuxSession === props.activeTerminalId;
+            const label = prompt.tmuxSession || truncate(prompt.summary?.trim() || prompt.text, 80) || "Prompt";
+            return (
+              <Tooltip key={prompt.id} content={label}>
+                <button
+                  type="button"
+                  className={`column-compact-item ${prompt.tmuxSession ? "terminal" : "prompt"} ${terminalOpen ? "open" : ""} ${terminalActive ? "active" : ""}`}
+                  aria-label={label}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (prompt.tmuxSession) props.onOpenTerminal(prompt);
+                  }}
+                >
+                  {prompt.tmuxSession ? <SquareTerminal size={15} /> : preset ? <PresetIcon preset={preset} size={14} /> : <span className="column-compact-dot" aria-hidden="true" />}
+                </button>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   if (props.collapsed) {
     return (

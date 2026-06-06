@@ -63,6 +63,7 @@ const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ classNam
 ];
 const THEME_OPTIONS: ThemeMode[] = ["system", "light", "dark"];
 const BOARD_ROWS_MAX_WIDTH = 960;
+const BOARD_COMPACT_MAX_WIDTH = 240;
 
 function ThemeIcon(props: { theme: ThemeMode }) {
   if (props.theme === "light") return <Sun size={14} />;
@@ -204,6 +205,7 @@ export default function Board() {
   const [glassSettings, setGlassSettings] = useState<GlassSettings>(() => loadGlassSettings());
   const [commandRecents, setCommandRecents] = useState<CommandRecent[]>(() => loadCommandRecents());
   const [boardRows, setBoardRows] = useState(false);
+  const [boardCompact, setBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
@@ -343,7 +345,12 @@ export default function Board() {
 
   useEffect(() => {
     if (!boardElement) return;
-    const updateLayout = () => setBoardRows(boardElement.getBoundingClientRect().width < BOARD_ROWS_MAX_WIDTH);
+    const updateLayout = () => {
+      const width = boardElement.getBoundingClientRect().width;
+      const compact = width < BOARD_COMPACT_MAX_WIDTH;
+      setBoardCompact(compact);
+      setBoardRows(!compact && width < BOARD_ROWS_MAX_WIDTH);
+    };
     updateLayout();
     const observer = new ResizeObserver(updateLayout);
     observer.observe(boardElement);
@@ -946,7 +953,7 @@ export default function Board() {
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
               <div className={`workspace workspace-${filteredTerminalTabs.length > 0 ? terminalPosition : "right"}`}>
-              <div ref={setBoardElement} className={`board ${boardRows ? "board-rows" : ""}`}>
+              <div ref={setBoardElement} className={`board ${boardRows ? "board-rows" : ""} ${boardCompact ? "board-compact" : ""}`}>
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
                     ? archivedPrompts
@@ -972,6 +979,7 @@ export default function Board() {
                       activeId={activeDragId}
                       overId={overId}
                       collapsed={!!collapsed[col.id]}
+                      compact={boardCompact}
                       onToggleCollapse={() => toggleCollapse(col.id)}
                       isArchivedCol={col.id === "ARCHIVED"}
                       onClearDone={col.id === "ARCHIVED" ? clearDonePrompts : undefined}
