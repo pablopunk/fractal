@@ -1,5 +1,7 @@
 import type { Column, TerminalTab } from "./types.js";
 
+export type CommandRecent = { kind: "project" | "prompt" | "tab"; id: string; at: number };
+
 export const COLLAPSED_KEY = "fractal:collapsedColumns";
 export const PROJECT_COLLAPSED_KEY_PREFIX = "fractal:collapsedColumns:";
 export const TERMINAL_TABS_KEY = "fractal:terminalTabs";
@@ -11,6 +13,7 @@ export const SIDEBAR_WIDTH_KEY = "fractal:sidebarWidth";
 export const THEME_KEY = "fractal:theme";
 export const TERMINAL_THEME_KEY = "fractal:terminalTheme";
 export const GLASS_SETTINGS_KEY = "fractal:glassSettings";
+export const COMMAND_RECENTS_KEY = "fractal:commandRecents";
 export type ThemeMode = "system" | "light" | "dark";
 export type GlassSettings = { enabled: boolean; opacity: number; blur: number; version?: number };
 export type TerminalThemeName = "fractal" | "catppuccin" | "tokyo-night" | "solarized";
@@ -42,6 +45,24 @@ export function loadTerminalTabs(): TerminalTab[] {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_TABS_KEY) : null;
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
+}
+
+function isCommandRecent(value: unknown): value is CommandRecent {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<CommandRecent>;
+  return (item.kind === "project" || item.kind === "prompt" || item.kind === "tab") && typeof item.id === "string" && typeof item.at === "number";
+}
+
+export function loadCommandRecents(): CommandRecent[] {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(COMMAND_RECENTS_KEY) : null;
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(isCommandRecent) : [];
+  } catch { return []; }
+}
+
+export function saveCommandRecents(recents: CommandRecent[]): void {
+  try { localStorage.setItem(COMMAND_RECENTS_KEY, JSON.stringify(recents.slice(0, 20))); } catch {}
 }
 
 export function loadActiveTerminalId(tabs: TerminalTab[]): string | null {

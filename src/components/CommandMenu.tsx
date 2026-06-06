@@ -3,7 +3,7 @@ import { Command } from "cmdk";
 import { Check, Copy, Droplets, FolderKanban, FolderRoot, Minus, Pencil, Play, Plus, Settings, SquareTerminal, Trash2, Undo2, X } from "lucide-react";
 import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/terminal-themes.js";
 import type { Column, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
-import type { GlassSettings, TerminalThemeName, ThemeMode } from "~/lib/client/persistence.js";
+import type { CommandRecent, GlassSettings, TerminalThemeName, ThemeMode } from "~/lib/client/persistence.js";
 
 type CommandColumn = { id: Column; title: string; icon: ComponentType<{ className?: string }> };
 
@@ -20,6 +20,7 @@ type Props = {
   theme: ThemeMode;
   terminalThemeName: TerminalThemeName;
   glass: GlassSettings;
+  commandRecents: CommandRecent[];
   hasDonePrompts: boolean;
   onSelectProject: (project: Project) => void;
   onSelectTab: (tab: TerminalTab) => void;
@@ -49,6 +50,11 @@ type ActionItemProps = {
   onSelect: () => void;
 };
 
+type RecentEntry =
+  | { key: string; kind: "project"; project: Project }
+  | { key: string; kind: "prompt"; prompt: Prompt }
+  | { key: string; kind: "tab"; tab: TerminalTab; prompt?: Prompt };
+
 export default function CommandMenu(props: Props) {
   const [open, setOpen] = useState(false);
   const promptBySession = useMemo(() => {
@@ -58,6 +64,11 @@ export default function CommandMenu(props: Props) {
     }
     return map;
   }, [props.prompts]);
+
+  const recentEntries = useMemo(
+    () => resolveRecentEntries(props.commandRecents, props.projects, props.prompts, props.tabs, promptBySession),
+    [props.commandRecents, props.projects, props.prompts, props.tabs, promptBySession],
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -95,6 +106,29 @@ export default function CommandMenu(props: Props) {
       <Command.Input className="cmdk-input" autoFocus placeholder="Run command, open project, prompt, or tab…" />
       <Command.List className="cmdk-list">
         <Command.Empty className="cmdk-empty">No results found.</Command.Empty>
+
+        {recentEntries.length > 0 && (
+          <Command.Group heading="Recent" className="cmdk-group">
+            {recentEntries.map((entry) => (
+              <RecentEntryItem
+                key={entry.key}
+                entry={entry}
+                home={props.home}
+                tabs={props.tabs}
+                run={run}
+                copy={copy}
+                onSelectProject={props.onSelectProject}
+                onSelectTab={props.onSelectTab}
+                onRunPrompt={props.onRunPrompt}
+                onEditPrompt={props.onEditPrompt}
+                onDeletePrompt={props.onDeletePrompt}
+                onOpenPromptTerminal={props.onOpenPromptTerminal}
+                onArchivePrompt={props.onArchivePrompt}
+                onUnarchivePrompt={props.onUnarchivePrompt}
+              />
+            ))}
+          </Command.Group>
+        )}
 
         <Command.Group heading="Projects" className="cmdk-group">
           {props.projects.map((project) => (
@@ -246,6 +280,85 @@ export default function CommandMenu(props: Props) {
   );
 }
 
+function RecentEntryItem(props: {
+  entry: RecentEntry;
+  home: string;
+  tabs: TerminalTab[];
+  run: (action: () => void) => void;
+  copy: (value: string) => void;
+  onSelectProject: Props["onSelectProject"];
+  onSelectTab: Props["onSelectTab"];
+  onRunPrompt: Props["onRunPrompt"];
+  onArchivePrompt: Props["onArchivePrompt"];
+  onUnarchivePrompt: Props["onUnarchivePrompt"];
+  onDeletePrompt: Props["onDeletePrompt"];
+  onEditPrompt: Props["onEditPrompt"];
+  onOpenPromptTerminal: Props["onOpenPromptTerminal"];
+}) {
+  if (props.entry.kind === "project") {
+    const project = props.entry.project;
+    return (
+      <ActionItem
+        icon={FolderKanban}
+        title={project.name}
+        subtitle={tildeify(project.path, props.home)}
+        value={`recent project ${project.name} ${project.path}`}
+        onSelect={() => props.run(() => props.onSelectProject(project))}
+      />
+    );
+  }
+
+  if (props.entry.kind === "tab") {
+    const { tab, prompt } = props.entry;
+    return (
+      <Command.Item
+        value={`recent tab terminal focus ${tab.title} ${tab.session} ${tab.cwd ?? ""}`}
+        className="cmdk-item"
+        onSelect={() => props.run(() => props.onSelectTab(tab))}
+      >
+        <SquareTerminal className="cmdk-icon" aria-hidden="true" />
+        <span className="cmdk-item-main">
+          <span>{tab.title}</span>
+          <span className="cmdk-item-sub">{tab.cwd ? tildeify(tab.cwd, props.home) : tab.session}</span>
+        </span>
+        {prompt?.isRunning && <span className="cmdk-badge">running</span>}
+      </Command.Item>
+    );
+  }
+
+  const prompt = props.entry.prompt;
+  if (prompt.isArchived) {
+    return <ArchivedPromptActions prompt={prompt} run={props.run} onUnarchivePrompt={props.onUnarchivePrompt} onDeletePrompt={props.onDeletePrompt} />;
+  }
+
+  if (prompt.tmuxSession || prompt.column !== "PROMPTS") {
+    return (
+      <ActivePromptActions
+        prompt={prompt}
+        home={props.home}
+        isTerminalOpen={!!prompt.tmuxSession && props.tabs.some((tab) => tab.id === prompt.tmuxSession)}
+        run={props.run}
+        copy={props.copy}
+        onOpenPromptTerminal={props.onOpenPromptTerminal}
+        onArchivePrompt={props.onArchivePrompt}
+        onEditPrompt={props.onEditPrompt}
+        onDeletePrompt={props.onDeletePrompt}
+      />
+    );
+  }
+
+  return (
+    <PromptActions
+      prompt={prompt}
+      home={props.home}
+      run={props.run}
+      onRunPrompt={props.onRunPrompt}
+      onEditPrompt={props.onEditPrompt}
+      onDeletePrompt={props.onDeletePrompt}
+    />
+  );
+}
+
 function ActionItem(props: ActionItemProps) {
   const Icon = props.icon;
   return (
@@ -304,6 +417,32 @@ function promptSubtitle(prompt: Prompt, home: string): string {
   if (prompt.worktreePath) return tildeify(prompt.worktreePath, home);
   if (prompt.tmuxSession) return prompt.tmuxSession;
   return prompt.column === "PROMPTS" ? "Backlog prompt" : prompt.column.replaceAll("_", " ").toLowerCase();
+}
+
+function resolveRecentEntries(recents: CommandRecent[], projects: Project[], prompts: Prompt[], tabs: TerminalTab[], promptBySession: Map<string, Prompt>): RecentEntry[] {
+  const entries: RecentEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const recent of recents) {
+    const key = `${recent.kind}:${recent.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    if (recent.kind === "project") {
+      const project = projects.find((item) => item.id === recent.id);
+      if (project) entries.push({ key, kind: "project", project });
+    } else if (recent.kind === "prompt") {
+      const prompt = prompts.find((item) => item.id === recent.id);
+      if (prompt) entries.push({ key, kind: "prompt", prompt });
+    } else {
+      const tab = tabs.find((item) => item.id === recent.id);
+      if (tab) entries.push({ key, kind: "tab", tab, prompt: promptBySession.get(tab.session) });
+    }
+
+    if (entries.length >= 5) break;
+  }
+
+  return entries;
 }
 
 function tildeify(abs: string, home: string): string {

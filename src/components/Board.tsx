@@ -41,10 +41,13 @@ import {
   loadTheme,
   loadTerminalTheme,
   loadGlassSettings,
+  loadCommandRecents,
   saveCollapsed,
   saveTerminalTheme,
   saveTheme,
   saveGlassSettings,
+  saveCommandRecents,
+  type CommandRecent,
   type GlassSettings,
   type ThemeMode,
   type TerminalThemeName,
@@ -199,6 +202,7 @@ export default function Board() {
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const [terminalThemeName, setTerminalThemeName] = useState<TerminalThemeName>(() => loadTerminalTheme());
   const [glassSettings, setGlassSettings] = useState<GlassSettings>(() => loadGlassSettings());
+  const [commandRecents, setCommandRecents] = useState<CommandRecent[]>(() => loadCommandRecents());
   const [boardRows, setBoardRows] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
@@ -214,9 +218,22 @@ export default function Board() {
     });
   }, [activeProject, prompts, terminalTabs]);
 
+  function rememberCommandRecent(kind: CommandRecent["kind"], id: string) {
+    setCommandRecents((items) => [
+      { kind, id, at: Date.now() },
+      ...items.filter((item) => item.kind !== kind || item.id !== id),
+    ].slice(0, 20));
+  }
+
+  function selectProject(id: string) {
+    setActiveProjectId(id);
+    rememberCommandRecent("project", id);
+  }
+
   const activateTerminal = (id: string) => {
     setActiveTerminalId(id);
     setTerminalFocusKey((key) => key + 1);
+    rememberCommandRecent("tab", id);
   };
 
   const resetInitialTerminalSplitSize = () => {
@@ -247,6 +264,10 @@ export default function Board() {
   useEffect(() => {
     saveTerminalTheme(terminalThemeName);
   }, [terminalThemeName]);
+
+  useEffect(() => {
+    saveCommandRecents(commandRecents);
+  }, [commandRecents]);
 
   useEffect(() => {
     void refresh();
@@ -358,7 +379,7 @@ export default function Board() {
 
     const selectProjectByNumber = (index: number) => {
       const project = projects[index];
-      if (project) setActiveProjectId(project.id);
+      if (project) selectProject(project.id);
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -404,6 +425,7 @@ export default function Board() {
   }
 
   function openTerminal(prompt: Prompt) {
+    rememberCommandRecent("prompt", prompt.id);
     if (!prompt.tmuxSession) return;
     const existing = terminalTabs.find((tab) => tab.id === prompt.tmuxSession);
     if (existing) {
@@ -480,7 +502,7 @@ export default function Board() {
         body: JSON.stringify({ path }),
       });
       setProjects((p) => (p.find((x) => x.id === project.id) ? p : [...p, project]));
-      setActiveProjectId(project.id);
+      selectProject(project.id);
       setShowSidebarPicker(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -597,6 +619,7 @@ export default function Board() {
   }
 
   async function editPrompt(id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) {
+    rememberCommandRecent("prompt", id);
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}`, {
         method: "PATCH",
@@ -609,6 +632,7 @@ export default function Board() {
   }
 
   function openCommandPromptEditor(prompt: Prompt) {
+    rememberCommandRecent("prompt", prompt.id);
     setCommandEditPromptId(prompt.id);
     setCommandEditText(prompt.text);
     setCommandEditPresetId(prompt.presetId);
@@ -627,6 +651,7 @@ export default function Board() {
   }
 
   async function archivePrompt(id: string) {
+    rememberCommandRecent("prompt", id);
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
@@ -644,6 +669,7 @@ export default function Board() {
   }
 
   async function unarchivePrompt(id: string) {
+    rememberCommandRecent("prompt", id);
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "DELETE" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
@@ -669,6 +695,7 @@ export default function Board() {
 
   async function launch(id: string, target: Column) {
     if (target === "PROMPTS") return;
+    rememberCommandRecent("prompt", id);
     const url = target === "RUN_IN_PLACE" ? `/api/prompts/${id}/run-in-place` : `/api/prompts/${id}/run-in-worktree`;
     const prev = prompts;
     setPrompts((p) => p.map((x) => (x.id === id ? { ...x, column: target } : x)));
@@ -683,6 +710,7 @@ export default function Board() {
   }
 
   async function moveToPrompts(id: string) {
+    rememberCommandRecent("prompt", id);
     const prev = prompts;
     setPrompts((p) => p.map((x) => (x.id === id ? { ...x, column: "PROMPTS", isArchived: false } : x)));
     try {
@@ -832,8 +860,9 @@ export default function Board() {
         theme={theme}
         terminalThemeName={terminalThemeName}
         glass={glassSettings}
+        commandRecents={commandRecents}
         hasDonePrompts={archivedPrompts.length > 0}
-        onSelectProject={(project) => setActiveProjectId(project.id)}
+        onSelectProject={(project) => selectProject(project.id)}
         onSelectTab={(tab) => activateTerminal(tab.id)}
         onCloseTab={(tab) => closeTerminal(tab.id)}
         onRunPrompt={(prompt, target) => void launch(prompt.id, target)}
@@ -858,7 +887,7 @@ export default function Board() {
       <Sidebar
         projects={projects}
         activeId={activeProjectId}
-        onSelect={(id) => setActiveProjectId(id)}
+        onSelect={selectProject}
         onRemove={removeProject}
         onAdd={addProject}
         showPicker={showSidebarPicker}
