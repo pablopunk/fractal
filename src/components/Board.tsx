@@ -25,11 +25,7 @@ import { Sidebar, EmptyState, ColumnView, PresetSettings, Composer, tildeify, tr
 import { ApiError, api } from "~/lib/client/api.js";
 import {
   ACTIVE_TERMINAL_TAB_KEY,
-  SIDEBAR_WIDTH_KEY,
-  TERMINAL_HEIGHT_KEY,
-  TERMINAL_POSITION_KEY,
   TERMINAL_TABS_KEY,
-  TERMINAL_WIDTH_KEY,
   loadActiveTerminalId,
   loadCollapsed,
   isSidebarCollapsed,
@@ -43,7 +39,11 @@ import {
   loadGlassSettings,
   loadCommandRecents,
   saveCollapsed,
+  saveSidebarWidth,
+  saveTerminalHeight,
+  saveTerminalPosition,
   saveTerminalTheme,
+  saveTerminalWidth,
   saveTheme,
   saveGlassSettings,
   saveCommandRecents,
@@ -238,11 +238,27 @@ export default function Board() {
     rememberCommandRecent("tab", id);
   };
 
-  const resetInitialTerminalSplitSize = () => {
-    const rect = boardElement?.parentElement?.getBoundingClientRect();
-    if (!rect) return;
-    if (terminalPosition === "right") setTerminalWidth(Math.floor(rect.width / 2));
-    else setTerminalHeight(Math.floor(rect.height / 2));
+  const resizeSidebar = (width: number) => {
+    saveSidebarWidth(width);
+    setSidebarWidth(width);
+  };
+
+  const resizeTerminalWidth = (width: number) => {
+    saveTerminalWidth(width);
+    setTerminalWidth(width);
+  };
+
+  const resizeTerminalHeight = (height: number) => {
+    saveTerminalHeight(height);
+    setTerminalHeight(height);
+  };
+
+  const setPersistentTerminalPosition = (position: "right" | "bottom" | ((current: "right" | "bottom") => "right" | "bottom")) => {
+    setTerminalPosition((current) => {
+      const next = typeof position === "function" ? position(current) : position;
+      saveTerminalPosition(next);
+      return next;
+    });
   };
 
   const sensors = useSensors(
@@ -328,19 +344,19 @@ export default function Board() {
   }, [activeTerminalId]);
 
   useEffect(() => {
-    try { localStorage.setItem(TERMINAL_WIDTH_KEY, String(terminalWidth)); } catch {}
+    saveTerminalWidth(terminalWidth);
   }, [terminalWidth]);
 
   useEffect(() => {
-    try { localStorage.setItem(TERMINAL_HEIGHT_KEY, String(terminalHeight)); } catch {}
+    saveTerminalHeight(terminalHeight);
   }, [terminalHeight]);
 
   useEffect(() => {
-    try { localStorage.setItem(TERMINAL_POSITION_KEY, terminalPosition); } catch {}
+    saveTerminalPosition(terminalPosition);
   }, [terminalPosition]);
 
   useEffect(() => {
-    try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)); } catch {}
+    saveSidebarWidth(sidebarWidth);
   }, [sidebarWidth]);
 
   useEffect(() => {
@@ -449,7 +465,6 @@ export default function Board() {
       title: prompt.tmuxSession.replace(/^fractal-/, ""),
       cwd,
     };
-    if (terminalTabs.length === 0) resetInitialTerminalSplitSize();
     setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
     activateTerminal(tab.id);
   }
@@ -530,7 +545,6 @@ export default function Board() {
         return;
       }
       const tab: TerminalTab = { id: session, promptId: project.id, projectId: project.id, session, title, cwd: project.path };
-      if (terminalTabs.length === 0) resetInitialTerminalSplitSize();
       setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
       activateTerminal(tab.id);
     } catch (e) {
@@ -881,7 +895,7 @@ export default function Board() {
         onOpenPresets={() => setPresetSettingsOpen(true)}
         onOpenProjectTerminal={(project) => void openProjectTerminal(project)}
         onClearDone={() => void clearDonePrompts()}
-        onToggleTerminalPosition={() => setTerminalPosition((position) => position === "right" ? "bottom" : "right")}
+        onToggleTerminalPosition={() => setPersistentTerminalPosition((position) => position === "right" ? "bottom" : "right")}
         onTerminalThemeChange={setTerminalThemeName}
         onGlassChange={setGlassSettings}
         onToggleColumn={toggleCollapse}
@@ -900,7 +914,7 @@ export default function Board() {
         showPicker={showSidebarPicker}
         setShowPicker={setShowSidebarPicker}
         home={home}
-        onResize={setSidebarWidth}
+        onResize={resizeSidebar}
         collapsed={sidebarCollapsed}
         showShortcuts={showProjectShortcuts && !sidebarCollapsed}
         onReorder={async (ids) => {
@@ -1011,8 +1025,8 @@ export default function Board() {
                   activeId={activeTerminalId}
                   position={terminalPosition}
                   size={terminalPosition === "right" ? terminalWidth : terminalHeight}
-                  onResize={terminalPosition === "right" ? setTerminalWidth : setTerminalHeight}
-                  onTogglePosition={() => setTerminalPosition((position) => position === "right" ? "bottom" : "right")}
+                  onResize={terminalPosition === "right" ? resizeTerminalWidth : resizeTerminalHeight}
+                  onTogglePosition={() => setPersistentTerminalPosition((position) => position === "right" ? "bottom" : "right")}
                   onSelect={activateTerminal}
                   onClose={closeTerminal}
                   onReorder={reorderTerminal}

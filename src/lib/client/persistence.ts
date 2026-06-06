@@ -88,6 +88,10 @@ export function loadTerminalWidth(): number {
   } catch { return fallback; }
 }
 
+export function saveTerminalWidth(width: number): void {
+  try { localStorage.setItem(TERMINAL_WIDTH_KEY, String(width)); } catch {}
+}
+
 export function loadTerminalHeight(): number {
   const fallback = halfViewportHeight();
   try {
@@ -96,11 +100,19 @@ export function loadTerminalHeight(): number {
   } catch { return fallback; }
 }
 
+export function saveTerminalHeight(height: number): void {
+  try { localStorage.setItem(TERMINAL_HEIGHT_KEY, String(height)); } catch {}
+}
+
 export function loadTerminalPosition(): "right" | "bottom" {
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(TERMINAL_POSITION_KEY) : null;
     return raw === "bottom" ? "bottom" : "right";
   } catch { return "right"; }
+}
+
+export function saveTerminalPosition(position: "right" | "bottom"): void {
+  try { localStorage.setItem(TERMINAL_POSITION_KEY, position); } catch {}
 }
 
 export function clampSidebarWidth(width: number): number {
@@ -121,6 +133,10 @@ export function loadSidebarWidth(): number {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(SIDEBAR_WIDTH_KEY) : null;
     return raw ? snapSidebarWidth(Number(raw) || 204) : 204;
   } catch { return 204; }
+}
+
+export function saveSidebarWidth(width: number): void {
+  try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width)); } catch {}
 }
 
 export function loadTheme(): ThemeMode {
