@@ -1758,8 +1758,20 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   overflow-y: auto;
 }
 .board-rows > .column {
-  flex: 0 0 min(520px, calc(100vh - 170px));
-  min-height: 280px;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+}
+.board-rows .column-body {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow-y: visible;
+}
+.board-rows .column-body-empty {
+  padding-block: 0;
+}
+.board-rows .column-body-empty .column-empty-state {
+  display: none;
 }
 .board-rows > .column-collapsed {
   flex: 0 0 auto !important;

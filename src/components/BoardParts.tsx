@@ -310,7 +310,7 @@ export function ColumnView(props: {
   }
 
   return (
-    <div className={`column ${isOverColumn ? "drop-active" : ""}`}>
+    <div ref={setNodeRef} className={`column ${isOverColumn ? "drop-active" : ""}`}>
       <div className="column-head" style={{ cursor: "pointer" }} onClick={props.onToggleCollapse}>
         <Icon className="column-icon" />
         <span className="column-title">{props.title}</span>
@@ -335,9 +335,9 @@ export function ColumnView(props: {
         <ChevronLeft className="column-collapse-icon" />
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div ref={setNodeRef} className="column-body">
+        <div className={`column-body ${props.prompts.length === 0 ? "column-body-empty" : ""}`}>
           {props.prompts.length === 0 && (
-            <div style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}>
+            <div className="column-empty-state" style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}>
               {props.id === "PROMPTS" ? "Add a prompt below." : "Drop a prompt here."}
             </div>
           )}
