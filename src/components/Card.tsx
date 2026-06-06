@@ -7,6 +7,7 @@ import { Check, Copy, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lu
 import PresetPicker from "./PresetPicker.js";
 import Tooltip from "./Tooltip.js";
 import PresetIcon from "./PresetIcon.js";
+import EditablePromptText from "./EditablePromptText.js";
 import { LocalImageAttachment, UrlPreviewLink, extractImagePaths, parseImagePaths } from "./PromptMedia.js";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 
@@ -95,12 +96,15 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
   if (isEditing) {
     return (
       <div className="card">
-        <textarea
-          className="input"
-          style={{ minHeight: 64, resize: "none", fontFamily: "var(--font-sans)", fontSize: 13 }}
+        <EditablePromptText
           value={editText}
-          onChange={(e) => setEditText(e.target.value)}
+          onChange={setEditText}
+          className="text card-prompt-editor"
+          autoFocus
+          ariaLabel="Original prompt text"
+          placeholder="Prompt text"
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
               e.preventDefault();
               saveEdit();
@@ -109,7 +113,6 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
               cancelEdit();
             }
           }}
-          autoFocus
         />
         <div className="card-actions" style={{ opacity: 1 }}>
           {prompt.column === "PROMPTS" && (

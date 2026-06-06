@@ -1071,6 +1071,44 @@ a { color: inherit; }
   text-underline-offset: 2px;
 }
 .card .text a:hover { color: color-mix(in oklab, var(--accent) 82%, white); }
+.editable-prompt-text {
+  min-height: 64px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  outline: none;
+  cursor: text;
+}
+.editable-prompt-text:focus {
+  border-color: var(--state-focus-border);
+  background: var(--state-focus-bg);
+}
+.editable-prompt-text:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.card-prompt-editor {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+.card-prompt-editor:focus {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent);
+}
+.modal-prompt-editor {
+  min-height: 140px;
+  margin-bottom: 12px;
+}
 .markdown-text > :first-child { margin-top: 0; }
 .markdown-text > :last-child { margin-bottom: 0; }
 .markdown-text p,

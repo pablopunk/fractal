@@ -18,6 +18,7 @@ import TerminalPane from "./TerminalPane.js";
 import Portal from "./Portal.js";
 import CommandMenu from "./CommandMenu.js";
 import PresetPicker from "./PresetPicker.js";
+import EditablePromptText from "./EditablePromptText.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
 import { Toaster, toast } from "sonner";
 import { Sidebar, EmptyState, ColumnView, PresetSettings, Composer, tildeify, truncate } from "./BoardParts.js";
@@ -1024,16 +1025,18 @@ export default function Board() {
               <div className="modal-overlay" onClick={closeCommandPromptEditor}>
                 <div className="modal" onClick={(e) => e.stopPropagation()}>
                   <h2>Edit prompt</h2>
-                  <textarea
-                    className="input"
-                    style={{ minHeight: 140, resize: "vertical", fontFamily: "var(--font-sans)", fontSize: 13, marginBottom: 12 }}
+                  <EditablePromptText
                     value={commandEditText}
-                    onChange={(e) => setCommandEditText(e.target.value)}
+                    onChange={setCommandEditText}
+                    autoFocus
+                    ariaLabel="Original prompt text"
+                    placeholder="Prompt text"
+                    className="modal-prompt-editor"
                     onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
                       if (e.key === "Escape") closeCommandPromptEditor();
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void saveCommandPromptEditor();
                     }}
-                    autoFocus
                   />
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <PresetPicker presets={settings.agentPresets} value={commandEditPresetId} onChange={setCommandEditPresetId} onCreate={() => setPresetSettingsOpen(true)} />
