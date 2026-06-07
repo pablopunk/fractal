@@ -40,7 +40,7 @@ export async function fetchLinearIssues(limit = 20): Promise<LinearIssue[]> {
       input: `query($limit: Int!) {
   issues(
     first: $limit
-    filter: { assignee: { isMe: { eq: true } }, state: { type: { nin: ["completed", "canceled"] } } }
+    filter: { assignee: { isMe: { eq: true } }, state: { type: { eq: "started" } } }
     orderBy: updatedAt
   ) {
     nodes {
