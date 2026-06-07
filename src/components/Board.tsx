@@ -215,7 +215,7 @@ export default function Board() {
   const [boardCompact, setBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
-  const boardSnug = useMemo(() => COLUMNS.every((col) => collapsed[col.id]), [collapsed]);
+  const boardSnug = useMemo(() => boardCompact || COLUMNS.every((col) => collapsed[col.id]), [boardCompact, collapsed]);
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const filteredTerminalTabs = useMemo(() => {
     if (!activeProject) return [];
@@ -377,7 +377,11 @@ export default function Board() {
   useEffect(() => {
     if (!boardElement) return;
     const updateLayout = () => {
-      const width = boardElement.getBoundingClientRect().width;
+      const workspaceWidth = boardElement.parentElement?.getBoundingClientRect().width;
+      const renderedWidth = boardElement.getBoundingClientRect().width;
+      const width = workspaceWidth && filteredTerminalTabs.length > 0 && terminalPosition === "right"
+        ? Math.max(0, workspaceWidth - terminalWidth)
+        : renderedWidth;
       const compact = width < BOARD_COMPACT_MAX_WIDTH;
       setBoardCompact(compact);
       setBoardRows(!compact && width < BOARD_ROWS_MAX_WIDTH);
@@ -385,8 +389,9 @@ export default function Board() {
     updateLayout();
     const observer = new ResizeObserver(updateLayout);
     observer.observe(boardElement);
+    if (boardElement.parentElement) observer.observe(boardElement.parentElement);
     return () => observer.disconnect();
-  }, [boardElement]);
+  }, [boardElement, filteredTerminalTabs.length, terminalPosition, terminalWidth]);
 
   useEffect(() => {
     if (!boardElement || !activeTerminalId) return;

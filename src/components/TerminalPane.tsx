@@ -54,6 +54,7 @@ export default function TerminalPane(props: {
   activeId: string | null;
   position: "right" | "bottom";
   size: number;
+  snug?: boolean;
   onResize: (size: number) => void;
   onTogglePosition: () => void;
   onSelect: (id: string) => void;
@@ -96,7 +97,7 @@ export default function TerminalPane(props: {
   if (!active) return null;
 
   return (
-    <aside ref={paneRef} className={`terminal-pane terminal-pane-${props.position}`} style={props.position === "right" ? { width: props.size } : { height: props.size }}>
+    <aside ref={paneRef} className={`terminal-pane terminal-pane-${props.position}`} style={props.snug ? undefined : props.position === "right" ? { width: props.size } : { height: props.size }}>
       <div
         className={`terminal-resizer terminal-resizer-${props.position}`}
         onPointerDown={(e) => {
