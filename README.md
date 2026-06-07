@@ -22,3 +22,4 @@
 
 <img width="1200" height="745" alt="CleanShot 2026-05-14 at 12 02 49" src="https://github.com/user-attachments/assets/01f498d1-f835-4488-9857-5f0cf1780fcb" />
 <img width="1200" height="742" alt="CleanShot 2026-05-14 at 12 03 38" src="https://github.com/user-attachments/assets/31d1226a-ff8f-49d1-b399-ebbd5d0fa56a" />
+<img width="1670" height="1178" alt="CleanShot 2026-06-07 at 14 02 21" src="https://github.com/user-attachments/assets/f3d84a1f-5dfa-4276-b686-8b8bd0e552a3" />
