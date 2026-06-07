@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Check, FolderKanban, FolderRoot, Monitor, Moon, Palette, Play, SquareTerminal, Sun } from "lucide-react";
+import { Check, FolderKanban, FolderRoot, Monitor, Moon, Palette, Play, Settings, SquareTerminal, Sun } from "lucide-react";
 import TerminalPane from "./TerminalPane.js";
 import Portal from "./Portal.js";
 import CommandMenu from "./CommandMenu.js";
@@ -53,7 +53,9 @@ import {
   type TerminalThemeName,
 } from "~/lib/client/persistence.js";
 import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/terminal-themes.js";
-import type { AppSettings, Column, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
+import type { AppSettings, Column, GithubIssue, LinearIssue, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
+import ProjectSettingsModal from "./ProjectSettingsModal.js";
+import { issueFromGithub, issueFromLinear, type BoardIssue } from "./IssueCard.js";
 
 const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
@@ -200,6 +202,11 @@ export default function Board() {
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(() => new Set());
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [githubIssues, setGithubIssues] = useState<GithubIssue[]>([]);
+  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
+  const [loadingIssues, setLoadingIssues] = useState(false);
+  const [hiddenIssueIds, setHiddenIssueIds] = useState<Set<string>>(() => new Set());
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const [terminalThemeName, setTerminalThemeName] = useState<TerminalThemeName>(() => loadTerminalTheme());
   const [glassSettings, setGlassSettings] = useState<GlassSettings>(() => loadGlassSettings());
@@ -208,6 +215,7 @@ export default function Board() {
   const [boardCompact, setBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
+  const boardSnug = useMemo(() => COLUMNS.every((col) => collapsed[col.id]), [collapsed]);
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const filteredTerminalTabs = useMemo(() => {
     if (!activeProject) return [];
@@ -327,6 +335,13 @@ export default function Board() {
   useEffect(() => {
     setCollapsed(loadCollapsed(activeProjectId));
   }, [activeProjectId]);
+
+  useEffect(() => {
+    if (!activeProject?.defaultPresetId) return;
+    if (settings.agentPresets.some((p) => p.id === activeProject.defaultPresetId)) {
+      setComposerPresetId(activeProject.defaultPresetId);
+    }
+  }, [activeProject?.id, activeProject?.defaultPresetId, settings.agentPresets]);
 
   useEffect(() => {
     saveCollapsed(activeProjectId, collapsed);
@@ -591,6 +606,33 @@ export default function Board() {
     }
   }
 
+  async function createPromptFromIssue(issue: BoardIssue, column: Column) {
+    if (!activeProjectId || column === "PROMPTS" || column === "ARCHIVED") return;
+    const idRef = issue.kind === "github" ? `#${issue.number}` : issue.identifier;
+    const text = `Work on ${idRef}: ${issue.title}\n${issue.url}`;
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/projects/${activeProjectId}/prompts`, {
+        method: "POST",
+        body: JSON.stringify({ text, presetId: activeProject?.defaultPresetId || settings.defaultPresetId }),
+      });
+      setPrompts((p) => [...p, { ...prompt, column }]);
+      void launchCreated(prompt.id, column);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function launchCreated(id: string, column: Column) {
+    const url = column === "RUN_IN_PLACE" ? `/api/prompts/${id}/run-in-place` : `/api/prompts/${id}/run-in-worktree`;
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(url, { method: "POST" });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+      if (!prompt.summary) void refreshPromptSummary(id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function deletePrompt(id: string, force = false) {
     try {
       const res = await fetch(`/api/prompts/${id}`, {
@@ -758,10 +800,34 @@ export default function Board() {
     if (!over) return;
 
     const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Handle issue drags
+    if (activeId.startsWith("gh:") || activeId.startsWith("li:")) {
+      const issue = boardIssues.find((item) => item.id === activeId)?.issue;
+      if (!issue) return;
+      const overCol = overId as Column;
+      if (overCol === "RUN_IN_PLACE" || overCol === "RUN_IN_WORKTREE") {
+        setHiddenIssueIds((ids) => new Set(ids).add(issue.id));
+        void createPromptFromIssue(issue, overCol);
+        return;
+      }
+      if (overCol === "ARCHIVED") {
+        setHiddenIssueIds((ids) => new Set(ids).add(issue.id));
+        return;
+      }
+      // Dropped on another issue or a prompt in PROMPTS — just reorder visually
+      const overPrompt = prompts.find((p) => p.id === overId);
+      if (overPrompt && overPrompt.column !== "PROMPTS") {
+        setHiddenIssueIds((ids) => new Set(ids).add(issue.id));
+        void createPromptFromIssue(issue, overPrompt.column);
+      }
+      return;
+    }
+
     const activePrompt = prompts.find((p) => p.id === activeId);
     if (!activePrompt) return;
 
-    const overId = String(over.id);
     const overPrompt = prompts.find((p) => p.id === overId);
 
     if (overPrompt) {
@@ -827,6 +893,19 @@ export default function Board() {
     void launch(activeId, target);
   }
 
+  async function saveProjectSettings(patch: Record<string, unknown>, keepOpen = false) {
+    try {
+      const { project } = await api<{ project: Project }>(`/api/projects/${activeProject!.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      setProjects((p) => p.map((x) => x.id === project.id ? project : x));
+      if (!keepOpen) setProjectSettingsOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function saveSettings(patch: Partial<AppSettings>): Promise<AppSettings | undefined> {
     const prev = settings;
     setSettings((cur) => ({ ...cur, ...patch }));
@@ -849,6 +928,50 @@ export default function Board() {
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
+  useEffect(() => {
+    if (!activeProject) {
+      setGithubIssues([]);
+      setLinearIssues([]);
+      setHiddenIssueIds(new Set());
+      return;
+    }
+    setLoadingIssues(true);
+    void Promise.all([
+      activeProject.githubRepo && activeProject.showGithubIssues
+        ? api<{ issues: GithubIssue[] }>(`/api/projects/${activeProject.id}/github-issues`).then((d) => d.issues).catch(() => [] as GithubIssue[])
+        : Promise.resolve([] as GithubIssue[]),
+      activeProject.showLinearIssues
+        ? api<{ issues: LinearIssue[] }>(`/api/projects/${activeProject.id}/linear-issues`).then((d) => d.issues).catch(() => [] as LinearIssue[])
+        : Promise.resolve([] as LinearIssue[]),
+    ]).then(([gh, li]) => {
+      setGithubIssues(gh);
+      setLinearIssues(li);
+      setHiddenIssueIds(new Set());
+    }).finally(() => setLoadingIssues(false));
+  }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showGithubIssues, activeProject?.showLinearIssues]);
+
+  const boardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
+    if (!activeProject) return [];
+    const items: Array<{ id: string; issue: BoardIssue }> = [];
+    if (activeProject.showGithubIssues) {
+      for (const issue of githubIssues) {
+        const boardIssue = issueFromGithub(issue);
+        if (!hiddenIssueIds.has(boardIssue.id)) {
+          items.push({ id: boardIssue.id, issue: boardIssue });
+        }
+      }
+    }
+    if (activeProject.showLinearIssues) {
+      for (const issue of linearIssues) {
+        const boardIssue = issueFromLinear(issue);
+        if (!hiddenIssueIds.has(boardIssue.id)) {
+          items.push({ id: boardIssue.id, issue: boardIssue });
+        }
+      }
+    }
+    return items;
+  }, [githubIssues, linearIssues, hiddenIssueIds, activeProject?.showGithubIssues, activeProject?.showLinearIssues]);
+
   const projectPrompts = useMemo(
     () => prompts.filter((p) => p.projectId === activeProjectId && !p.isArchived),
     [prompts, activeProjectId],
@@ -863,6 +986,7 @@ export default function Board() {
   );
   const commandEditPrompt = commandEditPromptId ? prompts.find((p) => p.id === commandEditPromptId) ?? null : null;
   const dragging = activeDragId ? prompts.find((p) => p.id === activeDragId) : null;
+  const draggingIssue = activeDragId ? boardIssues.find((item) => item.id === activeDragId)?.issue ?? null : null;
   const sidebarCollapsed = isSidebarCollapsed(sidebarWidth);
 
   return (
@@ -941,6 +1065,11 @@ export default function Board() {
                   <span className="path">{tildeify(activeProject.path, home)}</span>
                 </button>
               </Tooltip>
+              <Tooltip content="Project settings">
+                <button type="button" className="icon-btn" onClick={() => setProjectSettingsOpen(true)} aria-label="Project settings">
+                  <Settings size={15} />
+                </button>
+              </Tooltip>
               <div className="topbar-spacer" />
               <PresetSettings
                 presets={settings.agentPresets}
@@ -967,7 +1096,7 @@ export default function Board() {
 
             <DndContext sensors={sensors} collisionDetection={columnAwareCollisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
               <div className={`workspace workspace-${filteredTerminalTabs.length > 0 ? terminalPosition : "right"}`}>
-              <div ref={setBoardElement} className={`board ${boardRows ? "board-rows" : ""} ${boardCompact ? "board-compact" : ""}`}>
+              <div ref={setBoardElement} className={`board ${boardRows ? "board-rows" : ""} ${boardCompact ? "board-compact" : ""} ${boardSnug ? "board-snug" : ""}`}>
                 {COLUMNS.map((col) => {
                   const colPrompts = col.id === "ARCHIVED"
                     ? archivedPrompts
@@ -998,6 +1127,10 @@ export default function Board() {
                       isArchivedCol={col.id === "ARCHIVED"}
                       onClearDone={col.id === "ARCHIVED" ? clearDonePrompts : undefined}
                       isClearingDone={col.id === "ARCHIVED" ? isClearingDone : false}
+                      issueSection={col.id === "PROMPTS" && loadingIssues ? (
+                        <div className="issue-section-loading">Loading issues…</div>
+                      ) : undefined}
+                      issueItems={col.id === "PROMPTS" ? boardIssues : undefined}
                       composer={
                         col.id === "PROMPTS" ? (
                           <Composer
@@ -1025,6 +1158,7 @@ export default function Board() {
                   activeId={activeTerminalId}
                   position={terminalPosition}
                   size={terminalPosition === "right" ? terminalWidth : terminalHeight}
+                  snug={boardSnug && terminalPosition === "right"}
                   onResize={terminalPosition === "right" ? resizeTerminalWidth : resizeTerminalHeight}
                   onTogglePosition={() => setPersistentTerminalPosition((position) => position === "right" ? "bottom" : "right")}
                   onSelect={activateTerminal}
@@ -1039,6 +1173,7 @@ export default function Board() {
               </div>
               <DragOverlay dropAnimation={null}>
                 {dragging ? <div className="overlay-card">{truncate(dragging.text, 140)}</div> : null}
+                {draggingIssue ? <div className="overlay-card issue-overlay">{truncate(draggingIssue.title, 140)}</div> : null}
               </DragOverlay>
             </DndContext>
 
@@ -1110,6 +1245,15 @@ export default function Board() {
                 </div>
               </div>
             </Portal>}
+
+            {projectSettingsOpen && activeProject && (
+              <ProjectSettingsModal
+                project={activeProject}
+                presets={settings.agentPresets}
+                onClose={() => setProjectSettingsOpen(false)}
+                onSave={saveProjectSettings}
+              />
+            )}
 
           </>
         )}

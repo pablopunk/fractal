@@ -8,6 +8,7 @@ import ModelPicker from "./ModelPicker.js";
 import PresetPicker from "./PresetPicker.js";
 import Tooltip from "./Tooltip.js";
 import { Card } from "./Card.js";
+import { SortableIssueCard } from "./IssueCard.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import { api } from "~/lib/client/api.js";
 import { snapSidebarWidth } from "~/lib/client/persistence.js";
@@ -272,6 +273,8 @@ export function ColumnView(props: {
   openTerminalIds: Set<string>;
   activeTerminalId?: string | null;
   composer: React.ReactNode;
+  issueSection?: React.ReactNode;
+  issueItems?: Array<{ id: string; issue: import("./IssueCard.js").BoardIssue }>;
   home: string;
   activeId?: string | null;
   overId?: string | null;
@@ -283,7 +286,9 @@ export function ColumnView(props: {
   isClearingDone?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: props.id });
-  const itemIds = props.prompts.map((p) => p.id);
+  const issueIds = (props.issueItems ?? []).map((item) => item.id);
+  const promptIds = props.prompts.map((p) => p.id);
+  const itemIds = [...issueIds, ...promptIds];
   const dragIndex = props.activeId ? itemIds.indexOf(props.activeId) : -1;
   const overIndex = props.overId ? itemIds.indexOf(props.overId) : -1;
   const isOverColumn = props.overId === props.id || itemIds.includes(props.overId ?? "");
@@ -372,15 +377,21 @@ export function ColumnView(props: {
         <ChevronLeft className="column-collapse-icon" />
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className={`column-body ${props.prompts.length === 0 ? "column-body-empty" : ""}`}>
-          {props.prompts.length === 0 && (
+        <div className={`column-body ${props.prompts.length === 0 && !props.issueSection && issueIds.length === 0 ? "column-body-empty" : ""}`}>
+          {(props.issueItems ?? []).map((item, i) => (
+            <div key={item.id} data-prompt-id={item.id}>
+              {showIndicator && overIndex === i && <div className="drop-indicator" />}
+              <SortableIssueCard issue={item.issue} />
+            </div>
+          ))}
+          {props.prompts.length === 0 && issueIds.length === 0 && !props.issueSection && (
             <div className="column-empty-state" style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}>
               {props.id === "PROMPTS" ? "Add a prompt below." : "Drop a prompt here."}
             </div>
           )}
           {props.prompts.map((p, i) => (
             <div key={p.id} data-prompt-id={p.id}>
-              {showIndicator && overIndex === i && <div className="drop-indicator" />}
+              {showIndicator && overIndex === issueIds.length + i && <div className="drop-indicator" />}
               <Card
                 prompt={p}
                 presets={props.presets}

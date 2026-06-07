@@ -43,6 +43,10 @@ function ensureSchema(sqlite: Database.Database) {
       path TEXT NOT NULL UNIQUE,
       icon TEXT,
       icon_mime TEXT,
+      default_preset_id TEXT,
+      github_repo TEXT,
+      show_github_issues INTEGER NOT NULL DEFAULT 0,
+      show_linear_issues INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -97,5 +101,17 @@ function ensureSchema(sqlite: Database.Database) {
   } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;");
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  try {
+    sqlite.exec("ALTER TABLE projects ADD COLUMN default_preset_id TEXT;");
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  try {
+    sqlite.exec("ALTER TABLE projects ADD COLUMN github_repo TEXT;");
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  try {
+    sqlite.exec("ALTER TABLE projects ADD COLUMN show_github_issues INTEGER NOT NULL DEFAULT 0;");
+  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  try {
+    sqlite.exec("ALTER TABLE projects ADD COLUMN show_linear_issues INTEGER NOT NULL DEFAULT 0;");
   } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
 }

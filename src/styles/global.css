@@ -1761,6 +1761,15 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   flex: 1;
   min-width: 0;
 }
+.workspace-right .board-snug {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+.workspace-right .board-snug ~ .terminal-pane {
+  flex: 1 1 0;
+  min-width: 320px;
+  max-width: none;
+}
 
 .terminal-pane {
   position: relative;
@@ -2319,4 +2328,130 @@ html[data-glass="true"] .terminal-host .xterm-rows,
 html[data-glass="true"] .terminal-host .xterm-scroll-area,
 html[data-glass="true"] .terminal-host .xterm-screen canvas {
   background: transparent !important;
+}
+
+/* Issue cards */
+.issue-section {
+  padding: 0 4px;
+}
+.issue-section-loading {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 6px 4px;
+}
+.issue-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  border-left: 3px solid var(--text-faint);
+}
+.issue-card.github-issue {
+  border-left-color: var(--accent-secondary, #7c6ff7);
+}
+.issue-card.linear-issue {
+  border-left-color: var(--accent, #5e6ad2);
+}
+.issue-card-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.issue-card-icon {
+  flex-shrink: 0;
+}
+.issue-card-number {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.issue-card-state {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-left: auto;
+}
+.issue-card-title {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+.issue-card-labels {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.issue-card-labels .tag {
+  font-size: 10px;
+  padding: 0 5px;
+  line-height: 18px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+/* Project settings modal */
+.project-settings-body {
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.project-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.project-settings-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.project-settings-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: 0;
+}
+.project-settings-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.project-settings-row .input {
+  flex: 1;
+}
+.project-settings-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.project-settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.project-settings-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+.project-settings-toggle input[type="checkbox"]:disabled + span {
+  opacity: 0.4;
+}
+.project-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+/* Gear icon spacing in topbar */
+.topbar-title-button + .icon-btn {
+  margin-left: 2px;
 }

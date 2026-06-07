@@ -90,18 +90,22 @@ function buildExecEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 export function exec(
   cmd: string,
   args: string[],
-  opts: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number } = {},
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; input?: string } = {},
 ): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
       env: buildExecEnv(opts.env ?? process.env),
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [opts.input ? "pipe" : "ignore", "pipe", "pipe"],
     });
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (d) => (stdout += d.toString()));
-    child.stderr.on("data", (d) => (stderr += d.toString()));
+    child.stdout!.on("data", (d) => (stdout += d.toString()));
+    child.stderr!.on("data", (d) => (stderr += d.toString()));
+    if (opts.input && child.stdin) {
+      child.stdin.write(opts.input);
+      child.stdin.end();
+    }
     let timer: NodeJS.Timeout | null = null;
     if (opts.timeoutMs) {
       timer = setTimeout(() => child.kill("SIGKILL"), opts.timeoutMs);

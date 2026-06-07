@@ -36,13 +36,19 @@ export function getProjectByPath(path: string): Project | undefined {
   return getDb().select().from(projects).where(eq(projects.path, path)).get();
 }
 
-export function createProject(input: { name: string; path: string }): Project {
+export function createProject(input: { name: string; path: string; githubRepo?: string }): Project {
   const now = new Date();
   const sortOrder = listProjects().length;
   const row = {
     id: randomUUID(),
     name: input.name,
     path: input.path,
+    githubRepo: input.githubRepo ?? null,
+    defaultPresetId: null,
+    icon: null,
+    iconMime: null,
+    showGithubIssues: 0,
+    showLinearIssues: 0,
     sortOrder,
     createdAt: now,
     updatedAt: now,
