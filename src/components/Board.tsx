@@ -687,7 +687,6 @@ export default function Board() {
   }
 
   async function editPrompt(id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) {
-    rememberCommandRecent("prompt", id);
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}`, {
         method: "PATCH",
@@ -700,7 +699,6 @@ export default function Board() {
   }
 
   function openCommandPromptEditor(prompt: Prompt) {
-    rememberCommandRecent("prompt", prompt.id);
     setCommandEditPromptId(prompt.id);
     setCommandEditText(prompt.text);
     setCommandEditPresetId(prompt.presetId);
@@ -719,7 +717,6 @@ export default function Board() {
   }
 
   async function archivePrompt(id: string) {
-    rememberCommandRecent("prompt", id);
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "POST" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
@@ -737,7 +734,6 @@ export default function Board() {
   }
 
   async function unarchivePrompt(id: string) {
-    rememberCommandRecent("prompt", id);
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, { method: "DELETE" });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
@@ -763,7 +759,6 @@ export default function Board() {
 
   async function launch(id: string, target: Column) {
     if (target === "PROMPTS") return;
-    rememberCommandRecent("prompt", id);
     const url = target === "RUN_IN_PLACE" ? `/api/prompts/${id}/run-in-place` : `/api/prompts/${id}/run-in-worktree`;
     const prev = prompts;
     setPrompts((p) => p.map((x) => (x.id === id ? { ...x, column: target } : x)));
@@ -778,7 +773,6 @@ export default function Board() {
   }
 
   async function moveToPrompts(id: string) {
-    rememberCommandRecent("prompt", id);
     const prev = prompts;
     setPrompts((p) => p.map((x) => (x.id === id ? { ...x, column: "PROMPTS", isArchived: false } : x)));
     try {
@@ -1000,38 +994,16 @@ export default function Board() {
       <CommandMenu
         projects={projects}
         prompts={commandMenuPrompts}
-        tabs={filteredTerminalTabs}
-        columns={COLUMNS}
-        collapsedColumns={collapsed}
         activeProject={activeProject}
         activeProjectId={activeProjectId}
-        activeTabId={activeTerminalId}
         home={home}
-        theme={theme}
-        terminalThemeName={terminalThemeName}
-        glass={glassSettings}
         commandRecents={commandRecents}
-        hasDonePrompts={archivedPrompts.length > 0}
         onSelectProject={(project) => selectProject(project.id)}
-        onSelectTab={(tab) => activateTerminal(tab.id)}
-        onCloseTab={(tab) => closeTerminal(tab.id)}
+        onOpenPromptTerminal={openTerminal}
         onRunPrompt={(prompt, target) => void launch(prompt.id, target)}
         onArchivePrompt={(prompt) => void archivePrompt(prompt.id)}
-        onUnarchivePrompt={(prompt) => void unarchivePrompt(prompt.id)}
         onDeletePrompt={(prompt) => void deletePrompt(prompt.id)}
         onEditPrompt={openCommandPromptEditor}
-        onOpenPromptTerminal={openTerminal}
-        onOpenPresets={() => setPresetSettingsOpen(true)}
-        onOpenProjectTerminal={(project) => void openProjectTerminal(project)}
-        onClearDone={() => void clearDonePrompts()}
-        onToggleTerminalPosition={() => setPersistentTerminalPosition((position) => position === "right" ? "bottom" : "right")}
-        onTerminalThemeChange={setTerminalThemeName}
-        onGlassChange={setGlassSettings}
-        onToggleColumn={toggleCollapse}
-        onFocusComposer={() => {
-          setCollapsed((value) => ({ ...value, PROMPTS: false }));
-          window.setTimeout(() => document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(), 0);
-        }}
       />
       <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`} style={{ ["--sidebar-width" as string]: `${sidebarWidth}px` }}>
       <Sidebar
