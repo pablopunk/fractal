@@ -3,7 +3,7 @@ import { Columns2, Rows2, X, Terminal as TerminalIcon } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 import type { Terminal as XTermTerminal } from "@xterm/xterm";
 import Tooltip from "./Tooltip.js";
-import { getImagePaths, handleOsc52, imagePathsAsTerminalPaste, writeClipboard } from "~/lib/client/terminal-utils.js";
+import { filePathsAsTerminalPaste, getFilePaths, handleOsc52, writeClipboard } from "~/lib/client/terminal-utils.js";
 import type { ThemeMode } from "~/lib/client/persistence.js";
 import { terminalTheme, type TerminalThemeName } from "~/lib/client/terminal-themes.js";
 
@@ -193,15 +193,15 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
     const sendData = (data: string) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
     };
-    const pasteImagePaths = (dt: DataTransfer | null) => {
+    const pasteFilePaths = (dt: DataTransfer | null) => {
       if (!dt) return false;
-      const paths = getImagePaths(dt);
+      const paths = getFilePaths(dt);
       if (paths.length === 0) return false;
-      sendData(imagePathsAsTerminalPaste(paths));
+      sendData(filePathsAsTerminalPaste(paths));
       return true;
     };
     const onPaste = (event: ClipboardEvent) => {
-      if (!pasteImagePaths(event.clipboardData)) return;
+      if (!pasteFilePaths(event.clipboardData)) return;
       event.preventDefault();
       event.stopPropagation();
     };
@@ -211,7 +211,7 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     };
     const onDrop = (event: DragEvent) => {
-      if (!pasteImagePaths(event.dataTransfer)) return;
+      if (!pasteFilePaths(event.dataTransfer)) return;
       event.preventDefault();
       event.stopPropagation();
       term?.focus();

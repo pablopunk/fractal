@@ -4,16 +4,13 @@ type ElectronGlobals = typeof window & {
   };
 };
 
-const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif)$/i;
-
 function shellQuote(path: string): string {
   return `'${path.replaceAll("'", "'\\''")}'`;
 }
 
-export function getImagePaths(dt: DataTransfer): string[] {
+export function getFilePaths(dt: DataTransfer): string[] {
   const electron = (window as ElectronGlobals).electron;
   const fromFiles = Array.from(dt.files)
-    .filter((file) => file.type.startsWith("image/") || IMAGE_RE.test(file.name))
     .map((file) => electron?.getPathForFile?.(file) ?? "")
     .filter(Boolean);
 
@@ -30,10 +27,10 @@ export function getImagePaths(dt: DataTransfer): string[] {
         return "";
       }
     })
-    .filter((path) => path && IMAGE_RE.test(path));
+    .filter(Boolean);
 }
 
-export function imagePathsAsTerminalPaste(paths: string[]): string {
+export function filePathsAsTerminalPaste(paths: string[]): string {
   return paths.map(shellQuote).join(" ");
 }
 
