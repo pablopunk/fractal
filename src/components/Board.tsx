@@ -994,8 +994,9 @@ export default function Board() {
       <CommandMenu
         projects={projects}
         prompts={commandMenuPrompts}
-        activeProject={activeProject}
         activeProjectId={activeProjectId}
+        activeTabId={activeTerminalId}
+        tabs={filteredTerminalTabs}
         home={home}
         commandRecents={commandRecents}
         onSelectProject={(project) => selectProject(project.id)}

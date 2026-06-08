@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { Command, useCommandState } from "cmdk";
 import { Check, Copy, FolderKanban, Pencil, Play, SquareTerminal, Trash2 } from "lucide-react";
-import type { Project, Prompt } from "~/lib/client/types.js";
+import type { Project, Prompt, TerminalTab } from "~/lib/client/types.js";
 import type { CommandRecent } from "~/lib/client/persistence.js";
 
 type Props = {
   projects: Project[];
   prompts: Prompt[];
-  activeProject: Project | null;
   activeProjectId: string | null;
+  activeTabId: string | null;
+  tabs: TerminalTab[];
   home: string;
   commandRecents: CommandRecent[];
   onSelectProject: (project: Project) => void;
@@ -30,6 +31,7 @@ type ActionItemProps = {
 
 export default function CommandMenu(props: Props) {
   const [open, setOpen] = useState(false);
+  const [runPrompt, setRunPrompt] = useState<Prompt | null>(null);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -44,6 +46,7 @@ export default function CommandMenu(props: Props) {
 
   function run(action: () => void) {
     action();
+    setRunPrompt(null);
     setOpen(false);
   }
 
@@ -52,17 +55,21 @@ export default function CommandMenu(props: Props) {
   }
 
   return (
-    <Command.Dialog open={open} onOpenChange={setOpen} label="Command menu" className="cmdk-dialog" overlayClassName="cmdk-overlay" shouldFilter loop>
-      <Command.Input className="cmdk-input" autoFocus placeholder="Run command, open project, prompt, or tab…" />
+    <Command.Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setRunPrompt(null); }} label="Command menu" className="cmdk-dialog" overlayClassName="cmdk-overlay" shouldFilter={!runPrompt} loop>
+      <Command.Input className="cmdk-input" autoFocus placeholder={runPrompt ? `Run ${promptTitle(runPrompt)}…` : "Open project, prompt, or run…"} />
       <Command.List className="cmdk-list">
         <Command.Empty className="cmdk-empty">No results found.</Command.Empty>
-        <MenuItems {...props} run={run} copySession={copySession} />
+        {runPrompt ? (
+          <RunPromptChoices prompt={runPrompt} run={run} onRunPrompt={props.onRunPrompt} />
+        ) : (
+          <MenuItems {...props} run={run} copySession={copySession} onChooseRunPrompt={setRunPrompt} />
+        )}
       </Command.List>
     </Command.Dialog>
   );
 }
 
-function MenuItems(props: Props & { run: (action: () => void) => void; copySession: (value: string) => void }) {
+function MenuItems(props: Props & { run: (action: () => void) => void; copySession: (value: string) => void; onChooseRunPrompt: (prompt: Prompt) => void }) {
   const search = useCommandState((state) => state.search);
   const showActions = search.length > 0;
 
@@ -120,6 +127,12 @@ function MenuItems(props: Props & { run: (action: () => void) => void; copySessi
     );
   }, [promptsByProject]);
 
+  const activeTabPrompt = useMemo(() => {
+    const tab = props.tabs.find((item) => item.id === props.activeTabId);
+    if (!tab) return null;
+    return promptsByProject.find((prompt) => prompt.id === tab.promptId || prompt.tmuxSession === tab.session) ?? null;
+  }, [props.tabs, props.activeTabId, promptsByProject]);
+
   function run(action: () => void) {
     action();
   }
@@ -157,33 +170,31 @@ function MenuItems(props: Props & { run: (action: () => void) => void; copySessi
         </Command.Item>
       ))}
 
-      {showActions && (
-        <>
-          {startedPrompts.map((prompt) => (
-            <StartedPromptActions
-              key={`actions:${prompt.id}`}
-              prompt={prompt}
-              run={run}
-              copySession={props.copySession}
-              onOpenPromptTerminal={props.onOpenPromptTerminal}
-              onArchivePrompt={props.onArchivePrompt}
-              onEditPrompt={props.onEditPrompt}
-              onDeletePrompt={props.onDeletePrompt}
-            />
-          ))}
+      {runnablePrompts.map((prompt) => (
+        <Command.Item
+          key={`run:${prompt.id}`}
+          value={`run tackle ${prompt.summary ?? ""} ${prompt.text}`}
+          className="cmdk-item"
+          onSelect={() => props.onChooseRunPrompt(prompt)}
+        >
+          <Play className="cmdk-icon" aria-hidden="true" />
+          <span className="cmdk-item-main">
+            <span>{promptTitle(prompt)}</span>
+            <span className="cmdk-item-sub">Run prompt</span>
+          </span>
+        </Command.Item>
+      ))}
 
-          {runnablePrompts.map((prompt) => (
-            <RunnablePromptActions
-              key={`runnable:${prompt.id}`}
-              prompt={prompt}
-              home={props.home}
-              run={run}
-              onRunPrompt={props.onRunPrompt}
-              onEditPrompt={props.onEditPrompt}
-              onDeletePrompt={props.onDeletePrompt}
-            />
-          ))}
-        </>
+      {showActions && activeTabPrompt && (
+        <StartedPromptActions
+          prompt={activeTabPrompt}
+          run={run}
+          copySession={props.copySession}
+          onOpenPromptTerminal={props.onOpenPromptTerminal}
+          onArchivePrompt={props.onArchivePrompt}
+          onEditPrompt={props.onEditPrompt}
+          onDeletePrompt={props.onDeletePrompt}
+        />
       )}
     </>
   );
@@ -244,44 +255,23 @@ function StartedPromptActions(props: {
   );
 }
 
-function RunnablePromptActions(props: {
-  prompt: Prompt;
-  home: string;
-  run: (action: () => void) => void;
-  onRunPrompt: Props["onRunPrompt"];
-  onEditPrompt: Props["onEditPrompt"];
-  onDeletePrompt: Props["onDeletePrompt"];
-}) {
+function RunPromptChoices(props: { prompt: Prompt; run: (action: () => void) => void; onRunPrompt: Props["onRunPrompt"] }) {
   const title = promptTitle(props.prompt);
   return (
     <>
       <ActionItem
         icon={Play}
-        title={`Run in place: ${title}`}
-        subtitle={promptSubtitle(props.prompt, props.home)}
-        value={`run in place ${props.prompt.text} ${props.prompt.summary ?? ""}`}
+        title="Run in place"
+        subtitle={title}
+        value="run in place"
         onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_PLACE"))}
       />
       <ActionItem
         icon={FolderKanban}
-        title={`Run in worktree: ${title}`}
-        subtitle={promptSubtitle(props.prompt, props.home)}
-        value={`run worktree ${props.prompt.text} ${props.prompt.summary ?? ""}`}
+        title="Run in worktree"
+        subtitle={title}
+        value="run in worktree"
         onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_WORKTREE"))}
-      />
-      <ActionItem
-        icon={Pencil}
-        title={`Edit: ${title}`}
-        subtitle="Prompt text and preset"
-        value={`edit ${props.prompt.text} ${props.prompt.summary ?? ""}`}
-        onSelect={() => props.run(() => props.onEditPrompt(props.prompt))}
-      />
-      <ActionItem
-        icon={Trash2}
-        title={`Remove: ${title}`}
-        subtitle="Delete prompt"
-        value={`remove ${props.prompt.text} ${props.prompt.summary ?? ""}`}
-        onSelect={() => props.run(() => props.onDeletePrompt(props.prompt))}
       />
     </>
   );
@@ -304,12 +294,6 @@ function ActionItem(props: ActionItemProps) {
 function promptTitle(prompt: Prompt): string {
   const text = prompt.summary?.trim() || prompt.text.trim() || "Untitled prompt";
   return text.length > 72 ? text.slice(0, 71) + "…" : text;
-}
-
-function promptSubtitle(prompt: Prompt, home: string): string {
-  if (prompt.worktreePath) return tildeify(prompt.worktreePath, home);
-  if (prompt.tmuxSession) return prompt.tmuxSession;
-  return prompt.column === "PROMPTS" ? "Backlog prompt" : prompt.column.replaceAll("_", " ").toLowerCase();
 }
 
 function tildeify(abs: string, home: string): string {
