@@ -25,7 +25,7 @@ export const prompts = sqliteTable("prompts", {
   imagePaths: text("image_paths").notNull().default("[]"),
   modelProfile: text("model_profile", { enum: ["smart", "fast"] }).notNull().default("smart"),
   presetId: text("preset_id").notNull().default("pi"),
-  column: text("column", { enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE"] })
+  column: text("column", { enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE", "GITHUB", "LINEAR"] })
     .notNull()
     .default("PROMPTS"),
   runMode: text("run_mode", { enum: ["in_place", "worktree"] }),

@@ -1,4 +1,4 @@
-export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "ARCHIVED";
+export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "GITHUB" | "LINEAR" | "ARCHIVED";
 
 export type Project = { id: string; name: string; path: string; icon?: string | null; iconMime?: string | null; defaultPresetId?: string | null; githubRepo?: string | null; showGithubIssues?: number | boolean | null; showLinearIssues?: number | boolean | null; sortOrder?: number };
 export type ModelProfile = "fast" | "smart";

@@ -4,7 +4,7 @@ import { getDb } from "./db/client.js";
 import { projects, prompts, settings, type Project, type Prompt } from "./db/schema.js";
 import { DEFAULT_AGENT_PRESETS, type AgentPreset } from "./agents.js";
 
-export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE";
+export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "GITHUB" | "LINEAR";
 export type ModelProfile = "smart" | "fast";
 export type AppSettings = {
   fastModel: string;

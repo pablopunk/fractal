@@ -275,6 +275,7 @@ export function ColumnView(props: {
   composer: React.ReactNode;
   issueSection?: React.ReactNode;
   issueItems?: Array<{ id: string; issue: import("./IssueCard.js").BoardIssue }>;
+  itemCount?: number;
   home: string;
   activeId?: string | null;
   overId?: string | null;
@@ -289,6 +290,8 @@ export function ColumnView(props: {
   const issueIds = (props.issueItems ?? []).map((item) => item.id);
   const promptIds = props.prompts.map((p) => p.id);
   const itemIds = [...issueIds, ...promptIds];
+  const totalCount = props.itemCount ?? props.prompts.length;
+  const isIssueCol = props.id === "GITHUB" || props.id === "LINEAR";
   const dragIndex = props.activeId ? itemIds.indexOf(props.activeId) : -1;
   const overIndex = props.overId ? itemIds.indexOf(props.overId) : -1;
   const isOverColumn = props.overId === props.id || itemIds.includes(props.overId ?? "");
@@ -302,7 +305,7 @@ export function ColumnView(props: {
         <Tooltip content={props.title}>
           <div className="column-compact-head" aria-label={`${props.title} column`}>
             <Icon className="column-icon" />
-            <span className="count-chip">{props.prompts.length}</span>
+            <span className="count-chip">{totalCount}</span>
           </div>
         </Tooltip>
         <div className="column-compact-items" aria-label={`${props.title} prompts`}>
@@ -342,8 +345,8 @@ export function ColumnView(props: {
           <div ref={setNodeRef} className="column-collapsed-inner">
             <Icon className="column-icon collapsed" />
             <span className="column-collapsed-title">{props.title}</span>
-            {props.prompts.length > 0 && (
-              <span className="count-chip">{props.prompts.length}</span>
+            {totalCount > 0 && (
+              <span className="count-chip">{totalCount}</span>
             )}
           </div>
         </div>
@@ -356,7 +359,7 @@ export function ColumnView(props: {
       <div className="column-head" style={{ cursor: "pointer" }} onClick={props.onToggleCollapse}>
         <Icon className="column-icon" />
         <span className="column-title">{props.title}</span>
-        <span className="count-chip">{props.prompts.length}</span>
+        <span className="count-chip">{totalCount}</span>
         {props.onClearDone && props.prompts.length > 0 && (
           <Tooltip content={props.isClearingDone ? "Clearing DONE prompts…" : "Clear DONE prompts"}>
             <button
@@ -377,16 +380,19 @@ export function ColumnView(props: {
         <ChevronLeft className="column-collapse-icon" />
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className={`column-body ${props.prompts.length === 0 && !props.issueSection && issueIds.length === 0 ? "column-body-empty" : ""}`}>
+        <div className={`column-body ${itemIds.length === 0 && !props.issueSection ? "column-body-empty" : ""}`}>
+          {props.issueSection && itemIds.length === 0 && (
+            <div className="issue-section">{props.issueSection}</div>
+          )}
           {(props.issueItems ?? []).map((item, i) => (
             <div key={item.id} data-prompt-id={item.id}>
               {showIndicator && overIndex === i && <div className="drop-indicator" />}
               <SortableIssueCard issue={item.issue} />
             </div>
           ))}
-          {props.prompts.length === 0 && issueIds.length === 0 && !props.issueSection && (
+          {itemIds.length === 0 && !props.issueSection && (
             <div className="column-empty-state" style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}>
-              {props.id === "PROMPTS" ? "Add a prompt below." : "Drop a prompt here."}
+              {isIssueCol ? "No issues." : props.id === "PROMPTS" ? "Add a prompt below." : "Drop a prompt here."}
             </div>
           )}
           {props.prompts.map((p, i) => (

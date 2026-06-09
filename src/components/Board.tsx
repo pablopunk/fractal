@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Check, FolderKanban, FolderRoot, Monitor, Moon, Palette, Play, Settings, SquareTerminal, Sun } from "lucide-react";
+import { Check, FolderKanban, FolderRoot, GitBranch, Hash, Monitor, Moon, Palette, Play, Settings, SquareTerminal, Sun } from "lucide-react";
 import TerminalPane from "./TerminalPane.js";
 import Portal from "./Portal.js";
 import CommandMenu from "./CommandMenu.js";
@@ -57,8 +57,10 @@ import type { AppSettings, Column, GithubIssue, LinearIssue, ModelProfile, PiMod
 import ProjectSettingsModal from "./ProjectSettingsModal.js";
 import { issueFromGithub, issueFromLinear, type BoardIssue } from "./IssueCard.js";
 
-const COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const BASE_COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "PROMPTS", title: "Prompts", icon: FolderRoot },
+  { id: "GITHUB", title: "GitHub Issues", icon: GitBranch },
+  { id: "LINEAR", title: "Linear Issues", icon: Hash },
   { id: "RUN_IN_PLACE", title: "Run in place", icon: Play },
   { id: "RUN_IN_WORKTREE", title: "Run in worktree", icon: FolderKanban },
   { id: "ARCHIVED", title: "DONE", icon: Check },
@@ -215,8 +217,17 @@ export default function Board() {
   const [boardCompact, setBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
-  const boardSnug = useMemo(() => boardCompact || COLUMNS.every((col) => collapsed[col.id]), [boardCompact, collapsed]);
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
+  const COLUMNS = useMemo(() => {
+    const showGithub = !!activeProject?.githubRepo;
+    const showLinear = !!activeProject?.showLinearIssues;
+    return BASE_COLUMNS.filter((col) => {
+      if (col.id === "GITHUB") return showGithub;
+      if (col.id === "LINEAR") return showLinear;
+      return true;
+    });
+  }, [activeProject?.githubRepo, activeProject?.showLinearIssues]);
+  const boardSnug = useMemo(() => boardCompact || COLUMNS.every((col) => collapsed[col.id]), [boardCompact, collapsed, COLUMNS]);
   const filteredTerminalTabs = useMemo(() => {
     if (!activeProject) return [];
     return terminalTabs.filter((tab) => {
@@ -612,7 +623,7 @@ export default function Board() {
   }
 
   async function createPromptFromIssue(issue: BoardIssue, column: Column) {
-    if (!activeProjectId || column === "PROMPTS" || column === "ARCHIVED") return;
+    if (!activeProjectId || column !== "RUN_IN_PLACE" && column !== "RUN_IN_WORKTREE") return;
     const idRef = issue.kind === "github" ? `#${issue.number}` : issue.identifier;
     const text = `Work on ${idRef}: ${issue.title}\n${issue.url}`;
     try {
@@ -758,7 +769,7 @@ export default function Board() {
   }
 
   async function launch(id: string, target: Column) {
-    if (target === "PROMPTS") return;
+    if (target !== "RUN_IN_PLACE" && target !== "RUN_IN_WORKTREE") return;
     const url = target === "RUN_IN_PLACE" ? `/api/prompts/${id}/run-in-place` : `/api/prompts/${id}/run-in-worktree`;
     const prev = prompts;
     setPrompts((p) => p.map((x) => (x.id === id ? { ...x, column: target } : x)));
@@ -861,6 +872,7 @@ export default function Board() {
       }
       // Dropped on a card in a different column → treat as drop on that column
       const target = overPrompt.column;
+      if (target === "GITHUB" || target === "LINEAR") return;
       if (target === "PROMPTS") {
         void moveToPrompts(activeId);
       } else if (activePrompt.column !== target && activePrompt.column === "PROMPTS") {
@@ -871,6 +883,7 @@ export default function Board() {
 
     // Dropped on a column
     const target = overId as Column;
+    if (target === "GITHUB" || target === "LINEAR") return;
     if (target === "ARCHIVED") {
       if (!activePrompt.isArchived) void archivePrompt(activeId);
       return;
@@ -936,7 +949,7 @@ export default function Board() {
     }
     setLoadingIssues(true);
     void Promise.all([
-      activeProject.githubRepo && activeProject.showGithubIssues
+      activeProject.githubRepo
         ? api<{ issues: GithubIssue[] }>(`/api/projects/${activeProject.id}/github-issues`).then((d) => d.issues).catch(() => [] as GithubIssue[])
         : Promise.resolve([] as GithubIssue[]),
       activeProject.showLinearIssues
@@ -947,29 +960,26 @@ export default function Board() {
       setLinearIssues(li);
       setHiddenIssueIds(new Set());
     }).finally(() => setLoadingIssues(false));
-  }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showGithubIssues, activeProject?.showLinearIssues]);
+  }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showLinearIssues]);
 
-  const boardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
+  const githubBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
     if (!activeProject) return [];
-    const items: Array<{ id: string; issue: BoardIssue }> = [];
-    if (activeProject.showGithubIssues) {
-      for (const issue of githubIssues) {
-        const boardIssue = issueFromGithub(issue);
-        if (!hiddenIssueIds.has(boardIssue.id)) {
-          items.push({ id: boardIssue.id, issue: boardIssue });
-        }
-      }
-    }
-    if (activeProject.showLinearIssues) {
-      for (const issue of linearIssues) {
-        const boardIssue = issueFromLinear(issue);
-        if (!hiddenIssueIds.has(boardIssue.id)) {
-          items.push({ id: boardIssue.id, issue: boardIssue });
-        }
-      }
-    }
-    return items;
-  }, [githubIssues, linearIssues, hiddenIssueIds, activeProject?.showGithubIssues, activeProject?.showLinearIssues]);
+    return githubIssues
+      .map(issueFromGithub)
+      .filter((issue) => !hiddenIssueIds.has(issue.id))
+      .map((issue) => ({ id: issue.id, issue }));
+  }, [githubIssues, hiddenIssueIds, activeProject]);
+  const linearBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
+    if (!activeProject) return [];
+    return linearIssues
+      .map(issueFromLinear)
+      .filter((issue) => !hiddenIssueIds.has(issue.id))
+      .map((issue) => ({ id: issue.id, issue }));
+  }, [linearIssues, hiddenIssueIds, activeProject]);
+  const boardIssues = useMemo(
+    () => [...githubBoardIssues, ...linearBoardIssues],
+    [githubBoardIssues, linearBoardIssues],
+  );
 
   const projectPrompts = useMemo(
     () => prompts.filter((p) => p.projectId === activeProjectId && !p.isArchived),
@@ -1079,13 +1089,14 @@ export default function Board() {
                   const colPrompts = col.id === "ARCHIVED"
                     ? archivedPrompts
                     : projectPrompts.filter((p) => p.column === col.id);
+                  const isIssueCol = col.id === "GITHUB" || col.id === "LINEAR";
                   return (
                     <ColumnView
                       key={col.id}
                       id={col.id}
                       title={col.title}
                       icon={col.icon}
-                      prompts={colPrompts}
+                      prompts={isIssueCol ? [] : colPrompts}
                       presets={settings.agentPresets}
                       onDelete={deletePrompt}
                       onEdit={editPrompt}
@@ -1105,10 +1116,11 @@ export default function Board() {
                       isArchivedCol={col.id === "ARCHIVED"}
                       onClearDone={col.id === "ARCHIVED" ? clearDonePrompts : undefined}
                       isClearingDone={col.id === "ARCHIVED" ? isClearingDone : false}
-                      issueSection={col.id === "PROMPTS" && loadingIssues ? (
+                      issueSection={isIssueCol && loadingIssues ? (
                         <div className="issue-section-loading">Loading issues…</div>
                       ) : undefined}
-                      issueItems={col.id === "PROMPTS" ? boardIssues : undefined}
+                      issueItems={col.id === "GITHUB" ? githubBoardIssues : col.id === "LINEAR" ? linearBoardIssues : undefined}
+                      itemCount={col.id === "GITHUB" ? githubBoardIssues.length : col.id === "LINEAR" ? linearBoardIssues.length : undefined}
                       composer={
                         col.id === "PROMPTS" ? (
                           <Composer

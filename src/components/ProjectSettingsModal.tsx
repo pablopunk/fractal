@@ -11,7 +11,6 @@ export default function ProjectSettingsModal(props: {
 }) {
   const [defaultPresetId, setDefaultPresetId] = useState(props.project.defaultPresetId ?? "");
   const [githubRepo, setGithubRepo] = useState(props.project.githubRepo ?? "");
-  const [showGithubIssues, setShowGithubIssues] = useState(!!props.project.showGithubIssues);
   const [showLinearIssues, setShowLinearIssues] = useState(!!props.project.showLinearIssues);
   const [detectingGithub, setDetectingGithub] = useState(false);
 
@@ -19,7 +18,6 @@ export default function ProjectSettingsModal(props: {
     void props.onSave({
       defaultPresetId: defaultPresetId || null,
       githubRepo: githubRepo || null,
-      showGithubIssues,
       showLinearIssues,
     });
   }
@@ -52,7 +50,7 @@ export default function ProjectSettingsModal(props: {
 
             <div className="project-settings-section">
               <label className="project-settings-label">GitHub repo</label>
-              <p className="project-settings-hint">owner/repo to show open issues from.</p>
+              <p className="project-settings-hint">owner/repo — issues appear in the GitHub column when set.</p>
               <div className="project-settings-row">
                 <input
                   className="input"
@@ -72,30 +70,15 @@ export default function ProjectSettingsModal(props: {
 
             <div className="project-settings-section">
               <label className="project-settings-label">Linear</label>
-              <p className="project-settings-hint">Shows your assigned Linear issues using the configured linear CLI.</p>
-            </div>
-
-            <div className="project-settings-section">
-              <label className="project-settings-label">Show in board</label>
-              <div className="project-settings-toggles">
-                <label className="project-settings-toggle">
-                  <input
-                    type="checkbox"
-                    checked={showGithubIssues}
-                    onChange={(e) => setShowGithubIssues(e.target.checked)}
-                    disabled={!githubRepo}
-                  />
-                  <span>GitHub open issues</span>
-                </label>
-                <label className="project-settings-toggle">
-                  <input
-                    type="checkbox"
-                    checked={showLinearIssues}
-                    onChange={(e) => setShowLinearIssues(e.target.checked)}
-                  />
-                  <span>Linear issues (mine)</span>
-                </label>
-              </div>
+              <p className="project-settings-hint">Shows your assigned Linear issues in a dedicated column.</p>
+              <label className="project-settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={showLinearIssues}
+                  onChange={(e) => setShowLinearIssues(e.target.checked)}
+                />
+                <span>Enable Linear issues</span>
+              </label>
             </div>
           </div>
 

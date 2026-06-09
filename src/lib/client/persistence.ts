@@ -22,7 +22,7 @@ export const SIDEBAR_COLLAPSE_THRESHOLD = 132;
 export const SIDEBAR_MIN_WIDTH = 176;
 export const SIDEBAR_MAX_WIDTH = 260;
 
-const DEFAULT_COLLAPSED = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, ARCHIVED: true } as Record<Column, boolean>;
+const DEFAULT_COLLAPSED = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, GITHUB: false, LINEAR: false, ARCHIVED: true } as Record<Column, boolean>;
 
 function collapsedKey(projectId: string | null | undefined): string {
   return projectId ? `${PROJECT_COLLAPSED_KEY_PREFIX}${projectId}` : COLLAPSED_KEY;
