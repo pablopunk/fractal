@@ -86,6 +86,73 @@ Scrollbars are **invisible by default and minimal on interaction** — never chu
 
 Restrained and purposeful: short eases (80–180ms), opacity + slight scale/drift, never springy toy bounces. Modal entrances scale `~0.96→1.0` with a backdrop fade. Always honor `prefers-reduced-motion`. Use the installed `modals-dialogs` skill for overlay entrance/exit recipes.
 
+### Library
+
+**Motion** (`motion` v12, which wraps `framer-motion`) is installed. React components import from `motion/react`:
+
+```ts
+import { motion, AnimatePresence } from "motion/react";
+```
+
+The vanilla-DOM entry (`motion`) is also available but unused in this app.
+
+### What gets motion
+
+Only these layers use Motion. Everything else uses CSS transitions or keyframes (see below). Do not introduce Motion into a layer already animated by CSS unless you replace the CSS entirely — never double-animate.
+
+#### Card presence (enter / exit)
+
+Both issue cards (GitHub/Linear) and prompt cards animate in and out of column lists via `AnimatePresence` with `mode="popLayout"` (surrounding cards shift smoothly into vacated space). Each card wraps in `<motion.div>`:
+
+| Phase | Values |
+|-------|--------|
+| `initial` | `opacity: 0, y: 8, scale: 0.98` |
+| `animate` | `opacity: 1, y: 0, scale: 1` |
+| `exit` | `opacity: 0, y: -4, scale: 0.97` |
+| `transition` | `spring`, duration 0.3s, bounce 0 |
+
+Location: `src/components/BoardParts.tsx` → `ColumnView`, two `AnimatePresence` blocks inside the column body — one for issue items, one for prompt cards.
+
+#### Drag overlay spring
+
+The card shown while dragging (the `DragOverlay` from dnd-kit) uses `<motion.div>` with a spring that tilts and lifts on pick-up:
+
+```ts
+initial={{ rotate: 0, scale: 1 }}
+animate={{ rotate: -1.2, scale: 1.03 }}
+transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+```
+
+Location: `src/components/Board.tsx` → inside `<DragOverlay>`. The CSS rule `.overlay-card` no longer carries a static `transform` — motion owns the rotate/scale.
+
+### What does NOT use Motion (by conscious decision)
+
+These layers already animate well via pure CSS and should not be touched:
+
+| Layer | Method | Why not Motion |
+|-------|--------|----------------|
+| Modals (enter/exit) | `@keyframes modal-scale-in` + `overlay-fade-in` | Already smooth; respects `prefers-reduced-motion` |
+| Tooltips | `@keyframes tooltip-in` (120ms) | Short-lived; CSS handles it |
+| Command palette | cmdk built-in | Library-owned; don't fight it |
+| Drop indicators | `@keyframes pulse` (1.2s) | Simple opacity pulse; CSS is fine |
+| Glass opacity/blur changes | CSS `transition` on root vars | User slider is real-time; transition is enough |
+| Card hover states | CSS `transition` (80ms) | Instant enough; Motion overkill |
+| Theme toggle icon | CSS `transition` (120ms) | Simple slide+fade |
+| Scrollbar reveal | CSS `:hover` target | Subtle reveal; no animation needed |
+| Toast notifications | sonner library built-in | Library-owned |
+| Sidebar project items | CSS `transition` (80ms) on `.project-item` | Hover-only state change |
+| Terminal tab active state | CSS `transition` on `.terminal-tab` | State swap, no enter/exit |
+
+### Rules for adding new motion
+
+- Prefer **spring with bounce 0** for UI transitions — smooth deceleration without overshoot.
+- Keep durations at or below **0.3–0.4s** for springs, **80–180ms** for CSS transitions.
+- Use `AnimatePresence` whenever elements **appear or disappear from a list** (cards, tabs, sidebar items). Set `mode="popLayout"` for list items.
+- Never animate scale below `0.96` or y-shift beyond `±8px` — subtle, not playful.
+- Never add Motion to a draggable/sortable element that dnd-kit owns the transform on. Wrap a **child** `<motion.div>` inside the sortable element instead.
+- Always verify in all three modes (light, dark, glass) and with `prefers-reduced-motion: reduce` active.
+- If it feels like an "effect," it's too much. The user should notice *smoothness*, not animation.
+
 ## Workflow when changing UI
 
 1. **Locate the owning layer first.** Read `global.css` and find which token/role/selector actually paints the thing. Use screenshots — trust pixels over theory.
