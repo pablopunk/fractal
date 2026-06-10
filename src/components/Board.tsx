@@ -191,7 +191,18 @@ export default function Board() {
   const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed(getProjectIdFromUrl()));
   const [pendingDeletePromptId, setPendingDeletePromptId] = useState<string | null>(null);
   const [pendingDeleteChanges, setPendingDeleteChanges] = useState<string[] | null>(null);
-  const [archiveBlockedMessage, setArchiveBlockedMessage] = useState<string | null>(null);
+  type DoneActionInfo = {
+    promptId: string;
+    branch: string | null;
+    hasUncommitted: boolean;
+    hasPr: boolean;
+    isMerged: boolean;
+    changes: string[];
+    detail: string;
+  };
+  const [doneActionInfo, setDoneActionInfo] = useState<DoneActionInfo | null>(null);
+  const [doneDiscardConfirm, setDoneDiscardConfirm] = useState(false);
+  const [doneActionPending, setDoneActionPending] = useState<string | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>(() => loadTerminalTabs());
   const [activeTerminalId, setActiveTerminalId] = useState<string | null>(() => loadActiveTerminalId(loadTerminalTabs()));
   const [terminalWidth, setTerminalWidth] = useState<number>(() => loadTerminalWidth());
@@ -736,11 +747,41 @@ export default function Board() {
       if (oldSession) closeTerminal(oldSession);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        const body = e.body as { detail?: string } | undefined;
-        setArchiveBlockedMessage(body?.detail ?? e.message);
+        const body = e.body as { detail: string; branch?: string; hasUncommitted?: boolean; hasPr?: boolean; isMerged?: boolean; changes?: string[] };
+        setDoneActionInfo({
+          promptId: id,
+          branch: body.branch ?? null,
+          hasUncommitted: body.hasUncommitted ?? false,
+          hasPr: body.hasPr ?? false,
+          isMerged: body.isMerged ?? false,
+          changes: body.changes ?? [],
+          detail: body.detail ?? e.message,
+        });
+        setDoneDiscardConfirm(false);
         return;
       }
       toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function archiveWithAction(id: string, action: string) {
+    if (doneActionPending) return;
+    setDoneActionPending(action);
+    try {
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      });
+      setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
+      if (!prompt.summary) void refreshPromptSummary(id);
+      const oldSession = prompts.find((x) => x.id === id)?.tmuxSession;
+      if (oldSession) closeTerminal(oldSession);
+      setDoneActionInfo(null);
+      setDoneDiscardConfirm(false);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
+    } finally {
+      setDoneActionPending(null);
     }
   }
 
@@ -1224,13 +1265,65 @@ export default function Board() {
               </div>
             </Portal>}
 
-            {archiveBlockedMessage && <Portal>
-              <div className="modal-overlay" onClick={() => setArchiveBlockedMessage(null)}>
+            {doneActionInfo && <Portal>
+              <div className="modal-overlay" onClick={() => { setDoneActionInfo(null); setDoneDiscardConfirm(false); }}>
                 <div className="modal" onClick={(e) => e.stopPropagation()}>
-                  <h2>Can't mark this worktree as done yet</h2>
-                  <p>{archiveBlockedMessage}</p>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button className="btn" onClick={() => setArchiveBlockedMessage(null)}>OK</button>
+                  <h2>Worktree needs action</h2>
+                  <p className="done-action-detail">{doneActionInfo.detail}</p>
+                  {doneActionInfo.branch && (
+                    <p className="done-action-meta" style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 16 }}>
+                      Branch: <code>{doneActionInfo.branch}</code>
+                    </p>
+                  )}
+                  <div className="done-action-buttons">
+                    {!doneActionInfo.hasPr && !doneActionInfo.hasUncommitted && (
+                      <button
+                        className="btn primary"
+                        disabled={!!doneActionPending}
+                        onClick={() => void archiveWithAction(doneActionInfo.promptId, "create-pr")}
+                      >
+                        {doneActionPending === "create-pr" && <span className="btn-spinner" aria-hidden="true" />}
+                        {doneActionPending === "create-pr" ? "Creating PR…" : "Create PR"}
+                      </button>
+                    )}
+                    {!doneActionInfo.isMerged && !doneActionInfo.hasUncommitted && (
+                      <button
+                        className="btn"
+                        disabled={!!doneActionPending}
+                        onClick={() => void archiveWithAction(doneActionInfo.promptId, "merge-main")}
+                      >
+                        {doneActionPending === "merge-main" && <span className="btn-spinner" aria-hidden="true" />}
+                        {doneActionPending === "merge-main" ? "Merging…" : "Merge to main"}
+                      </button>
+                    )}
+                    {!doneDiscardConfirm ? (
+                      <button
+                        className="btn danger"
+                        disabled={!!doneActionPending}
+                        onClick={() => setDoneDiscardConfirm(true)}
+                      >
+                        Discard
+                      </button>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 12, color: "var(--danger)" }}>This permanently discards the worktree and any uncommitted changes.</span>
+                        <button
+                          className="btn danger"
+                          disabled={!!doneActionPending}
+                          onClick={() => void archiveWithAction(doneActionInfo.promptId, "discard")}
+                        >
+                          {doneActionPending === "discard" && <span className="btn-spinner" aria-hidden="true" />}
+                          {doneActionPending === "discard" ? "Discarding…" : "Yes, discard everything"}
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="btn ghost"
+                      disabled={!!doneActionPending}
+                      onClick={() => { setDoneActionInfo(null); setDoneDiscardConfirm(false); }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               </div>

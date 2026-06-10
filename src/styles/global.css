@@ -1692,6 +1692,19 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
   filter: brightness(1.06);
 }
 
+.done-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.done-action-detail {
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* ---------- Misc ---------- */
 
 ::selection { background: var(--accent); color: #fff; }

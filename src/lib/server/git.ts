@@ -129,3 +129,29 @@ export async function hasPullRequest(repoPath: string, branch: string): Promise<
     return false;
   }
 }
+
+export async function createPullRequest(
+  repoPath: string,
+  branch: string,
+  title: string,
+): Promise<{ number: number; url: string }> {
+  const { stdout } = await exec("gh", [
+    "pr", "create",
+    "--head", branch,
+    "--fill-first",
+    "--title", title,
+    "--json", "number,url",
+  ], { cwd: repoPath, timeoutMs: 30000 });
+  const { number, url } = JSON.parse(stdout.trim()) as { number: number; url: string };
+  return { number, url };
+}
+
+export async function mergeBranchToDefault(repoPath: string, branch: string): Promise<string> {
+  const defaultBranch = await getDefaultBranch(repoPath);
+  await exec("git", ["-C", repoPath, "fetch", "origin", defaultBranch]);
+  await exec("git", ["-C", repoPath, "checkout", defaultBranch]);
+  await exec("git", ["-C", repoPath, "pull", "--ff-only", "origin", defaultBranch]);
+  await exec("git", ["-C", repoPath, "merge", branch]);
+  await exec("git", ["-C", repoPath, "push", "origin", defaultBranch]);
+  return defaultBranch;
+}
