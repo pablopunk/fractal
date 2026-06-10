@@ -1866,14 +1866,21 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   z-index: 2;
 }
 .terminal-resizer:hover { background: color-mix(in oklab, var(--accent) 20%, transparent); }
-.terminal-tabs {
+.terminal-tabs-bar {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 8px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+}
+.terminal-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   overflow-x: auto;
+  flex: 1 1 0;
+  min-width: 0;
 }
 .terminal-tab {
   display: inline-flex;
@@ -2260,7 +2267,7 @@ html[data-glass="true"] .terminal-host {
 
 .sidebar,
 .topbar,
-.terminal-tabs {
+.terminal-tabs-bar {
   background: var(--material-chrome-bg);
   border-color: var(--material-panel-border);
   backdrop-filter: var(--material-panel-filter);
@@ -2279,7 +2286,7 @@ html[data-glass="true"] .terminal-host {
 
 html[data-glass="true"] .sidebar,
 html[data-glass="true"] .topbar,
-html[data-glass="true"] .terminal-tabs,
+html[data-glass="true"] .terminal-tabs-bar,
 html[data-glass="true"] .column,
 html[data-glass="true"] .cmdk-dialog,
 html[data-glass="true"] .empty-card {
@@ -2315,8 +2322,8 @@ html[data-glass="true"] .terminal-resizer:hover,
 html[data-glass="true"] .terminal-resizer:active {
   background: color-mix(in oklab, var(--accent) 30%, transparent) !important;
 }
-.terminal-tabs,
-html[data-glass="true"] .terminal-tabs {
+.terminal-tabs-bar,
+html[data-glass="true"] .terminal-tabs-bar {
   background: transparent !important;
   border-color: var(--material-panel-border);
   box-shadow: none !important;

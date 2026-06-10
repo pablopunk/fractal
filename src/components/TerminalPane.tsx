@@ -105,44 +105,46 @@ export default function TerminalPane(props: {
           dragging.current = true;
         }}
       />
-      <div className="terminal-tabs">
-        {props.tabs.map((tab) => (
-          <Tooltip key={tab.id} content={tab.session}>
-            <button
-              className={`terminal-tab ${tab.id === active.id ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
-              onClick={() => props.onSelect(tab.id)}
-              draggable
-              onDragStart={(e) => {
-                setDraggingTabId(tab.id);
-                e.dataTransfer.effectAllowed = "move";
-                try { e.dataTransfer.setData("text/plain", tab.id); } catch {}
-              }}
-              onDragEnter={(e) => { e.preventDefault(); if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id); }}
-              onDragOver={(e) => { if (draggingTabId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
-              onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOverTabId((id) => id === tab.id ? null : id); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (draggingTabId && draggingTabId !== tab.id) props.onReorder(draggingTabId, tab.id);
-                setDraggingTabId(null);
-                setDragOverTabId(null);
-              }}
-              onDragEnd={() => { setDraggingTabId(null); setDragOverTabId(null); }}
-            >
-              <TerminalIcon size={13} />
-              <span>{tab.title}</span>
-              <span
-                className="terminal-tab-close"
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); props.onClose(tab.id); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); props.onClose(tab.id); } }}
-                aria-label={`Close ${tab.title}`}
+      <div className="terminal-tabs-bar">
+        <div className="terminal-tabs">
+          {props.tabs.map((tab) => (
+            <Tooltip key={tab.id} content={tab.session}>
+              <button
+                className={`terminal-tab ${tab.id === active.id ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
+                onClick={() => props.onSelect(tab.id)}
+                draggable
+                onDragStart={(e) => {
+                  setDraggingTabId(tab.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  try { e.dataTransfer.setData("text/plain", tab.id); } catch {}
+                }}
+                onDragEnter={(e) => { e.preventDefault(); if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id); }}
+                onDragOver={(e) => { if (draggingTabId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
+                onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOverTabId((id) => id === tab.id ? null : id); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (draggingTabId && draggingTabId !== tab.id) props.onReorder(draggingTabId, tab.id);
+                  setDraggingTabId(null);
+                  setDragOverTabId(null);
+                }}
+                onDragEnd={() => { setDraggingTabId(null); setDragOverTabId(null); }}
               >
-                <X size={12} />
-              </span>
-            </button>
-          </Tooltip>
-        ))}
+                <TerminalIcon size={13} />
+                <span>{tab.title}</span>
+                <span
+                  className="terminal-tab-close"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); props.onClose(tab.id); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); props.onClose(tab.id); } }}
+                  aria-label={`Close ${tab.title}`}
+                >
+                  <X size={12} />
+                </span>
+              </button>
+            </Tooltip>
+          ))}
+        </div>
         <Tooltip content={props.position === "right" ? "Move terminal to bottom" : "Move terminal to right"}>
           <button className="terminal-pane-toggle" onClick={props.onTogglePosition} aria-label="Toggle terminal position">
             {props.position === "right" ? <Rows2 size={14} /> : <Columns2 size={14} />}
