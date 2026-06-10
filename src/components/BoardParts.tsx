@@ -431,7 +431,7 @@ export function ColumnView(props: {
                 data-prompt-id={item.id}
                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ type: "spring", duration: 0.3, bounce: 0 }}
               >
                 {showIndicator && overIndex === i && <div className="drop-indicator" />}
@@ -451,7 +451,7 @@ export function ColumnView(props: {
                 data-prompt-id={p.id}
                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ type: "spring", duration: 0.3, bounce: 0 }}
               >
                 {showIndicator && overIndex === issueIds.length + i && <div className="drop-indicator" />}

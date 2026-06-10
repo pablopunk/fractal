@@ -108,7 +108,7 @@ Both issue cards (GitHub/Linear) and prompt cards animate in and out of column l
 |-------|--------|
 | `initial` | `opacity: 0, y: 8, scale: 0.98` |
 | `animate` | `opacity: 1, y: 0, scale: 1` |
-| `exit` | `opacity: 0, y: -4, scale: 0.97` |
+| `exit` | `opacity: 0, scale: 0.98` |
 | `transition` | `spring`, duration 0.3s, bounce 0 |
 
 Location: `src/components/BoardParts.tsx` → `ColumnView`, two `AnimatePresence` blocks inside the column body — one for issue items, one for prompt cards.
@@ -142,6 +142,7 @@ These layers already animate well via pure CSS and should not be touched:
 | Toast notifications | sonner library built-in | Library-owned |
 | Sidebar project items | CSS `transition` (80ms) on `.project-item` | Hover-only state change |
 | Terminal tab active state | CSS `transition` on `.terminal-tab` | State swap, no enter/exit |
+| Active state glow (glass mode) | CSS `transition: box-shadow 300ms ease` | Single-element state toggle; pure CSS |
 
 ### Rules for adding new motion
 
@@ -149,6 +150,7 @@ These layers already animate well via pure CSS and should not be touched:
 - Keep durations at or below **0.3–0.4s** for springs, **80–180ms** for CSS transitions.
 - Use `AnimatePresence` whenever elements **appear or disappear from a list** (cards, tabs, sidebar items). Set `mode="popLayout"` for list items.
 - Never animate scale below `0.96` or y-shift beyond `±8px` — subtle, not playful.
+- Avoid y-shift on exit animations — the exiting element is pulled out of flow by `popLayout`, so a vertical drift can visually overlap adjacent cards before unmount. Exit with opacity + subtle scale only.
 - Never add Motion to a draggable/sortable element that dnd-kit owns the transform on. Wrap a **child** `<motion.div>` inside the sortable element instead.
 - Always verify in all three modes (light, dark, glass) and with `prefers-reduced-motion: reduce` active.
 - If it feels like an "effect," it's too much. The user should notice *smoothness*, not animation.
