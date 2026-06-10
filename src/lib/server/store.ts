@@ -15,12 +15,49 @@ export type AppSettings = {
   lastProjectId: string;
 };
 
+export type UiColumn = Column | "GITHUB" | "LINEAR" | "ARCHIVED";
+export type UiState = {
+  version: 1;
+  sidebarWidth: number;
+  collapsedColumns: Record<string, Record<UiColumn, boolean>>;
+  terminalPosition: "right" | "bottom";
+  terminalWidth: number;
+  terminalHeight: number;
+  terminalTabs: Array<{ id: string; promptId: string; projectId?: string; session: string; title: string; cwd?: string }>;
+  activeTerminalTabId: string | null;
+  theme: "system" | "light" | "dark";
+  terminalTheme: "fractal" | "catppuccin" | "tokyo-night" | "solarized";
+  glassSettings: { enabled: boolean; opacity: number; blur: number; version?: number };
+  commandRecents: Array<{ kind: "project" | "prompt" | "tab"; id: string; at: number }>;
+  boardLayout: "auto" | "rows" | "compact";
+  lastProjectId: string;
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
   fastModel: "",
   smartModel: "",
   agentPresets: DEFAULT_AGENT_PRESETS,
   defaultPresetId: "pi",
   helperPresetId: "",
+  lastProjectId: "",
+};
+
+const DEFAULT_COLLAPSED = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, GITHUB: false, LINEAR: false, ARCHIVED: true } as Record<UiColumn, boolean>;
+
+const DEFAULT_UI_STATE: UiState = {
+  version: 1,
+  sidebarWidth: 204,
+  collapsedColumns: { global: DEFAULT_COLLAPSED },
+  terminalPosition: "right",
+  terminalWidth: 520,
+  terminalHeight: 320,
+  terminalTabs: [],
+  activeTerminalTabId: null,
+  theme: "system",
+  terminalTheme: "fractal",
+  glassSettings: { enabled: false, opacity: 0.68, blur: 22, version: 2 },
+  commandRecents: [],
+  boardLayout: "auto",
   lastProjectId: "",
 };
 
@@ -162,4 +199,84 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
     }).run();
   }
   return getSettings();
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function numberInRange(value: unknown, fallback: number, min: number, max: number): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
+function normalizeCollapsed(value: unknown): Record<UiColumn, boolean> {
+  if (!isObject(value)) return { ...DEFAULT_COLLAPSED };
+  return { ...DEFAULT_COLLAPSED, ...value } as Record<UiColumn, boolean>;
+}
+
+function isTerminalTab(value: unknown): value is UiState["terminalTabs"][number] {
+  if (!isObject(value)) return false;
+  return typeof value.id === "string" && typeof value.promptId === "string" && typeof value.session === "string" && typeof value.title === "string";
+}
+
+function isCommandRecent(value: unknown): value is UiState["commandRecents"][number] {
+  if (!isObject(value)) return false;
+  return (value.kind === "project" || value.kind === "prompt" || value.kind === "tab") && typeof value.id === "string" && typeof value.at === "number";
+}
+
+export function normalizeUiState(value: unknown): UiState {
+  const input = isObject(value) ? value : {};
+  const collapsedColumns: UiState["collapsedColumns"] = { global: { ...DEFAULT_COLLAPSED } };
+  if (isObject(input.collapsedColumns)) {
+    for (const [key, collapsed] of Object.entries(input.collapsedColumns)) {
+      collapsedColumns[key || "global"] = normalizeCollapsed(collapsed);
+    }
+  }
+  const terminalTabs = Array.isArray(input.terminalTabs) ? input.terminalTabs.filter(isTerminalTab) : [];
+  const activeTerminalTabId = typeof input.activeTerminalTabId === "string" && terminalTabs.some((tab) => tab.id === input.activeTerminalTabId)
+    ? input.activeTerminalTabId
+    : terminalTabs[0]?.id ?? null;
+  const theme = input.theme === "light" || input.theme === "dark" ? input.theme : DEFAULT_UI_STATE.theme;
+  const terminalTheme = input.terminalTheme === "catppuccin" || input.terminalTheme === "tokyo-night" || input.terminalTheme === "solarized" ? input.terminalTheme : DEFAULT_UI_STATE.terminalTheme;
+  const boardLayout = input.boardLayout === "rows" || input.boardLayout === "compact" ? input.boardLayout : DEFAULT_UI_STATE.boardLayout;
+  const terminalPosition = input.terminalPosition === "bottom" ? "bottom" : "right";
+  const glass = isObject(input.glassSettings) ? input.glassSettings : {};
+  return {
+    version: 1,
+    sidebarWidth: numberInRange(input.sidebarWidth, DEFAULT_UI_STATE.sidebarWidth, 56, 260),
+    collapsedColumns,
+    terminalPosition,
+    terminalWidth: numberInRange(input.terminalWidth, DEFAULT_UI_STATE.terminalWidth, 180, 5000),
+    terminalHeight: numberInRange(input.terminalHeight, DEFAULT_UI_STATE.terminalHeight, 120, 5000),
+    terminalTabs,
+    activeTerminalTabId,
+    theme,
+    terminalTheme,
+    glassSettings: {
+      version: 2,
+      enabled: Boolean(glass.enabled),
+      opacity: numberInRange(glass.opacity, DEFAULT_UI_STATE.glassSettings.opacity, 0.45, 1),
+      blur: numberInRange(glass.blur, DEFAULT_UI_STATE.glassSettings.blur, 0, 40),
+    },
+    commandRecents: Array.isArray(input.commandRecents) ? input.commandRecents.filter(isCommandRecent).slice(0, 20) : [],
+    boardLayout,
+    lastProjectId: typeof input.lastProjectId === "string" ? input.lastProjectId : "",
+  };
+}
+
+export function getUiState(): UiState {
+  const row = getDb().select().from(settings).where(eq(settings.key, "uiState")).get();
+  if (!row) return DEFAULT_UI_STATE;
+  try { return normalizeUiState(JSON.parse(row.value)); } catch { return DEFAULT_UI_STATE; }
+}
+
+export function updateUiState(patch: Partial<UiState>): UiState {
+  const now = new Date();
+  const next = normalizeUiState({ ...getUiState(), ...patch });
+  getDb().insert(settings).values({ key: "uiState", value: JSON.stringify(next), updatedAt: now }).onConflictDoUpdate({
+    target: settings.key,
+    set: { value: JSON.stringify(next), updatedAt: now },
+  }).run();
+  return next;
 }
