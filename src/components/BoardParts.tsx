@@ -86,9 +86,26 @@ export function Sidebar(props: {
       </div>
       <div className="sidebar-foot">
         {props.collapsed ? (
-          <button className="btn block icon-only" onClick={() => props.setShowPicker(true)} aria-label="Add project" title="Add project">
-            <Plus size={16} aria-hidden="true" />
-          </button>
+          <>
+            <button className="btn block icon-only" onClick={() => props.setShowPicker(true)} aria-label="Add project" title="Add project">
+              <Plus size={16} aria-hidden="true" />
+            </button>
+            {props.showPicker && <Portal>
+              <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
+                <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
+                  <ProjectPicker
+                    recentProjects={props.projects}
+                    onSelect={props.onAdd}
+                    autoFocus
+                    placeholder="search projects or paste a path…"
+                  />
+                  <button className="btn ghost block sm" style={{ marginTop: 6 }} onClick={() => props.setShowPicker(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </Portal>}
+          </>
         ) : props.showPicker ? (
           <div>
             <ProjectPicker
