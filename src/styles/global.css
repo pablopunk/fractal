@@ -308,6 +308,7 @@ a { color: inherit; }
   box-shadow: 0 0 0 2px var(--state-active-border), var(--state-active-shadow);
 }
 .project-icon-modal { padding: 0; overflow: hidden; }
+.project-picker-modal { max-width: 420px; }
 .project-icon-drop {
   margin: 18px;
   min-height: 150px;
