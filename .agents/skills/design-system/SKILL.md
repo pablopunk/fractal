@@ -75,7 +75,7 @@ All portaled overlays render through `src/components/Portal.tsx` (to `document.b
 - **`.input` / form controls** — surface-2 fill, hairline border, `--radius-sm`, mono font for value fields.
 - **Cards** (`Card.tsx`, `IssueCard.tsx`) — `card` material; selection/drag via state tokens.
 - **Modals** — shared `.modal` + `.modal-overlay`; specific modals add a modifier class (`.theme-modal`, `.preset-modal`, `.project-icon-modal`) for size/layout only. Inherit material from the shared rule — don't re-style backgrounds per modal.
-- **Popovers / menus** — `popover` material; the command menu (`CommandMenu.tsx`, cmdk) and pickers (`ModelPicker`, `PresetPicker`, `ProjectPicker`), tooltips (`Tooltip.tsx`).
+- **Popovers / menus** — `popover` material; pickers (`ModelPicker`, `PresetPicker`, `ProjectPicker`), tooltips (`Tooltip.tsx`), URL/image preview popovers. Floating menus follow the **same solid-sheet treatment as modals** in glass: near-opaque sheet (`surface-2` at the modal alpha floor), light blur (`glass-blur × 0.5`), the modal hairline border, and the modal lift shadow — they should never be washed/translucent. The command menu (`CommandMenu.tsx`, cmdk) is `panel` material, not popover. Cards stay flat (no shadow) in glass; popovers do not.
 - **Terminal panes** (`TerminalPane.tsx`) — opt OUT of material backgrounds (transparent, no blur) so they merge with the layout and let xterm own its own theme. Terminal themes are previewed via `--theme-preview-bg/-fg/-accent` tokens.
 
 ## Scrollbars
