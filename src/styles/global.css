@@ -50,6 +50,8 @@
   --material-border: transparent;
   --material-shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.28);
   --material-shadow-floating: 0 12px 34px rgba(0, 0, 0, 0.22);
+  --material-modal-border: var(--border);
+  --material-modal-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
   --material-layout-bg: var(--bg);
   --material-chrome-bg: var(--surface);
   --material-panel-bg: var(--surface);
@@ -1686,16 +1688,33 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
   align-items: center;
   justify-content: center;
   z-index: 100;
+  animation: overlay-fade-in 140ms ease-out;
 }
 
 .modal {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--material-modal-border);
   border-radius: var(--radius);
   padding: 20px 22px;
   max-width: 520px;
   width: 90vw;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--material-modal-shadow);
+  animation: modal-scale-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal { animation: none; }
 }
 
 .modal h2 {
@@ -1725,10 +1744,19 @@ html[data-theme="dark"] .preset-icon .preset-icon-dark { display: block; }
 
 ::selection { background: var(--accent); color: #fff; }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: color-mix(in oklab, var(--text-faint) 45%, transparent) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 6px; border: 2px solid var(--bg); }
-::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+:hover::-webkit-scrollbar-thumb { background-color: color-mix(in oklab, var(--text-faint) 45%, transparent); }
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in oklab, var(--text-faint) 70%, transparent); }
+::-webkit-scrollbar-corner { background: transparent; }
 
 .workspace {
   position: relative;
@@ -2175,14 +2203,17 @@ html[data-glass="true"] {
   --material-terminal-tab-bg: rgb(var(--surface-rgb) / calc(var(--glass-opacity) * 0.28));
   --material-control-bg: rgb(var(--surface-3-rgb) / var(--material-control-alpha));
   --material-hover-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
-  --material-overlay-bg: rgba(0, 0, 0, 0.34);
+  --material-overlay-bg: rgba(0, 0, 0, 0.5);
   --material-panel-border: transparent;
   --material-strong-border: transparent;
   --material-panel-filter: blur(var(--glass-blur)) saturate(var(--material-saturate));
   --material-card-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(var(--material-saturate));
   --material-popover-filter: blur(calc(var(--glass-blur) * 0.86)) saturate(var(--material-saturate));
-  --material-overlay-filter: none;
-  --material-modal-filter: blur(calc(var(--glass-blur) * 1.15)) saturate(var(--material-saturate));
+  --material-overlay-filter: blur(6px) saturate(1.1);
+  --material-modal-alpha: calc(0.85 + var(--glass-opacity) * 0.13);
+  --material-modal-filter: blur(calc(var(--glass-blur) * 0.5)) saturate(var(--material-saturate));
+  --material-modal-border: rgba(255, 255, 255, 0.1);
+  --material-modal-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
   --material-shadow-panel: none;
   --material-shadow-floating: none;
   --state-active-bg: rgb(var(--surface-3-rgb) / var(--material-hover-alpha));
@@ -2231,14 +2262,14 @@ html[data-glass="true"] .sidebar,
 html[data-glass="true"] .topbar,
 html[data-glass="true"] .terminal-tabs,
 html[data-glass="true"] .column,
-html[data-glass="true"] .modal,
 html[data-glass="true"] .cmdk-dialog,
 html[data-glass="true"] .empty-card {
   box-shadow: var(--material-shadow-panel);
 }
 .modal {
   background: var(--material-modal-bg);
-  border-color: var(--material-panel-border);
+  border-color: var(--material-modal-border);
+  box-shadow: var(--material-modal-shadow);
   backdrop-filter: var(--material-modal-filter);
   -webkit-backdrop-filter: var(--material-modal-filter);
 }
@@ -2258,9 +2289,12 @@ html[data-glass="true"] .terminal-pane {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-html[data-glass="true"] .terminal-resizer,
-html[data-glass="true"] .terminal-resizer:hover {
+html[data-glass="true"] .terminal-resizer {
   background: transparent !important;
+}
+html[data-glass="true"] .terminal-resizer:hover,
+html[data-glass="true"] .terminal-resizer:active {
+  background: color-mix(in oklab, var(--accent) 30%, transparent) !important;
 }
 .terminal-tabs,
 html[data-glass="true"] .terminal-tabs {
