@@ -604,12 +604,15 @@ export default function Board() {
     }
     const project = projects.find((p) => p.id === prompt.projectId);
     const cwd = prompt.worktreePath ?? project?.path;
+    const baseName = project?.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") ?? "";
+    let title = prompt.tmuxSession.replace(/^fractal-/, "");
+    if (baseName) title = title.replace(new RegExp(`^${baseName}-`), "");
     const tab: TerminalTab = {
       id: prompt.tmuxSession,
       promptId: prompt.id,
       projectId: prompt.projectId,
       session: prompt.tmuxSession,
-      title: prompt.tmuxSession.replace(/^fractal-/, ""),
+      title,
       cwd,
     };
     setTerminalTabs((tabs) => tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]);
