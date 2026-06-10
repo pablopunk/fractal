@@ -142,6 +142,7 @@ These layers already animate well via pure CSS and should not be touched:
 | Toast notifications | sonner library built-in | Library-owned |
 | Sidebar project items | CSS `transition` (80ms) on `.project-item` | Hover-only state change |
 | Terminal tab active state | CSS `transition` on `.terminal-tab` | State swap, no enter/exit |
+| Active state glow (glass mode) | CSS `transition: box-shadow 300ms ease` | Single-element state toggle; pure CSS |
 
 ### Rules for adding new motion
 
