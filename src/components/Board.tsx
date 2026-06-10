@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -24,11 +24,12 @@ import { Toaster, toast } from "sonner";
 import { Sidebar, EmptyState, ColumnView, PresetSettings, Composer, tildeify, truncate } from "./BoardParts.js";
 import { ApiError, api } from "~/lib/client/api.js";
 import {
-  ACTIVE_TERMINAL_TAB_KEY,
-  TERMINAL_TABS_KEY,
+  hasLocalUiState,
   loadActiveTerminalId,
+  loadBoardLayout,
   loadCollapsed,
   isSidebarCollapsed,
+  loadLastProjectId,
   loadSidebarWidth,
   loadTerminalHeight,
   loadTerminalPosition,
@@ -36,9 +37,13 @@ import {
   loadTerminalWidth,
   loadTheme,
   loadTerminalTheme,
+  loadUiStateCache,
   loadGlassSettings,
   loadCommandRecents,
+  normalizeUiState,
+  saveBoardLayout,
   saveCollapsed,
+  saveLastProjectId,
   saveSidebarWidth,
   saveTerminalHeight,
   saveTerminalPosition,
@@ -47,10 +52,13 @@ import {
   saveTheme,
   saveGlassSettings,
   saveCommandRecents,
+  saveUiStateCache,
+  type BoardLayout,
   type CommandRecent,
   type GlassSettings,
   type ThemeMode,
   type TerminalThemeName,
+  type UiState,
 } from "~/lib/client/persistence.js";
 import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/terminal-themes.js";
 import type { AppSettings, Column, GithubIssue, LinearIssue, ModelProfile, PiModel, Project, Prompt, TerminalTab } from "~/lib/client/types.js";
@@ -66,6 +74,7 @@ const BASE_COLUMNS: { id: Column; title: string; icon: React.ComponentType<{ cla
   { id: "ARCHIVED", title: "DONE", icon: Check },
 ];
 const THEME_OPTIONS: ThemeMode[] = ["system", "light", "dark"];
+const BOARD_LAYOUT_OPTIONS: BoardLayout[] = ["auto", "rows", "compact"];
 const BOARD_ROWS_MAX_WIDTH = 960;
 const BOARD_COMPACT_MAX_WIDTH = 240;
 
@@ -78,10 +87,12 @@ function ThemeIcon(props: { theme: ThemeMode }) {
 function ThemeSettingsPicker(props: {
   theme: ThemeMode;
   terminalThemeName: TerminalThemeName;
+  boardLayout: BoardLayout;
   onThemeChange: (theme: ThemeMode) => void;
   glass: GlassSettings;
   onGlassChange: (settings: GlassSettings) => void;
   onTerminalThemeChange: (theme: TerminalThemeName) => void;
+  onBoardLayoutChange: (layout: BoardLayout) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -112,6 +123,16 @@ function ThemeSettingsPicker(props: {
               {THEME_OPTIONS.map((option) => (
                 <button key={option} type="button" className={props.theme === option ? "active" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => props.onThemeChange(option)}>
                   <ThemeIcon theme={option} />
+                  <span>{option}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="theme-popup-section">
+            <div className="theme-popup-label">Board layout</div>
+            <div className="theme-segmented" role="radiogroup" aria-label="Board layout">
+              {BOARD_LAYOUT_OPTIONS.map((option) => (
+                <button key={option} type="button" className={props.boardLayout === option ? "active" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => props.onBoardLayoutChange(option)}>
                   <span>{option}</span>
                 </button>
               ))}
@@ -170,11 +191,30 @@ function getProjectIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("project");
 }
 
+function getInitialProjectId(): string | null {
+  return getProjectIdFromUrl() ?? (loadLastProjectId() || null);
+}
+
+function validTerminalTabs(tabs: TerminalTab[], projects: Project[], prompts: Prompt[], sessionNames: string[] | null | undefined): TerminalTab[] {
+  if (!sessionNames) return tabs;
+  const sessions = new Set(sessionNames);
+  const projectIds = new Set(projects.map((project) => project.id));
+  const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt]));
+  return tabs.filter((tab) => {
+    if (sessions.has(tab.session)) return true;
+    if (!tab.cwd) return false;
+    if (tab.projectId && projectIds.has(tab.projectId)) return true;
+    const prompt = promptById.get(tab.promptId);
+    if (prompt) return prompt.tmuxSession === tab.session && projectIds.has(prompt.projectId);
+    return projectIds.has(tab.promptId);
+  });
+}
+
 export default function Board() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [home, setHome] = useState<string>("");
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => getProjectIdFromUrl());
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => getInitialProjectId());
   const [composer, setComposer] = useState("");
   const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
   const [composerPresetId, setComposerPresetId] = useState("");
@@ -188,7 +228,7 @@ export default function Board() {
   const [opencodeModels, setOpenCodeModels] = useState<PiModel[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed(getProjectIdFromUrl()));
+  const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() => loadCollapsed(getInitialProjectId()));
   const [pendingDeletePromptId, setPendingDeletePromptId] = useState<string | null>(null);
   const [pendingDeleteChanges, setPendingDeleteChanges] = useState<string[] | null>(null);
   const [archiveBlockedMessage, setArchiveBlockedMessage] = useState<string | null>(null);
@@ -213,9 +253,15 @@ export default function Board() {
   const [terminalThemeName, setTerminalThemeName] = useState<TerminalThemeName>(() => loadTerminalTheme());
   const [glassSettings, setGlassSettings] = useState<GlassSettings>(() => loadGlassSettings());
   const [commandRecents, setCommandRecents] = useState<CommandRecent[]>(() => loadCommandRecents());
-  const [boardRows, setBoardRows] = useState(false);
-  const [boardCompact, setBoardCompact] = useState(false);
+  const [boardLayout, setBoardLayout] = useState<BoardLayout>(() => loadBoardLayout());
+  const [autoBoardRows, setAutoBoardRows] = useState(false);
+  const [autoBoardCompact, setAutoBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
+  const shouldHydrateUiStateFromServer = useRef(!hasLocalUiState());
+  const didReceiveState = useRef(false);
+  const collapsedProjectId = useRef(activeProjectId);
+  const pendingCollapsedProjectId = useRef<string | null | undefined>(undefined);
+  const pendingCollapsedValue = useRef<Record<Column, boolean> | null>(null);
   const openTerminalIds = useMemo(() => new Set(terminalTabs.map((tab) => tab.id)), [terminalTabs]);
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const COLUMNS = useMemo(() => {
@@ -227,6 +273,8 @@ export default function Board() {
       return true;
     });
   }, [activeProject?.githubRepo, activeProject?.showLinearIssues]);
+  const boardRows = boardLayout === "rows" || (boardLayout === "auto" && autoBoardRows);
+  const boardCompact = boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact);
   const boardSnug = useMemo(() => boardCompact || COLUMNS.every((col) => collapsed[col.id]), [boardCompact, collapsed, COLUMNS]);
   const filteredTerminalTabs = useMemo(() => {
     if (!activeProject) return [];
@@ -238,6 +286,25 @@ export default function Board() {
       return tab.cwd === activeProject.path;
     });
   }, [activeProject, prompts, terminalTabs]);
+  const currentUiState = useMemo<UiState>(() => {
+    const cached = loadUiStateCache();
+    return normalizeUiState({
+      ...cached,
+      sidebarWidth,
+      collapsedColumns: { ...cached.collapsedColumns, [collapsedProjectId.current || "global"]: collapsed },
+      terminalPosition,
+      terminalWidth,
+      terminalHeight,
+      terminalTabs,
+      activeTerminalTabId: activeTerminalId,
+      theme,
+      terminalTheme: terminalThemeName,
+      glassSettings,
+      commandRecents,
+      boardLayout,
+      lastProjectId: activeProjectId ?? cached.lastProjectId,
+    });
+  }, [activeProjectId, boardLayout, collapsed, commandRecents, glassSettings, sidebarWidth, terminalHeight, terminalPosition, terminalTabs, activeTerminalId, terminalThemeName, terminalWidth, theme]);
 
   function rememberCommandRecent(kind: CommandRecent["kind"], id: string) {
     setCommandRecents((items) => [
@@ -256,6 +323,27 @@ export default function Board() {
     setTerminalFocusKey((key) => key + 1);
     rememberCommandRecent("tab", id);
   };
+
+  function applyUiState(uiState: UiState) {
+    const normalized = normalizeUiState(uiState);
+    const projectId = getProjectIdFromUrl() ?? (normalized.lastProjectId || activeProjectId);
+    const nextCollapsed = normalized.collapsedColumns[projectId || "global"] ?? normalized.collapsedColumns.global;
+    setSidebarWidth(normalized.sidebarWidth);
+    pendingCollapsedProjectId.current = projectId;
+    pendingCollapsedValue.current = nextCollapsed;
+    setCollapsed(nextCollapsed);
+    setTerminalTabs(normalized.terminalTabs);
+    setActiveTerminalId(normalized.activeTerminalTabId);
+    setTerminalWidth(normalized.terminalWidth);
+    setTerminalHeight(normalized.terminalHeight);
+    setTerminalPosition(normalized.terminalPosition);
+    setTheme(normalized.theme);
+    setTerminalThemeName(normalized.terminalTheme);
+    setGlassSettings(normalized.glassSettings);
+    setCommandRecents(normalized.commandRecents);
+    setBoardLayout(normalized.boardLayout);
+    if (!getProjectIdFromUrl() && normalized.lastProjectId) setActiveProjectId(normalized.lastProjectId);
+  }
 
   const resizeSidebar = (width: number) => {
     saveSidebarWidth(width);
@@ -320,6 +408,7 @@ export default function Board() {
 
   useEffect(() => {
     const url = new URL(window.location.href);
+    saveLastProjectId(activeProjectId);
     if (activeProjectId) {
       url.searchParams.set("project", activeProjectId);
       void api("/api/settings", {
@@ -344,7 +433,10 @@ export default function Board() {
   }, []);
 
   useEffect(() => {
-    setCollapsed(loadCollapsed(activeProjectId));
+    const nextCollapsed = loadCollapsed(activeProjectId);
+    pendingCollapsedProjectId.current = activeProjectId;
+    pendingCollapsedValue.current = nextCollapsed;
+    setCollapsed(nextCollapsed);
   }, [activeProjectId]);
 
   useEffect(() => {
@@ -355,19 +447,27 @@ export default function Board() {
   }, [activeProject?.id, activeProject?.defaultPresetId, settings.agentPresets]);
 
   useEffect(() => {
+    if (pendingCollapsedProjectId.current !== undefined) {
+      if (pendingCollapsedValue.current !== collapsed) return;
+      collapsedProjectId.current = pendingCollapsedProjectId.current;
+      pendingCollapsedProjectId.current = undefined;
+      pendingCollapsedValue.current = null;
+    }
+    if (collapsedProjectId.current !== activeProjectId) return;
     saveCollapsed(activeProjectId, collapsed);
   }, [activeProjectId, collapsed]);
 
   useEffect(() => {
-    try { localStorage.setItem(TERMINAL_TABS_KEY, JSON.stringify(terminalTabs)); } catch {}
-  }, [terminalTabs]);
-
-  useEffect(() => {
-    try {
-      if (activeTerminalId) localStorage.setItem(ACTIVE_TERMINAL_TAB_KEY, activeTerminalId);
-      else localStorage.removeItem(ACTIVE_TERMINAL_TAB_KEY);
-    } catch {}
-  }, [activeTerminalId]);
+    saveUiStateCache(currentUiState);
+    if (!didReceiveState.current) return;
+    const timeout = window.setTimeout(() => {
+      void api("/api/ui-state", {
+        method: "PATCH",
+        body: JSON.stringify(currentUiState),
+      }).catch(() => {});
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [currentUiState]);
 
   useEffect(() => {
     saveTerminalWidth(terminalWidth);
@@ -386,6 +486,10 @@ export default function Board() {
   }, [sidebarWidth]);
 
   useEffect(() => {
+    saveBoardLayout(boardLayout);
+  }, [boardLayout]);
+
+  useEffect(() => {
     if (!boardElement) return;
     const updateLayout = () => {
       const workspaceWidth = boardElement.parentElement?.getBoundingClientRect().width;
@@ -394,8 +498,8 @@ export default function Board() {
         ? Math.max(0, workspaceWidth - terminalWidth)
         : renderedWidth;
       const compact = width < BOARD_COMPACT_MAX_WIDTH;
-      setBoardCompact(compact);
-      setBoardRows(!compact && width < BOARD_ROWS_MAX_WIDTH);
+      setAutoBoardCompact(compact);
+      setAutoBoardRows(!compact && width < BOARD_ROWS_MAX_WIDTH);
     };
     updateLayout();
     const observer = new ResizeObserver(updateLayout);
@@ -523,7 +627,25 @@ export default function Board() {
 
   async function refresh() {
     try {
-      const data = await api<{ home: string; projects: Project[]; prompts: Prompt[]; settings: AppSettings }>("/api/state");
+      const data = await api<{ home: string; projects: Project[]; prompts: Prompt[]; settings: AppSettings; uiState?: UiState; terminalSessions?: string[] | null }>("/api/state");
+      const serverUiState = data.uiState ? normalizeUiState(data.uiState) : null;
+      if (serverUiState && shouldHydrateUiStateFromServer.current) {
+        const tabs = validTerminalTabs(serverUiState.terminalTabs, data.projects, data.prompts, data.terminalSessions);
+        const activeTerminalTabId = serverUiState.activeTerminalTabId && tabs.some((tab) => tab.id === serverUiState.activeTerminalTabId)
+          ? serverUiState.activeTerminalTabId
+          : tabs[0]?.id ?? null;
+        const hydratedUiState = normalizeUiState({ ...serverUiState, terminalTabs: tabs, activeTerminalTabId });
+        saveUiStateCache(hydratedUiState);
+        applyUiState(hydratedUiState);
+        shouldHydrateUiStateFromServer.current = false;
+      } else {
+        setTerminalTabs((tabs) => {
+          const next = validTerminalTabs(tabs, data.projects, data.prompts, data.terminalSessions);
+          setActiveTerminalId((active) => active && next.some((tab) => tab.id === active) ? active : next[0]?.id ?? null);
+          return next;
+        });
+      }
+      didReceiveState.current = true;
       setProjects(data.projects);
       setPrompts(data.prompts);
       const nextSettings = data.settings ?? { fastModel: "", smartModel: "", agentPresets: [], defaultPresetId: "pi", helperPresetId: "", lastProjectId: "" };
@@ -539,6 +661,7 @@ export default function Board() {
         const urlId = getProjectIdFromUrl();
         if (hasProject(urlId)) return urlId;
         if (hasProject(cur)) return cur;
+        if (hasProject(serverUiState?.lastProjectId)) return serverUiState!.lastProjectId;
         if (hasProject(nextSettings.lastProjectId)) return nextSettings.lastProjectId;
         return data.projects[0]?.id ?? null;
       });
@@ -1075,10 +1198,12 @@ export default function Board() {
               <ThemeSettingsPicker
                 theme={theme}
                 terminalThemeName={terminalThemeName}
+                boardLayout={boardLayout}
                 onThemeChange={setTheme}
                 glass={glassSettings}
                 onGlassChange={setGlassSettings}
                 onTerminalThemeChange={setTerminalThemeName}
+                onBoardLayoutChange={setBoardLayout}
               />
             </div>
 
