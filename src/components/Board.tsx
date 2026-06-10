@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { motion } from "motion/react";
 import { Check, FolderKanban, FolderRoot, GitBranch, Hash, Monitor, Moon, Palette, Play, Settings, SquareTerminal, Sun } from "lucide-react";
 import TerminalPane from "./TerminalPane.js";
 import Portal from "./Portal.js";
@@ -1342,8 +1343,26 @@ export default function Board() {
               )}
               </div>
               <DragOverlay dropAnimation={null}>
-                {dragging ? <div className="overlay-card">{truncate(dragging.text, 140)}</div> : null}
-                {draggingIssue ? <div className="overlay-card issue-overlay">{truncate(draggingIssue.title, 140)}</div> : null}
+                {dragging ? (
+                  <motion.div
+                    className="overlay-card"
+                    initial={{ rotate: 0, scale: 1 }}
+                    animate={{ rotate: -1.2, scale: 1.03 }}
+                    transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+                  >
+                    {truncate(dragging.text, 140)}
+                  </motion.div>
+                ) : null}
+                {draggingIssue ? (
+                  <motion.div
+                    className="overlay-card issue-overlay"
+                    initial={{ rotate: 0, scale: 1 }}
+                    animate={{ rotate: -1.2, scale: 1.03 }}
+                    transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+                  >
+                    {truncate(draggingIssue.title, 140)}
+                  </motion.div>
+                ) : null}
               </DragOverlay>
             </DndContext>
 

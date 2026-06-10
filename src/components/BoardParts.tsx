@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { DndContext, KeyboardSensor, PointerSensor, closestCorners, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronLeft, ChevronRight, Copy, Info, Pencil, Plus, RefreshCw, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import ProjectPicker from "./ProjectPicker.js";
 import ModelPicker from "./ModelPicker.js";
@@ -423,37 +424,55 @@ export function ColumnView(props: {
           {props.issueSection && itemIds.length === 0 && (
             <div className="issue-section">{props.issueSection}</div>
           )}
-          {(props.issueItems ?? []).map((item, i) => (
-            <div key={item.id} data-prompt-id={item.id}>
-              {showIndicator && overIndex === i && <div className="drop-indicator" />}
-              <SortableIssueCard issue={item.issue} />
-            </div>
-          ))}
+          <AnimatePresence mode="popLayout">
+            {(props.issueItems ?? []).map((item, i) => (
+              <motion.div
+                key={item.id}
+                data-prompt-id={item.id}
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+              >
+                {showIndicator && overIndex === i && <div className="drop-indicator" />}
+                <SortableIssueCard issue={item.issue} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
           {itemIds.length === 0 && !props.issueSection && (
             <div className="column-empty-state" style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}>
               {isIssueCol ? "No issues." : props.id === "PROMPTS" ? "Add a prompt below." : "Drop a prompt here."}
             </div>
           )}
-          {props.prompts.map((p, i) => (
-            <div key={p.id} data-prompt-id={p.id}>
-              {showIndicator && overIndex === issueIds.length + i && <div className="drop-indicator" />}
-              <Card
-                prompt={p}
-                presets={props.presets}
-                onDelete={props.onDelete}
-                onEdit={props.onEdit}
-                onArchive={props.onArchive}
-                onUnarchive={props.onUnarchive}
-                onOpenTerminal={props.onOpenTerminal}
-                onSummarize={props.onSummarize}
-                isSummarizing={props.summarizingIds?.has(p.id)}
-                isTerminalOpen={!!p.tmuxSession && props.openTerminalIds.has(p.tmuxSession)}
-                isActiveTerminal={!!p.tmuxSession && p.tmuxSession === props.activeTerminalId}
-                home={props.home}
-                isArchivedCol={props.isArchivedCol}
-              />
-            </div>
-          ))}
+          <AnimatePresence mode="popLayout">
+            {props.prompts.map((p, i) => (
+              <motion.div
+                key={p.id}
+                data-prompt-id={p.id}
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+              >
+                {showIndicator && overIndex === issueIds.length + i && <div className="drop-indicator" />}
+                <Card
+                  prompt={p}
+                  presets={props.presets}
+                  onDelete={props.onDelete}
+                  onEdit={props.onEdit}
+                  onArchive={props.onArchive}
+                  onUnarchive={props.onUnarchive}
+                  onOpenTerminal={props.onOpenTerminal}
+                  onSummarize={props.onSummarize}
+                  isSummarizing={props.summarizingIds?.has(p.id)}
+                  isTerminalOpen={!!p.tmuxSession && props.openTerminalIds.has(p.tmuxSession)}
+                  isActiveTerminal={!!p.tmuxSession && p.tmuxSession === props.activeTerminalId}
+                  home={props.home}
+                  isArchivedCol={props.isArchivedCol}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
           {showIndicator && (overIndex === -1 || overIndex >= itemIds.length) && <div className="drop-indicator" />}
         </div>
       </SortableContext>
