@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { DndContext, KeyboardSensor, PointerSensor, closestCorners, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, ChevronLeft, Copy, Info, Pencil, Plus, SquareTerminal, Trash2, Undo2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, Info, Pencil, Plus, RefreshCw, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import ProjectPicker from "./ProjectPicker.js";
 import ModelPicker from "./ModelPicker.js";
 import PresetPicker from "./PresetPicker.js";
@@ -285,6 +285,8 @@ export function ColumnView(props: {
   isArchivedCol?: boolean;
   onClearDone?: () => void;
   isClearingDone?: boolean;
+  onRefreshIssues?: () => void;
+  loadingIssues?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: props.id });
   const issueIds = (props.issueItems ?? []).map((item) => item.id);
@@ -336,22 +338,26 @@ export function ColumnView(props: {
   }
 
   if (props.collapsed) {
-    return (
-      <Tooltip content={`Expand ${props.title}`}>
-        <div
-          className={`column column-collapsed ${isOverColumn ? "drop-active" : ""}`}
-          onClick={props.onToggleCollapse}
-        >
-          <div ref={setNodeRef} className="column-collapsed-inner">
-            <Icon className="column-icon collapsed" />
-            <span className="column-collapsed-title">{props.title}</span>
-            {totalCount > 0 && (
-              <span className="count-chip">{totalCount}</span>
-            )}
-          </div>
+    const canExpand = !!props.onToggleCollapse;
+    const inner = (
+      <div
+        ref={setNodeRef}
+        className={`column column-collapsed ${!canExpand ? "column-collapsed-frozen" : ""} ${isOverColumn ? "drop-active" : ""}`}
+        onClick={props.onToggleCollapse}
+      >
+        <div className="column-collapsed-inner">
+          <Icon className="column-icon collapsed" />
+          <span className="column-collapsed-title">{props.title}</span>
+          {totalCount > 0 && (
+            <span className="count-chip">{totalCount}</span>
+          )}
+          {canExpand && <ChevronRight className="column-collapsed-chevron" />}
         </div>
-      </Tooltip>
+      </div>
     );
+    return canExpand ? (
+      <Tooltip content={`Expand ${props.title}`}>{inner}</Tooltip>
+    ) : inner;
   }
 
   return (
@@ -377,7 +383,23 @@ export function ColumnView(props: {
             </button>
           </Tooltip>
         )}
-        <ChevronLeft className="column-collapse-icon" />
+        {props.onRefreshIssues && (
+          <Tooltip content={props.loadingIssues ? "Refreshing issues…" : "Refresh issues"}>
+            <button
+              type="button"
+              className="btn ghost sm icon-only column-refresh-btn"
+              disabled={props.loadingIssues}
+              aria-label={props.loadingIssues ? "Refreshing issues" : "Refresh issues"}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onRefreshIssues?.();
+              }}
+            >
+              <RefreshCw size={15} className={props.loadingIssues ? "spin" : ""} />
+            </button>
+          </Tooltip>
+        )}
+        {props.onToggleCollapse && <ChevronLeft className="column-collapse-icon" />}
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div className={`column-body ${itemIds.length === 0 && !props.issueSection ? "column-body-empty" : ""}`}>

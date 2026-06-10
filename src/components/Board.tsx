@@ -940,6 +940,26 @@ export default function Board() {
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
+  async function refreshIssues() {
+    if (!activeProject) return;
+    setLoadingIssues(true);
+    try {
+      const [gh, li] = await Promise.all([
+        activeProject.githubRepo
+          ? api<{ issues: GithubIssue[] }>(`/api/projects/${activeProject.id}/github-issues`).then((d) => d.issues).catch(() => [] as GithubIssue[])
+          : Promise.resolve([] as GithubIssue[]),
+        activeProject.showLinearIssues
+          ? api<{ issues: LinearIssue[] }>(`/api/projects/${activeProject.id}/linear-issues`).then((d) => d.issues).catch(() => [] as LinearIssue[])
+          : Promise.resolve([] as LinearIssue[]),
+      ]);
+      setGithubIssues(gh);
+      setLinearIssues(li);
+      setHiddenIssueIds(new Set());
+    } finally {
+      setLoadingIssues(false);
+    }
+  }
+
   useEffect(() => {
     if (!activeProject) {
       setGithubIssues([]);
@@ -947,19 +967,7 @@ export default function Board() {
       setHiddenIssueIds(new Set());
       return;
     }
-    setLoadingIssues(true);
-    void Promise.all([
-      activeProject.githubRepo
-        ? api<{ issues: GithubIssue[] }>(`/api/projects/${activeProject.id}/github-issues`).then((d) => d.issues).catch(() => [] as GithubIssue[])
-        : Promise.resolve([] as GithubIssue[]),
-      activeProject.showLinearIssues
-        ? api<{ issues: LinearIssue[] }>(`/api/projects/${activeProject.id}/linear-issues`).then((d) => d.issues).catch(() => [] as LinearIssue[])
-        : Promise.resolve([] as LinearIssue[]),
-    ]).then(([gh, li]) => {
-      setGithubIssues(gh);
-      setLinearIssues(li);
-      setHiddenIssueIds(new Set());
-    }).finally(() => setLoadingIssues(false));
+    void refreshIssues();
   }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showLinearIssues]);
 
   const githubBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
@@ -1090,6 +1098,10 @@ export default function Board() {
                     ? archivedPrompts
                     : projectPrompts.filter((p) => p.column === col.id);
                   const isIssueCol = col.id === "GITHUB" || col.id === "LINEAR";
+                  const colItemCount = col.id === "GITHUB" ? githubBoardIssues.length
+                    : col.id === "LINEAR" ? linearBoardIssues.length
+                    : colPrompts.length;
+                  const colEmpty = colItemCount === 0 && col.id !== "PROMPTS";
                   return (
                     <ColumnView
                       key={col.id}
@@ -1110,12 +1122,14 @@ export default function Board() {
                       home={home}
                       activeId={activeDragId}
                       overId={overId}
-                      collapsed={!!collapsed[col.id]}
+                      collapsed={colEmpty ? false : !!collapsed[col.id]}
                       compact={boardCompact}
-                      onToggleCollapse={() => toggleCollapse(col.id)}
+                      onToggleCollapse={colEmpty ? undefined : () => toggleCollapse(col.id)}
                       isArchivedCol={col.id === "ARCHIVED"}
                       onClearDone={col.id === "ARCHIVED" ? clearDonePrompts : undefined}
                       isClearingDone={col.id === "ARCHIVED" ? isClearingDone : false}
+                      onRefreshIssues={isIssueCol ? refreshIssues : undefined}
+                      loadingIssues={isIssueCol ? loadingIssues : false}
                       issueSection={isIssueCol && loadingIssues ? (
                         <div className="issue-section-loading">Loading issues…</div>
                       ) : undefined}
