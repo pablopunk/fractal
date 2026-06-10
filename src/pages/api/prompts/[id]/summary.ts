@@ -5,7 +5,7 @@ import { withPromptStatus } from "~/lib/server/prompt-status.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params }) => {
+export const POST: APIRoute = async ({ params, request }) => {
   const id = params.id!;
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
@@ -13,10 +13,12 @@ export const POST: APIRoute = async ({ params }) => {
   if (!project) return Response.json({ error: "project missing" }, { status: 404 });
 
   try {
+    const body = await request.json().catch(() => ({}));
+    const force = body?.force === true;
     const settings = getSettings();
     const preset = settings.agentPresets.find((p) => p.id === settings.helperPresetId);
     if (!preset) return Response.json({ prompt: await withPromptStatus(prompt) });
-    const summary = await summarizePromptText({ preset, cwd: project.path, text: prompt.text });
+    const summary = await summarizePromptText({ preset, cwd: project.path, text: prompt.text, force });
     const updated = updatePrompt(id, { summary: summary || null } as never);
     return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
   } catch (e) {

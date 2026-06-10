@@ -917,10 +917,10 @@ export default function Board() {
     }
   }
 
-  async function refreshPromptSummary(id: string) {
+  async function refreshPromptSummary(id: string, force = false) {
     setSummarizingIds((ids) => new Set(ids).add(id));
     try {
-      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/summary`, { method: "POST" });
+      const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/summary`, { method: "POST", body: JSON.stringify({ force }) });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
     } catch {
     } finally {
@@ -1281,7 +1281,7 @@ export default function Board() {
                       onArchive={archivePrompt}
                       onUnarchive={unarchivePrompt}
                       onOpenTerminal={openTerminal}
-                      onSummarize={(id) => void refreshPromptSummary(id)}
+                      onSummarize={(id) => void refreshPromptSummary(id, true)}
                       summarizingIds={summarizingIds}
                       openTerminalIds={openTerminalIds}
                       activeTerminalId={activeTerminalId}

@@ -21,7 +21,7 @@ function wordCount(text: string): number {
 
 export function shouldSummarizePromptText(text: string): boolean {
   const normalized = normalizePromptForSummary(text);
-  return normalized.length >= MIN_SUMMARY_CHARACTERS || wordCount(normalized) >= MIN_SUMMARY_WORDS;
+  return text.length >= MIN_SUMMARY_CHARACTERS || wordCount(text) >= MIN_SUMMARY_WORDS || normalized.length >= MIN_SUMMARY_CHARACTERS || wordCount(normalized) >= MIN_SUMMARY_WORDS;
 }
 
 function cleanOutput(value: string): string {
@@ -95,7 +95,7 @@ export async function runPresetForText(input: { preset: AgentPreset; cwd: string
   throw new Error(`Preset ${input.preset.name} cannot be used as a Fractal AI helper yet`);
 }
 
-export async function summarizePromptText(input: { preset: AgentPreset; cwd: string; text: string }): Promise<string> {
-  if (!shouldSummarizePromptText(input.text)) return "";
+export async function summarizePromptText(input: { preset: AgentPreset; cwd: string; text: string; force?: boolean }): Promise<string> {
+  if (!input.force && !shouldSummarizePromptText(input.text)) return "";
   return runPresetForText({ preset: input.preset, cwd: input.cwd, prompt: helperPrompt(input.text) });
 }
