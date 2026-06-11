@@ -7,7 +7,6 @@ export default defineConfig({
   adapter: node({ mode: "standalone" }),
   integrations: [react()],
   server: { port: 7666, host: "127.0.0.1" },
-  security: { checkOrigin: false },
   devToolbar: { enabled: false },
   vite: {
     ssr: {
