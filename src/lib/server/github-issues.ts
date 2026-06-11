@@ -16,17 +16,21 @@ type GhIssueJson = {
   createdAt: string;
 };
 
-let _ghConfigured: boolean | null = null;
+let _ghConfigured: { value: boolean; checkedAt: number } | null = null;
+const CONFIG_TTL_MS = 60_000;
 
 export async function isGhConfigured(): Promise<boolean> {
-  if (_ghConfigured !== null) return _ghConfigured;
+  if (_ghConfigured && Date.now() - _ghConfigured.checkedAt < CONFIG_TTL_MS)
+    return _ghConfigured.value;
+  let value = false;
   try {
     await exec("gh", ["auth", "status"], { timeoutMs: 5000 });
-    _ghConfigured = true;
-  } catch {
-    _ghConfigured = false;
+    value = true;
+  } catch (err) {
+    console.warn("[fractal] gh not configured:", err instanceof Error ? err.message : err);
   }
-  return _ghConfigured;
+  _ghConfigured = { value, checkedAt: Date.now() };
+  return value;
 }
 
 export async function detectGithubRepo(projectPath: string): Promise<string> {
@@ -44,7 +48,8 @@ export async function detectGithubRepo(projectPath: string): Promise<string> {
     if (httpsMatch) return `${httpsMatch[1]}/${httpsMatch[2]}`;
 
     return "";
-  } catch {
+  } catch (err) {
+    console.warn("[fractal] detectGithubRepo failed:", err instanceof Error ? err.message : err);
     return "";
   }
 }
@@ -77,7 +82,8 @@ export async function fetchGithubIssues(repo: string, limit = 20): Promise<Githu
       labels: issue.labels.map((l) => l.name),
       createdAt: issue.createdAt,
     }));
-  } catch {
+  } catch (err) {
+    console.warn("[fractal] fetchGithubIssues failed:", err instanceof Error ? err.message : err);
     return [];
   }
 }

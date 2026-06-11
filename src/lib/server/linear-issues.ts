@@ -16,17 +16,21 @@ type LinearIssueNode = {
   priority?: string | number | null;
 };
 
-let _linearConfigured: boolean | null = null;
+let _linearConfigured: { value: boolean; checkedAt: number } | null = null;
+const CONFIG_TTL_MS = 60_000;
 
 export async function isLinearConfigured(): Promise<boolean> {
-  if (_linearConfigured !== null) return _linearConfigured;
+  if (_linearConfigured && Date.now() - _linearConfigured.checkedAt < CONFIG_TTL_MS)
+    return _linearConfigured.value;
+  let value = false;
   try {
     await exec("linear", ["--version"], { timeoutMs: 5000 });
-    _linearConfigured = true;
-  } catch {
-    _linearConfigured = false;
+    value = true;
+  } catch (err) {
+    console.warn("[fractal] linear not configured:", err instanceof Error ? err.message : err);
   }
-  return _linearConfigured;
+  _linearConfigured = { value, checkedAt: Date.now() };
+  return value;
 }
 
 export async function fetchLinearIssues(limit = 20): Promise<LinearIssue[]> {
@@ -59,7 +63,8 @@ export async function fetchLinearIssues(limit = 20): Promise<LinearIssue[]> {
       state: issue.state?.name ?? "",
       priority: issue.priority == null ? "" : String(issue.priority),
     }));
-  } catch {
+  } catch (err) {
+    console.warn("[fractal] fetchLinearIssues failed:", err instanceof Error ? err.message : err);
     return [];
   }
 }
