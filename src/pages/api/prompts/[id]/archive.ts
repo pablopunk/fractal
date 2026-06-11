@@ -66,7 +66,8 @@ async function completeArchive(prompt: Prompt, projectPath: string) {
  * Optionally accepts { action } to create a PR, merge to main, or discard (force-remove worktree).
  */
 export const POST: APIRoute = async ({ params, request }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
 
@@ -193,7 +194,8 @@ export const POST: APIRoute = async ({ params, request }) => {
  * Unarchive a prompt
  */
 export const DELETE: APIRoute = async ({ params }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
 

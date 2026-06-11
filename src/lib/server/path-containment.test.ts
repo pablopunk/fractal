@@ -34,7 +34,9 @@ describe("resolvedPathIsWithin", () => {
 
   it("rejects a `..` traversal to an existing outside file", () => {
     writeFileSync(join(outside, "hosts.txt"), "secret");
-    expect(resolvedPathIsWithin(root, join(root, "..", basename(outside), "hosts.txt"))).toBe(false);
+    expect(resolvedPathIsWithin(root, join(root, "..", basename(outside), "hosts.txt"))).toBe(
+      false,
+    );
   });
 
   it("rejects a symlink inside root pointing outside", () => {

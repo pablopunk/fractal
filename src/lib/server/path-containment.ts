@@ -7,7 +7,9 @@ export function resolvedPathIsWithin(root: string, candidate: string): boolean {
     const realCandidate = realpathSync(resolve(candidate));
     if (realCandidate === realRoot) return true;
     const rel = relative(realRoot, realCandidate);
-    return rel !== "" && rel !== "." && !rel.startsWith(".." + sep) && rel !== ".." && !isAbsolute(rel);
+    return (
+      rel !== "" && rel !== "." && !rel.startsWith(".." + sep) && rel !== ".." && !isAbsolute(rel)
+    );
   } catch {
     return false;
   }

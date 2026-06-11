@@ -6,7 +6,8 @@ import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/s
 export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
   const project = getProject(prompt.projectId);
