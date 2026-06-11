@@ -1,5 +1,5 @@
-import { exec } from "./exec.js";
 import { existsSync, statSync } from "node:fs";
+import { exec } from "./exec.js";
 
 async function gitOutput(path: string, args: string[]): Promise<string | null> {
   try {
@@ -34,11 +34,19 @@ export async function branchExists(repoPath: string, branch: string): Promise<bo
   return (await gitOutput(repoPath, ["rev-parse", "--verify", branch])) !== null;
 }
 
-export async function createWorktree(repoPath: string, branch: string, worktreePath: string): Promise<void> {
+export async function createWorktree(
+  repoPath: string,
+  branch: string,
+  worktreePath: string,
+): Promise<void> {
   await exec("git", ["-C", repoPath, "worktree", "add", "-b", branch, worktreePath]);
 }
 
-export async function ensureWorktree(repoPath: string, branch: string, worktreePath: string): Promise<void> {
+export async function ensureWorktree(
+  repoPath: string,
+  branch: string,
+  worktreePath: string,
+): Promise<void> {
   if (existsSync(worktreePath)) return;
   if (await branchExists(repoPath, branch)) {
     await exec("git", ["-C", repoPath, "worktree", "add", worktreePath, branch]);
@@ -80,9 +88,20 @@ export async function getUncommittedChanges(worktreePath: string): Promise<strin
   }
 }
 
-export async function removeWorktree(repoPath: string, worktreePath: string, force = false): Promise<void> {
+export async function removeWorktree(
+  repoPath: string,
+  worktreePath: string,
+  force = false,
+): Promise<void> {
   try {
-    await exec("git", ["-C", repoPath, "worktree", "remove", ...(force ? ["--force"] : []), worktreePath]);
+    await exec("git", [
+      "-C",
+      repoPath,
+      "worktree",
+      "remove",
+      ...(force ? ["--force"] : []),
+      worktreePath,
+    ]);
   } catch (e) {
     // If worktree is already gone or invalid, prune stale git metadata.
     try {
@@ -95,7 +114,11 @@ export async function removeWorktree(repoPath: string, worktreePath: string, for
 }
 
 export async function getDefaultBranch(repoPath: string): Promise<string> {
-  const originHead = await gitOutput(repoPath, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+  const originHead = await gitOutput(repoPath, [
+    "symbolic-ref",
+    "--short",
+    "refs/remotes/origin/HEAD",
+  ]);
   if (originHead?.startsWith("origin/")) return originHead.slice("origin/".length);
 
   const mainRef = await gitOutput(repoPath, ["rev-parse", "--verify", "main"]);
@@ -119,10 +142,14 @@ export async function isBranchMerged(repoPath: string, branch: string): Promise<
 
 export async function hasPullRequest(repoPath: string, branch: string): Promise<boolean> {
   try {
-    const { stdout } = await exec("gh", ["pr", "list", "--head", branch, "--state", "all", "--json", "number"], {
-      cwd: repoPath,
-      timeoutMs: 5000,
-    });
+    const { stdout } = await exec(
+      "gh",
+      ["pr", "list", "--head", branch, "--state", "all", "--json", "number"],
+      {
+        cwd: repoPath,
+        timeoutMs: 5000,
+      },
+    );
     const prs = JSON.parse(stdout) as Array<{ number: number }>;
     return prs.length > 0;
   } catch {
@@ -135,13 +162,11 @@ export async function createPullRequest(
   branch: string,
   title: string,
 ): Promise<{ number: number; url: string }> {
-  const { stdout } = await exec("gh", [
-    "pr", "create",
-    "--head", branch,
-    "--fill-first",
-    "--title", title,
-    "--json", "number,url",
-  ], { cwd: repoPath, timeoutMs: 30000 });
+  const { stdout } = await exec(
+    "gh",
+    ["pr", "create", "--head", branch, "--fill-first", "--title", title, "--json", "number,url"],
+    { cwd: repoPath, timeoutMs: 30000 },
+  );
   const { number, url } = JSON.parse(stdout.trim()) as { number: number; url: string };
   return { number, url };
 }

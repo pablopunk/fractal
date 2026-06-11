@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
-import { deletePrompt, getPrompt, listPrompts, getProject, updatePrompt } from "./store.js";
-import { killSession } from "./tmux.js";
-import { removeWorktree, hasUncommittedChanges, getUncommittedChanges } from "./git.js";
 import type { Prompt } from "./db/schema.js";
+import { getUncommittedChanges, hasUncommittedChanges, removeWorktree } from "./git.js";
+import { deletePrompt, getProject, getPrompt, listPrompts, updatePrompt } from "./store.js";
+import { killSession } from "./tmux.js";
 
 export type CleanupCheckResult = {
   canDelete: boolean;
@@ -59,7 +59,7 @@ export async function cleanupPrompt(prompt: Prompt, force = false): Promise<void
             const hasChanges = await hasUncommittedChanges(prompt.worktreePath);
             if (hasChanges) {
               throw new Error(
-                "Worktree has uncommitted changes. Confirm deletion to discard changes."
+                "Worktree has uncommitted changes. Confirm deletion to discard changes.",
               );
             }
           }
@@ -93,7 +93,9 @@ export async function cleanupPromptById(id: string, force = false): Promise<void
  * - Prompts with worktreePath that no longer exists on disk
  * - Archive them or delete depending on flag
  */
-export async function detectAndCleanupOrphans(options: { delete?: boolean; archive?: boolean } = {}): Promise<{
+export async function detectAndCleanupOrphans(
+  options: { delete?: boolean; archive?: boolean } = {},
+): Promise<{
   cleaned: Prompt[];
   archived: Prompt[];
 }> {

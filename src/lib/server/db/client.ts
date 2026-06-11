@@ -80,38 +80,74 @@ function ensureSchema(sqlite: Database.Database) {
 
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN model_profile TEXT NOT NULL DEFAULT 'smart';");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN preset_id TEXT NOT NULL DEFAULT 'pi';");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]';");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN summary TEXT;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN icon TEXT;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN icon_mime TEXT;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN default_preset_id TEXT;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN github_repo TEXT;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN show_github_issues INTEGER NOT NULL DEFAULT 0;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN show_linear_issues INTEGER NOT NULL DEFAULT 0;");
-  } catch (err) { if (!/duplicate column/i.test(String(err))) console.error("[fractal-db] migration step failed:", err); }
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
 }

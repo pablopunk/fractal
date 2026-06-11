@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import fuzzysort from "fuzzysort";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Portal from "./Portal";
 
 type PiModel = { id: string; provider: string; model: string };
@@ -15,7 +15,13 @@ type Props = {
 const POPUP_WIDTH = 320;
 const POPUP_MAX_HEIGHT = 360;
 
-export default function ModelPicker({ models, value, onChange, defaultLabel = "default", searchPlaceholder = "Search models…" }: Props) {
+export default function ModelPicker({
+  models,
+  value,
+  onChange,
+  defaultLabel = "default",
+  searchPlaceholder = "Search models…",
+}: Props) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -28,7 +34,9 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
     ? fuzzysort.go(input.trim(), models, { key: "id", limit: 50 }).map((r) => r.obj)
     : models;
 
-  useEffect(() => { setHighlight(0); }, [input]);
+  useEffect(() => {
+    setHighlight(0);
+  }, []);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -36,7 +44,8 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
     const margin = 8;
     let left = rect.right - POPUP_WIDTH;
     if (left < margin) left = margin;
-    if (left + POPUP_WIDTH > window.innerWidth - margin) left = window.innerWidth - POPUP_WIDTH - margin;
+    if (left + POPUP_WIDTH > window.innerWidth - margin)
+      left = window.innerWidth - POPUP_WIDTH - margin;
     let top = rect.bottom + 6;
     if (top + POPUP_MAX_HEIGHT > window.innerHeight - margin) top = rect.top - POPUP_MAX_HEIGHT - 6;
     setPos({ top, left });
@@ -50,7 +59,9 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
       if (triggerRef.current?.contains(t) || popupRef.current?.contains(t)) return;
       setOpen(false);
     }
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("pointerdown", onDocPointerDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -66,9 +77,13 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "ArrowDown") { e.preventDefault(); setHighlight((h) => Math.min(filtered.length, h + 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setHighlight((h) => Math.max(0, h - 1)); }
-    else if (e.key === "Enter") {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlight((h) => Math.min(filtered.length, h + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(0, h - 1));
+    } else if (e.key === "Enter") {
       e.preventDefault();
       if (highlight === 0) commit("");
       else if (filtered[highlight - 1]) commit(filtered[highlight - 1].id);
@@ -77,14 +92,16 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
 
   return (
     <>
-      <div
-        ref={triggerRef}
-        className="model-picker-trigger"
-        onClick={() => setOpen((o) => !o)}
-      >
+      <div ref={triggerRef} className="model-picker-trigger" onClick={() => setOpen((o) => !o)}>
         <span className="model-picker-value">{value || defaultLabel}</span>
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path
+            d="M1 1l4 4 4-4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </div>
       {open && pos && (
@@ -92,7 +109,12 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
           <div
             ref={popupRef}
             className="model-picker-popup"
-            style={{ top: pos.top, left: pos.left, width: POPUP_WIDTH, maxHeight: POPUP_MAX_HEIGHT }}
+            style={{
+              top: pos.top,
+              left: pos.left,
+              width: POPUP_WIDTH,
+              maxHeight: POPUP_MAX_HEIGHT,
+            }}
           >
             <div className="model-picker-search">
               <input
@@ -108,7 +130,10 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
             <div className="model-picker-items">
               <div
                 className={`picker-item ${highlight === 0 ? "active" : ""}`}
-                onMouseDown={(e) => { e.preventDefault(); commit(""); }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  commit("");
+                }}
                 onMouseEnter={() => setHighlight(0)}
               >
                 <span className="picker-name">{defaultLabel}</span>
@@ -117,7 +142,10 @@ export default function ModelPicker({ models, value, onChange, defaultLabel = "d
                 <div
                   key={m.id}
                   className={`picker-item ${i + 1 === highlight ? "active" : ""}`}
-                  onMouseDown={(e) => { e.preventDefault(); commit(m.id); }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commit(m.id);
+                  }}
                   onMouseEnter={() => setHighlight(i + 1)}
                 >
                   <span className="picker-name">{m.model}</span>

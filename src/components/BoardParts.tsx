@@ -1,21 +1,49 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { DndContext, KeyboardSensor, PointerSensor, closestCorners, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
-import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  closestCorners,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Plus,
+  RefreshCw,
+  SquareTerminal,
+  Trash2,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, ChevronLeft, ChevronRight, Copy, Info, Pencil, Plus, RefreshCw, SquareTerminal, Trash2, Undo2 } from "lucide-react";
-import ProjectPicker from "./ProjectPicker.js";
-import ModelPicker from "./ModelPicker.js";
-import PresetPicker from "./PresetPicker.js";
-import Tooltip from "./Tooltip.js";
-import { Card } from "./Card.js";
-import { SortableIssueCard } from "./IssueCard.js";
-import { LocalImageAttachment } from "./PromptMedia.js";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/lib/client/api.js";
 import { snapSidebarWidth } from "~/lib/client/persistence.js";
-import PresetIcon from "./PresetIcon.js";
+import type {
+  AgentPreset,
+  Column,
+  ModelProfile,
+  PiModel,
+  Project,
+  Prompt,
+} from "~/lib/client/types.js";
+import { Card } from "./Card.js";
+import { SortableIssueCard } from "./IssueCard.js";
+import ModelPicker from "./ModelPicker.js";
 import Portal from "./Portal.js";
-import type { AgentPreset, Column, ModelProfile, PiModel, Project, Prompt, UrlPreview } from "~/lib/client/types.js";
+import PresetIcon from "./PresetIcon.js";
+import PresetPicker from "./PresetPicker.js";
+import ProjectPicker from "./ProjectPicker.js";
+import { LocalImageAttachment } from "./PromptMedia.js";
+import Tooltip from "./Tooltip.js";
 
 export function Sidebar(props: {
   projects: Project[];
@@ -31,7 +59,9 @@ export function Sidebar(props: {
   showShortcuts: boolean;
   onReorder: (ids: string[]) => void | Promise<void>;
 }) {
-  const projectSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const projectSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
 
   function startResize(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -61,15 +91,22 @@ export function Sidebar(props: {
             No projects yet.
           </div>
         )}
-        <DndContext sensors={projectSensors} collisionDetection={closestCorners} onDragEnd={(e) => {
-          const { active, over } = e;
-          if (!over || active.id === over.id) return;
-          const oldIndex = props.projects.findIndex((p) => p.id === active.id);
-          const newIndex = props.projects.findIndex((p) => p.id === over.id);
-          if (oldIndex === -1 || newIndex === -1) return;
-          void props.onReorder(arrayMove(props.projects, oldIndex, newIndex).map((p) => p.id));
-        }}>
-          <SortableContext items={props.projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+        <DndContext
+          sensors={projectSensors}
+          collisionDetection={closestCorners}
+          onDragEnd={(e) => {
+            const { active, over } = e;
+            if (!over || active.id === over.id) return;
+            const oldIndex = props.projects.findIndex((p) => p.id === active.id);
+            const newIndex = props.projects.findIndex((p) => p.id === over.id);
+            if (oldIndex === -1 || newIndex === -1) return;
+            void props.onReorder(arrayMove(props.projects, oldIndex, newIndex).map((p) => p.id));
+          }}
+        >
+          <SortableContext
+            items={props.projects.map((p) => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
             {props.projects.map((p, index) => (
               <SortableProjectItem
                 key={p.id}
@@ -88,24 +125,35 @@ export function Sidebar(props: {
       <div className="sidebar-foot">
         {props.collapsed ? (
           <>
-            <button className="btn block icon-only" onClick={() => props.setShowPicker(true)} aria-label="Add project" title="Add project">
+            <button
+              className="btn block icon-only"
+              onClick={() => props.setShowPicker(true)}
+              aria-label="Add project"
+              title="Add project"
+            >
               <Plus size={16} aria-hidden="true" />
             </button>
-            {props.showPicker && <Portal>
-              <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
-                <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
-                  <ProjectPicker
-                    recentProjects={props.projects}
-                    onSelect={props.onAdd}
-                    autoFocus
-                    placeholder="search projects or paste a path…"
-                  />
-                  <button className="btn ghost block sm" style={{ marginTop: 6 }} onClick={() => props.setShowPicker(false)}>
-                    Cancel
-                  </button>
+            {props.showPicker && (
+              <Portal>
+                <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
+                  <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
+                    <ProjectPicker
+                      recentProjects={props.projects}
+                      onSelect={props.onAdd}
+                      autoFocus
+                      placeholder="search projects or paste a path…"
+                    />
+                    <button
+                      className="btn ghost block sm"
+                      style={{ marginTop: 6 }}
+                      onClick={() => props.setShowPicker(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </Portal>}
+              </Portal>
+            )}
           </>
         ) : props.showPicker ? (
           <div>
@@ -116,7 +164,11 @@ export function Sidebar(props: {
               openUpward
               placeholder="search projects or paste a path…"
             />
-            <button className="btn ghost block sm" style={{ marginTop: 6 }} onClick={() => props.setShowPicker(false)}>
+            <button
+              className="btn ghost block sm"
+              style={{ marginTop: 6 }}
+              onClick={() => props.setShowPicker(false)}
+            >
               Cancel
             </button>
           </div>
@@ -126,14 +178,32 @@ export function Sidebar(props: {
           </button>
         )}
       </div>
-      <div className="sidebar-resize-handle" onPointerDown={startResize} title="Resize projects drawer" />
+      <div
+        className="sidebar-resize-handle"
+        onPointerDown={startResize}
+        title="Resize projects drawer"
+      />
     </aside>
   );
 }
 
-function SortableProjectItem(props: { project: Project; index: number; active: boolean; home: string; showShortcuts: boolean; onSelect: (id: string) => void; onRemove: (id: string) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.project.id });
-  const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+function SortableProjectItem(props: {
+  project: Project;
+  index: number;
+  active: boolean;
+  home: string;
+  showShortcuts: boolean;
+  onSelect: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.project.id,
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
 
   return (
     <div
@@ -146,11 +216,19 @@ function SortableProjectItem(props: { project: Project; index: number; active: b
       {...listeners}
     >
       {props.showShortcuts && props.index < 9 ? (
-        <span className={`project-shortcut-icon ${props.active ? "active" : ""}`} aria-hidden="true">
+        <span
+          className={`project-shortcut-icon ${props.active ? "active" : ""}`}
+          aria-hidden="true"
+        >
           ⌘{props.index + 1}
         </span>
       ) : (
-        <ProjectIcon id={props.project.id} name={props.project.name} path={props.project.path} active={props.active} />
+        <ProjectIcon
+          id={props.project.id}
+          name={props.project.name}
+          path={props.project.path}
+          active={props.active}
+        />
       )}
       <span className="name">{props.project.name}</span>
       <Tooltip content="Remove project">
@@ -177,14 +255,28 @@ function hashString(value: string) {
   return Math.abs(hash);
 }
 
-function ProjectIcon({ id, name, path, active }: { id: string; name: string; path: string; active?: boolean }) {
+function ProjectIcon({
+  id,
+  name,
+  path,
+  active,
+}: {
+  id: string;
+  name: string;
+  path: string;
+  active?: boolean;
+}) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
   const [open, setOpen] = useState(false);
   const [version, setVersion] = useState(0);
   const [saving, setSaving] = useState(false);
   const src = `/api/project-favicon?id=${encodeURIComponent(id)}&cwd=${encodeURIComponent(path)}&v=${version}`;
   const fallback = useMemo(() => {
-    const label = (name || path.split("/").filter(Boolean).at(-1) || "?").replace(/^[._-]+/, "").charAt(0).toUpperCase() || "?";
+    const label =
+      (name || path.split("/").filter(Boolean).at(-1) || "?")
+        .replace(/^[._-]+/, "")
+        .charAt(0)
+        .toUpperCase() || "?";
     const hue = hashString(path || name) % 360;
     return {
       label,
@@ -224,7 +316,11 @@ function ProjectIcon({ id, name, path, active }: { id: string; name: string; pat
       >
         <span className="project-icon-shadow" aria-hidden="true" />
         {status !== "loaded" && (
-          <span className={`project-icon-placeholder ${active ? "active" : ""}`} style={fallback.style} aria-hidden="true">
+          <span
+            className={`project-icon-placeholder ${active ? "active" : ""}`}
+            style={fallback.style}
+            aria-hidden="true"
+          >
             {fallback.label}
           </span>
         )}
@@ -236,24 +332,43 @@ function ProjectIcon({ id, name, path, active }: { id: string; name: string; pat
           onError={() => setStatus("error")}
         />
       </button>
-      {open && <Portal>
-        <div className="modal-overlay" onClick={() => setOpen(false)}>
-          <div className="modal project-icon-modal" onClick={(e) => e.stopPropagation()}>
-            <header className="preset-modal-header">
-              <h2>Change project icon</h2>
-              <button className="btn ghost sm" onClick={() => setOpen(false)}>Close</button>
-            </header>
-            <label
-              className={`project-icon-drop ${saving ? "saving" : ""}`}
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
-              onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) void saveIcon(file); }}
-            >
-              <input type="file" accept="image/*" disabled={saving} onChange={(e) => { const file = e.currentTarget.files?.[0]; if (file) void saveIcon(file); }} />
-              <span>{saving ? "Saving…" : "Drag & drop an image here, or click to choose"}</span>
-            </label>
+      {open && (
+        <Portal>
+          <div className="modal-overlay" onClick={() => setOpen(false)}>
+            <div className="modal project-icon-modal" onClick={(e) => e.stopPropagation()}>
+              <header className="preset-modal-header">
+                <h2>Change project icon</h2>
+                <button className="btn ghost sm" onClick={() => setOpen(false)}>
+                  Close
+                </button>
+              </header>
+              <label
+                className={`project-icon-drop ${saving ? "saving" : ""}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files[0];
+                  if (file) void saveIcon(file);
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={saving}
+                  onChange={(e) => {
+                    const file = e.currentTarget.files?.[0];
+                    if (file) void saveIcon(file);
+                  }}
+                />
+                <span>{saving ? "Saving…" : "Drag & drop an image here, or click to choose"}</span>
+              </label>
+            </div>
           </div>
-        </div>
-      </Portal>}
+        </Portal>
+      )}
     </>
   );
 }
@@ -282,7 +397,10 @@ export function ColumnView(props: {
   prompts: Prompt[];
   presets: AgentPreset[];
   onDelete: (id: string) => void;
-  onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void;
+  onEdit: (
+    id: string,
+    patch: { text?: string; modelProfile?: ModelProfile; presetId?: string },
+  ) => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onOpenTerminal: (prompt: Prompt) => void;
@@ -321,7 +439,10 @@ export function ColumnView(props: {
 
   if (props.compact) {
     return (
-      <div ref={setNodeRef} className={`column column-compact ${isOverColumn ? "drop-active" : ""}`}>
+      <div
+        ref={setNodeRef}
+        className={`column column-compact ${isOverColumn ? "drop-active" : ""}`}
+      >
         <Tooltip content={props.title}>
           <div className="column-compact-head" aria-label={`${props.title} column`}>
             <Icon className="column-icon" />
@@ -331,9 +452,12 @@ export function ColumnView(props: {
         <div className="column-compact-items" aria-label={`${props.title} prompts`}>
           {props.prompts.map((prompt) => {
             const preset = props.presets.find((item) => item.id === prompt.presetId);
-            const terminalOpen = !!prompt.tmuxSession && props.openTerminalIds.has(prompt.tmuxSession);
-            const terminalActive = !!prompt.tmuxSession && prompt.tmuxSession === props.activeTerminalId;
-            const label = prompt.tmuxSession || truncate(prompt.summary?.trim() || prompt.text, 80) || "Prompt";
+            const terminalOpen =
+              !!prompt.tmuxSession && props.openTerminalIds.has(prompt.tmuxSession);
+            const terminalActive =
+              !!prompt.tmuxSession && prompt.tmuxSession === props.activeTerminalId;
+            const label =
+              prompt.tmuxSession || truncate(prompt.summary?.trim() || prompt.text, 80) || "Prompt";
             return (
               <Tooltip key={prompt.id} content={label}>
                 <button
@@ -345,7 +469,13 @@ export function ColumnView(props: {
                     if (prompt.tmuxSession) props.onOpenTerminal(prompt);
                   }}
                 >
-                  {prompt.tmuxSession ? <SquareTerminal size={15} /> : preset ? <PresetIcon preset={preset} size={14} /> : <span className="column-compact-dot" aria-hidden="true" />}
+                  {prompt.tmuxSession ? (
+                    <SquareTerminal size={15} />
+                  ) : preset ? (
+                    <PresetIcon preset={preset} size={14} />
+                  ) : (
+                    <span className="column-compact-dot" aria-hidden="true" />
+                  )}
                 </button>
               </Tooltip>
             );
@@ -366,16 +496,12 @@ export function ColumnView(props: {
         <div className="column-collapsed-inner">
           <Icon className="column-icon collapsed" />
           <span className="column-collapsed-title">{props.title}</span>
-          {totalCount > 0 && (
-            <span className="count-chip">{totalCount}</span>
-          )}
+          {totalCount > 0 && <span className="count-chip">{totalCount}</span>}
           {canExpand && <ChevronRight className="column-collapsed-chevron" />}
         </div>
       </div>
     );
-    return canExpand ? (
-      <Tooltip content={`Expand ${props.title}`}>{inner}</Tooltip>
-    ) : inner;
+    return canExpand ? <Tooltip content={`Expand ${props.title}`}>{inner}</Tooltip> : inner;
   }
 
   return (
@@ -396,7 +522,11 @@ export function ColumnView(props: {
                 props.onClearDone?.();
               }}
             >
-              {props.isClearingDone ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 style={{ width: 14, height: 14 }} />}
+              {props.isClearingDone ? (
+                <span className="btn-spinner" aria-hidden="true" />
+              ) : (
+                <Trash2 style={{ width: 14, height: 14 }} />
+              )}
               {props.isClearingDone ? "Clearing…" : "Clear"}
             </button>
           </Tooltip>
@@ -420,7 +550,9 @@ export function ColumnView(props: {
         {props.onToggleCollapse && <ChevronLeft className="column-collapse-icon" />}
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className={`column-body ${itemIds.length === 0 && !props.issueSection ? "column-body-empty" : ""}`}>
+        <div
+          className={`column-body ${itemIds.length === 0 && !props.issueSection ? "column-body-empty" : ""}`}
+        >
           {props.issueSection && itemIds.length === 0 && (
             <div className="issue-section">{props.issueSection}</div>
           )}
@@ -440,8 +572,15 @@ export function ColumnView(props: {
             ))}
           </AnimatePresence>
           {itemIds.length === 0 && !props.issueSection && (
-            <div className="column-empty-state" style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}>
-              {isIssueCol ? "No issues." : props.id === "PROMPTS" ? "Add a prompt below." : "Drop a prompt here."}
+            <div
+              className="column-empty-state"
+              style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}
+            >
+              {isIssueCol
+                ? "No issues."
+                : props.id === "PROMPTS"
+                  ? "Add a prompt below."
+                  : "Drop a prompt here."}
             </div>
           )}
           <AnimatePresence mode="popLayout">
@@ -454,7 +593,9 @@ export function ColumnView(props: {
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ type: "spring", duration: 0.3, bounce: 0 }}
               >
-                {showIndicator && overIndex === issueIds.length + i && <div className="drop-indicator" />}
+                {showIndicator && overIndex === issueIds.length + i && (
+                  <div className="drop-indicator" />
+                )}
                 <Card
                   prompt={p}
                   presets={props.presets}
@@ -473,7 +614,9 @@ export function ColumnView(props: {
               </motion.div>
             ))}
           </AnimatePresence>
-          {showIndicator && (overIndex === -1 || overIndex >= itemIds.length) && <div className="drop-indicator" />}
+          {showIndicator && (overIndex === -1 || overIndex >= itemIds.length) && (
+            <div className="drop-indicator" />
+          )}
         </div>
       </SortableContext>
       {props.composer}
@@ -484,9 +627,11 @@ export function ColumnView(props: {
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif)$/i;
 
 function getDroppedImagePaths(dt: DataTransfer): string[] {
-  const electron = (window as typeof window & {
-    electron?: { getPathForFile?: (file: File) => string };
-  }).electron;
+  const electron = (
+    window as typeof window & {
+      electron?: { getPathForFile?: (file: File) => string };
+    }
+  ).electron;
 
   const fromElectron = Array.from(dt.files)
     .filter((file) => file.type.startsWith("image/") || IMAGE_RE.test(file.name))
@@ -511,9 +656,25 @@ function getDroppedImagePaths(dt: DataTransfer): string[] {
     .filter((path) => path && IMAGE_RE.test(path));
 }
 
-function SortablePresetItem({ preset, active, isDefault, onSelect }: { preset: AgentPreset; active: boolean; isDefault: boolean; onSelect: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: preset.id });
-  const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+function SortablePresetItem({
+  preset,
+  active,
+  isDefault,
+  onSelect,
+}: {
+  preset: AgentPreset;
+  active: boolean;
+  isDefault: boolean;
+  onSelect: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: preset.id,
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
   return (
     <button
       ref={setNodeRef}
@@ -524,7 +685,10 @@ function SortablePresetItem({ preset, active, isDefault, onSelect }: { preset: A
       {...listeners}
     >
       <div className="preset-modal-list-item-header">
-        <span className="preset-modal-list-name">{preset.name}{isDefault ? " ★" : ""}</span>
+        <span className="preset-modal-list-name">
+          {preset.name}
+          {isDefault ? " ★" : ""}
+        </span>
         <PresetIcon preset={preset} size={14} />
       </div>
       <span className="preset-modal-list-binary">{preset.binary}</span>
@@ -544,29 +708,61 @@ function defaultArgsForBinary(binary: string): string {
 }
 
 function thinkingLevelsForKind(kind: AgentPreset["kind"]): PiModel[] {
-  const levels = kind === "pi"
-    ? ["off", "minimal", "low", "medium", "high", "xhigh"]
-    : kind === "claude"
-      ? ["low", "medium", "high", "xhigh", "max"]
-      : kind === "opencode"
-        ? ["minimal", "high", "max"]
-        : [];
+  const levels =
+    kind === "pi"
+      ? ["off", "minimal", "low", "medium", "high", "xhigh"]
+      : kind === "claude"
+        ? ["low", "medium", "high", "xhigh", "max"]
+        : kind === "opencode"
+          ? ["minimal", "high", "max"]
+          : [];
   return levels.map((level) => ({ id: level, model: level, provider: "thinking" }));
 }
 
-export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId: string; helperPresetId: string; onSetDefault: (id: string) => void; onSetHelper: (id: string) => void; piModels: PiModel[]; claudeModels: PiModel[]; opencodeModels: PiModel[]; onChange: (presets: AgentPreset[]) => void; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+export function PresetSettings(props: {
+  presets: AgentPreset[];
+  defaultPresetId: string;
+  helperPresetId: string;
+  onSetDefault: (id: string) => void;
+  onSetHelper: (id: string) => void;
+  piModels: PiModel[];
+  claudeModels: PiModel[];
+  opencodeModels: PiModel[];
+  onChange: (presets: AgentPreset[]) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = props.open ?? internalOpen;
-  const setOpen = (v: boolean) => { if (props.onOpenChange) props.onOpenChange(v); else setInternalOpen(v); };
+  const setOpen = (v: boolean) => {
+    if (props.onOpenChange) props.onOpenChange(v);
+    else setInternalOpen(v);
+  };
   const [selectedId, setSelectedId] = useState<string | null>(props.presets[0]?.id ?? null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor),
+  );
 
   function update(id: string, patch: Partial<AgentPreset>) {
-    props.onChange(props.presets.map((preset) => preset.id === id ? { ...preset, ...patch } : preset));
+    props.onChange(
+      props.presets.map((preset) => (preset.id === id ? { ...preset, ...patch } : preset)),
+    );
   }
   function addPreset() {
     const id = `custom-${Date.now()}`;
-    props.onChange([...props.presets, { id, name: "Custom", kind: "custom", binary: "codex", argsTemplate: "{{prompt}}", model: "", promptTemplate: "{{prompt}}" }]);
+    props.onChange([
+      ...props.presets,
+      {
+        id,
+        name: "Custom",
+        kind: "custom",
+        binary: "codex",
+        argsTemplate: "{{prompt}}",
+        model: "",
+        promptTemplate: "{{prompt}}",
+      },
+    ]);
     setSelectedId(id);
   }
   function removePreset(id: string) {
@@ -575,109 +771,183 @@ export function PresetSettings(props: { presets: AgentPreset[]; defaultPresetId:
     setSelectedId(next[0]?.id ?? null);
   }
 
-  const selected = props.presets.find((preset) => preset.id === selectedId) ?? props.presets[0] ?? null;
-  const selectedKind: AgentPreset["kind"] = selected ? presetKindForBinary(selected.binary) : "custom";
-  const selectedModels = selectedKind === "claude" ? props.claudeModels : selectedKind === "opencode" ? props.opencodeModels : props.piModels;
+  const selected =
+    props.presets.find((preset) => preset.id === selectedId) ?? props.presets[0] ?? null;
+  const selectedKind: AgentPreset["kind"] = selected
+    ? presetKindForBinary(selected.binary)
+    : "custom";
+  const selectedModels =
+    selectedKind === "claude"
+      ? props.claudeModels
+      : selectedKind === "opencode"
+        ? props.opencodeModels
+        : props.piModels;
 
   return (
     <>
-      <button className="btn ghost sm" onClick={() => setOpen(true)}>Presets</button>
-      {open && <Portal>
-        <div className="modal-overlay" onClick={() => setOpen(false)}>
-          <div className="modal preset-modal" onClick={(e) => e.stopPropagation()}>
-            <header className="preset-modal-header">
-              <h2>Agent presets</h2>
-              <button className="btn ghost sm" onClick={() => setOpen(false)}>Close</button>
-            </header>
-            <div className="preset-modal-body">
-              <aside className="preset-modal-list">
-                <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={(e) => {
-                  const { active, over } = e;
-                  if (!over || active.id === over.id) return;
-                  const oldIndex = props.presets.findIndex((p) => p.id === active.id);
-                  const newIndex = props.presets.findIndex((p) => p.id === over.id);
-                  if (oldIndex === -1 || newIndex === -1) return;
-                  props.onChange(arrayMove(props.presets, oldIndex, newIndex));
-                }}>
-                  <SortableContext items={props.presets.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                    {props.presets.map((preset) => (
-                      <SortablePresetItem
-                        key={preset.id}
-                        preset={preset}
-                        active={preset.id === selected?.id}
-                        isDefault={preset.id === props.defaultPresetId}
-                        onSelect={() => setSelectedId(preset.id)}
+      <button className="btn ghost sm" onClick={() => setOpen(true)}>
+        Presets
+      </button>
+      {open && (
+        <Portal>
+          <div className="modal-overlay" onClick={() => setOpen(false)}>
+            <div className="modal preset-modal" onClick={(e) => e.stopPropagation()}>
+              <header className="preset-modal-header">
+                <h2>Agent presets</h2>
+                <button className="btn ghost sm" onClick={() => setOpen(false)}>
+                  Close
+                </button>
+              </header>
+              <div className="preset-modal-body">
+                <aside className="preset-modal-list">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCorners}
+                    onDragEnd={(e) => {
+                      const { active, over } = e;
+                      if (!over || active.id === over.id) return;
+                      const oldIndex = props.presets.findIndex((p) => p.id === active.id);
+                      const newIndex = props.presets.findIndex((p) => p.id === over.id);
+                      if (oldIndex === -1 || newIndex === -1) return;
+                      props.onChange(arrayMove(props.presets, oldIndex, newIndex));
+                    }}
+                  >
+                    <SortableContext
+                      items={props.presets.map((p) => p.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {props.presets.map((preset) => (
+                        <SortablePresetItem
+                          key={preset.id}
+                          preset={preset}
+                          active={preset.id === selected?.id}
+                          isDefault={preset.id === props.defaultPresetId}
+                          onSelect={() => setSelectedId(preset.id)}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                  <button className="btn ghost sm" onClick={addPreset}>
+                    + New preset
+                  </button>
+                </aside>
+                {selected ? (
+                  <form className="preset-modal-form" onSubmit={(e) => e.preventDefault()}>
+                    <label>
+                      <span>Name</span>
+                      <input
+                        value={selected.name}
+                        onChange={(e) => update(selected.id, { name: e.target.value })}
                       />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-                <button className="btn ghost sm" onClick={addPreset}>+ New preset</button>
-              </aside>
-              {selected ? (
-                <form className="preset-modal-form" onSubmit={(e) => e.preventDefault()}>
-                  <label>
-                    <span>Name</span>
-                    <input value={selected.name} onChange={(e) => update(selected.id, { name: e.target.value })} />
-                  </label>
-                  <label>
-                    <span className="preset-modal-label-row">
-                      Binary
-                      <Tooltip content="Supported agents get automatic defaults for model lists and argument templates. Other binaries still work, but setup is manual.">
-                        <span>
-                          <Info className="preset-modal-info" aria-label="Binary preset info" />
-                        </span>
-                      </Tooltip>
-                    </span>
-                    <input value={selected.binary} onChange={(e) => {
-                      const binary = e.target.value;
-                      const kind = presetKindForBinary(binary);
-                      update(selected.id, { binary, kind, argsTemplate: defaultArgsForBinary(binary) });
-                    }} placeholder="pi, claude, opencode, codex, …" />
-                  </label>
-                  <label>
-                    <span>Model</span>
-                    {selectedKind === "custom" ? (
-                      <input value={selected.model ?? ""} onChange={(e) => update(selected.id, { model: e.target.value })} placeholder="optional, available as {{model}}" />
-                    ) : (
-                      <ModelPicker models={selectedModels} value={selected.model ?? ""} onChange={(model) => update(selected.id, { model })} />
-                    )}
-                  </label>
-                  {selectedKind !== "custom" && (
-                    <label className="preset-modal-compact-field">
-                      <span>Thinking</span>
-                      <ModelPicker models={thinkingLevelsForKind(selectedKind)} value={selected.thinking ?? ""} onChange={(thinking) => update(selected.id, { thinking })} searchPlaceholder="Search thinking…" />
                     </label>
-                  )}
-
-                  <label>
-                    <span>Args template</span>
-                    <input value={selected.argsTemplate} onChange={(e) => update(selected.id, { argsTemplate: e.target.value })} placeholder="--model {{model}} {{prompt}}" />
-                  </label>
-                  <label>
-                    <span>Prompt template</span>
-                    <textarea rows={5} value={selected.promptTemplate ?? "{{prompt}}"} onChange={(e) => update(selected.id, { promptTemplate: e.target.value })} placeholder="Use {{prompt}} for the card text." />
-                  </label>
-                  <label className="preset-modal-default">
-                    <input type="checkbox" checked={selected.id === props.defaultPresetId} onChange={(e) => { if (e.target.checked) props.onSetDefault(selected.id); }} />
-                    <span>Use as default for new prompts</span>
-                  </label>
-                  <label className="preset-modal-default">
-                    <input type="checkbox" checked={selected.id === props.helperPresetId} onChange={(e) => { if (e.target.checked) props.onSetHelper(selected.id); }} />
-                    <span>Use for Fractal AI helpers</span>
-                  </label>
-                  <div className="preset-modal-form-actions">
-                    {props.presets.length > 1 && (
-                      <button type="button" className="btn danger sm" onClick={() => removePreset(selected.id)}>Delete preset</button>
+                    <label>
+                      <span className="preset-modal-label-row">
+                        Binary
+                        <Tooltip content="Supported agents get automatic defaults for model lists and argument templates. Other binaries still work, but setup is manual.">
+                          <span>
+                            <Info className="preset-modal-info" aria-label="Binary preset info" />
+                          </span>
+                        </Tooltip>
+                      </span>
+                      <input
+                        value={selected.binary}
+                        onChange={(e) => {
+                          const binary = e.target.value;
+                          const kind = presetKindForBinary(binary);
+                          update(selected.id, {
+                            binary,
+                            kind,
+                            argsTemplate: defaultArgsForBinary(binary),
+                          });
+                        }}
+                        placeholder="pi, claude, opencode, codex, …"
+                      />
+                    </label>
+                    <label>
+                      <span>Model</span>
+                      {selectedKind === "custom" ? (
+                        <input
+                          value={selected.model ?? ""}
+                          onChange={(e) => update(selected.id, { model: e.target.value })}
+                          placeholder="optional, available as {{model}}"
+                        />
+                      ) : (
+                        <ModelPicker
+                          models={selectedModels}
+                          value={selected.model ?? ""}
+                          onChange={(model) => update(selected.id, { model })}
+                        />
+                      )}
+                    </label>
+                    {selectedKind !== "custom" && (
+                      <label className="preset-modal-compact-field">
+                        <span>Thinking</span>
+                        <ModelPicker
+                          models={thinkingLevelsForKind(selectedKind)}
+                          value={selected.thinking ?? ""}
+                          onChange={(thinking) => update(selected.id, { thinking })}
+                          searchPlaceholder="Search thinking…"
+                        />
+                      </label>
                     )}
-                  </div>
-                </form>
-              ) : (
-                <div className="preset-modal-empty">No presets yet.</div>
-              )}
+
+                    <label>
+                      <span>Args template</span>
+                      <input
+                        value={selected.argsTemplate}
+                        onChange={(e) => update(selected.id, { argsTemplate: e.target.value })}
+                        placeholder="--model {{model}} {{prompt}}"
+                      />
+                    </label>
+                    <label>
+                      <span>Prompt template</span>
+                      <textarea
+                        rows={5}
+                        value={selected.promptTemplate ?? "{{prompt}}"}
+                        onChange={(e) => update(selected.id, { promptTemplate: e.target.value })}
+                        placeholder="Use {{prompt}} for the card text."
+                      />
+                    </label>
+                    <label className="preset-modal-default">
+                      <input
+                        type="checkbox"
+                        checked={selected.id === props.defaultPresetId}
+                        onChange={(e) => {
+                          if (e.target.checked) props.onSetDefault(selected.id);
+                        }}
+                      />
+                      <span>Use as default for new prompts</span>
+                    </label>
+                    <label className="preset-modal-default">
+                      <input
+                        type="checkbox"
+                        checked={selected.id === props.helperPresetId}
+                        onChange={(e) => {
+                          if (e.target.checked) props.onSetHelper(selected.id);
+                        }}
+                      />
+                      <span>Use for Fractal AI helpers</span>
+                    </label>
+                    <div className="preset-modal-form-actions">
+                      {props.presets.length > 1 && (
+                        <button
+                          type="button"
+                          className="btn danger sm"
+                          onClick={() => removePreset(selected.id)}
+                        >
+                          Delete preset
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                ) : (
+                  <div className="preset-modal-empty">No presets yet.</div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </Portal>}
+        </Portal>
+      )}
     </>
   );
 }
@@ -686,7 +956,19 @@ type FileMention = { path: string; name: string };
 
 type ActiveMention = { start: number; query: string };
 
-export function Composer(props: { value: string; onChange: (v: string) => void; imagePaths: string[]; onImagePathsChange: (paths: string[]) => void; onSubmit: () => void; isSubmitting?: boolean; presets: AgentPreset[]; presetId: string; onPresetChange: (v: string) => void; onCreatePreset: () => void; projectId?: string | null }) {
+export function Composer(props: {
+  value: string;
+  onChange: (v: string) => void;
+  imagePaths: string[];
+  onImagePathsChange: (paths: string[]) => void;
+  onSubmit: () => void;
+  isSubmitting?: boolean;
+  presets: AgentPreset[];
+  presetId: string;
+  onPresetChange: (v: string) => void;
+  onCreatePreset: () => void;
+  projectId?: string | null;
+}) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragDepth = useRef(0);
   const [dragOver, setDragOver] = useState(false);
@@ -701,9 +983,13 @@ export function Composer(props: { value: string; onChange: (v: string) => void; 
       return;
     }
     const controller = new AbortController();
-    void api<{ files: FileMention[] }>(`/api/projects/${props.projectId}/files`, { signal: controller.signal })
+    void api<{ files: FileMention[] }>(`/api/projects/${props.projectId}/files`, {
+      signal: controller.signal,
+    })
       .then((data) => setFiles(data.files ?? []))
-      .catch(() => { if (!controller.signal.aborted) setFiles([]); });
+      .catch(() => {
+        if (!controller.signal.aborted) setFiles([]);
+      });
     return () => controller.abort();
   }, [props.projectId]);
 
@@ -711,11 +997,10 @@ export function Composer(props: { value: string; onChange: (v: string) => void; 
   const mentionItems = useMemo(() => {
     if (!mention) return [];
     const query = mention.query.toLowerCase();
-    return files
-      .filter((file) => !query || file.path.toLowerCase().includes(query))
-      .slice(0, 50);
+    return files.filter((file) => !query || file.path.toLowerCase().includes(query)).slice(0, 50);
   }, [files, mention]);
-  const showMentionPicker = !!mention && mention.start !== dismissedMentionStart && mentionItems.length > 0;
+  const showMentionPicker =
+    !!mention && mention.start !== dismissedMentionStart && mentionItems.length > 0;
 
   useEffect(() => {
     setHighlight((value) => Math.min(Math.max(value, 0), Math.max(mentionItems.length - 1, 0)));
@@ -796,9 +1081,17 @@ export function Composer(props: { value: string; onChange: (v: string) => void; 
           onKeyUp={(e) => syncCaret(e.currentTarget)}
           onSelect={(e) => syncCaret(e.currentTarget)}
           onKeyDown={(e) => {
-            if (showMentionPicker && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === "Tab" || e.key === "Escape")) {
+            if (
+              showMentionPicker &&
+              (e.key === "ArrowDown" ||
+                e.key === "ArrowUp" ||
+                e.key === "Enter" ||
+                e.key === "Tab" ||
+                e.key === "Escape")
+            ) {
               e.preventDefault();
-              if (e.key === "ArrowDown") setHighlight((value) => Math.min(mentionItems.length - 1, value + 1));
+              if (e.key === "ArrowDown")
+                setHighlight((value) => Math.min(mentionItems.length - 1, value + 1));
               else if (e.key === "ArrowUp") setHighlight((value) => Math.max(0, value - 1));
               else if (e.key === "Escape") setDismissedMentionStart(mention?.start ?? null);
               else commitMention(mentionItems[highlight]);
@@ -846,14 +1139,23 @@ export function Composer(props: { value: string; onChange: (v: string) => void; 
         </div>
       )}
       <div className="composer-actions">
-        <PresetPicker presets={props.presets} value={props.presetId} onChange={props.onPresetChange} onCreate={props.onCreatePreset} />
+        <PresetPicker
+          presets={props.presets}
+          value={props.presetId}
+          onChange={props.onPresetChange}
+          onCreate={props.onCreatePreset}
+        />
         <div style={{ flex: 1 }} />
         <Tooltip content={props.presets.length === 0 ? "Create a preset first" : "Add prompt"}>
           <span>
             <button
               className="btn primary sm composer-submit"
               onClick={props.onSubmit}
-              disabled={props.isSubmitting || ((!props.value.trim() && props.imagePaths.length === 0) || props.presets.length === 0)}
+              disabled={
+                props.isSubmitting ||
+                (!props.value.trim() && props.imagePaths.length === 0) ||
+                props.presets.length === 0
+              }
               aria-label={props.isSubmitting ? "Adding prompt" : "Add prompt"}
             >
               {props.isSubmitting && <span className="btn-spinner" aria-hidden="true" />}
@@ -874,17 +1176,17 @@ function activeMention(value: string, caret: number): ActiveMention | null {
   return { start: before.length - match[2].length - 1, query: match[2] };
 }
 
-function trimMid(s: string, n = 28): string {
-  return s.length > n ? "…" + s.slice(-n) : s;
+function _trimMid(s: string, n = 28): string {
+  return s.length > n ? `…${s.slice(-n)}` : s;
 }
 export function tildeify(abs: string, home: string): string {
   if (!abs || !home) return abs;
   if (abs === home) return "~";
-  if (abs.startsWith(home + "/")) return "~" + abs.slice(home.length);
+  if (abs.startsWith(`${home}/`)) return `~${abs.slice(home.length)}`;
   return abs;
 }
 export function truncate(s: string, n: number): string {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }
 
 // CSS for drop indicator added to global.css

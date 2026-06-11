@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import fuzzysort from "fuzzysort";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Suggestion = { name: string; absolute: string; root: string };
 type Item = {
@@ -154,7 +154,7 @@ export default function ProjectPicker(props: ProjectPickerProps) {
                 const active = idx === highlight;
                 return (
                   <div
-                    key={item.group + ":" + item.absolute}
+                    key={`${item.group}:${item.absolute}`}
                     className={`picker-item ${active ? "active" : ""}`}
                     role="option"
                     aria-selected={active}
@@ -180,7 +180,7 @@ export default function ProjectPicker(props: ProjectPickerProps) {
 function tildeify(abs: string, home: string): string {
   if (!home) return abs;
   if (abs === home) return "~";
-  if (abs.startsWith(home + "/")) return "~" + abs.slice(home.length);
+  if (abs.startsWith(`${home}/`)) return `~${abs.slice(home.length)}`;
   return abs;
 }
 
@@ -201,6 +201,6 @@ function normalizeInputPath(input: string, home: string): string {
   if (v === "~") return home || v;
   if (v.startsWith("~/") && home) return home + v.slice(1);
   if (v.startsWith("/")) return v;
-  if (home) return home + "/" + v;
+  if (home) return `${home}/${v}`;
   return v;
 }

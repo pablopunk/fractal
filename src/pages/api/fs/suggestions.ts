@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { HOME, SUGGESTION_ROOTS, listDirectories } from "~/lib/server/fs.js";
+import { HOME, listDirectories, SUGGESTION_ROOTS } from "~/lib/server/fs.js";
 
 export const prerender = false;
 

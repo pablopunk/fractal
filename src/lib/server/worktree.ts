@@ -1,10 +1,10 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { WORKTREES_ROOT, ensureDir } from "./paths.js";
-import { ensureWorktree, getRepoName } from "./git.js";
+import { type AgentPreset, renderAgentCommand } from "./agents.js";
 import { canonicalRunId } from "./branch-name.js";
+import { ensureWorktree, getRepoName } from "./git.js";
+import { ensureDir, WORKTREES_ROOT } from "./paths.js";
 import { ensureSession, sanitizeSessionName, spawnCommand } from "./tmux.js";
-import { renderAgentCommand, type AgentPreset } from "./agents.js";
 
 export type LaunchInPlaceResult = {
   tmuxSession: string;
@@ -27,14 +27,22 @@ function parseImagePaths(value: string | null | undefined): string[] {
       if (typeof path !== "string" || path.trim().length === 0) return false;
       if (!path.startsWith("/")) return false;
       if (!IMAGE_EXT_RE.test(path)) return false;
-      try { return existsSync(path) && statSync(path).isFile(); } catch { return false; }
+      try {
+        return existsSync(path) && statSync(path).isFile();
+      } catch {
+        return false;
+      }
     });
   } catch {
     return [];
   }
 }
 
-function promptWithImages(preset: AgentPreset, prompt: string, imagePathsJson?: string | null): string {
+function promptWithImages(
+  preset: AgentPreset,
+  prompt: string,
+  imagePathsJson?: string | null,
+): string {
   const imagePaths = parseImagePaths(imagePathsJson);
   if (imagePaths.length === 0) return prompt;
   const refs = preset.kind === "claude" ? imagePaths.map((path) => `@${path}`) : imagePaths;
@@ -50,10 +58,15 @@ export async function launchInPlace(opts: {
   preset: AgentPreset;
   spawnAgent?: boolean;
 }): Promise<LaunchInPlaceResult> {
-  const session = sanitizeSessionName(canonicalRunId(opts.projectName, opts.prompt, opts.promptId.slice(0, 6)));
+  const session = sanitizeSessionName(
+    canonicalRunId(opts.projectName, opts.prompt, opts.promptId.slice(0, 6)),
+  );
   await ensureSession(session, opts.projectPath);
   if (opts.spawnAgent !== false) {
-    await spawnCommand(session, renderAgentCommand(opts.preset, promptWithImages(opts.preset, opts.prompt, opts.imagePaths)));
+    await spawnCommand(
+      session,
+      renderAgentCommand(opts.preset, promptWithImages(opts.preset, opts.prompt, opts.imagePaths)),
+    );
   }
   return { tmuxSession: session };
 }
@@ -71,7 +84,9 @@ export async function launchInWorktree(opts: {
   spawnAgent?: boolean;
 }): Promise<LaunchInWorktreeResult> {
   const repoName = await getRepoName(opts.projectPath);
-  const runId = sanitizeSessionName(canonicalRunId(repoName, opts.prompt, opts.promptId.slice(0, 6)));
+  const runId = sanitizeSessionName(
+    canonicalRunId(repoName, opts.prompt, opts.promptId.slice(0, 6)),
+  );
   const branch = opts.branch ?? runId;
   const worktreePath = opts.worktreePath ?? join(WORKTREES_ROOT, repoName, runId);
   ensureDir(join(WORKTREES_ROOT, repoName));
@@ -79,7 +94,10 @@ export async function launchInWorktree(opts: {
   const session = opts.tmuxSession ?? runId;
   await ensureSession(session, worktreePath);
   if (opts.spawnAgent !== false) {
-    await spawnCommand(session, renderAgentCommand(opts.preset, promptWithImages(opts.preset, opts.prompt, opts.imagePaths)));
+    await spawnCommand(
+      session,
+      renderAgentCommand(opts.preset, promptWithImages(opts.preset, opts.prompt, opts.imagePaths)),
+    );
   }
   return { branch, worktreePath, tmuxSession: session };
 }

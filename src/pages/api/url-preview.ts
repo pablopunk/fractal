@@ -1,5 +1,5 @@
-import type { APIRoute } from "astro";
 import dns from "node:dns/promises";
+import type { APIRoute } from "astro";
 
 type UrlPreview = {
   url: string;
@@ -27,7 +27,7 @@ const PRIVATE_V4_RANGES: [number, number, number][] = [
 
 export function ipv4IsPrivate(ip: string): boolean {
   const octets = ip.split(".").map(Number);
-  if (octets.length !== 4 || octets.some((o) => isNaN(o) || o < 0 || o > 255)) return false;
+  if (octets.length !== 4 || octets.some((o) => Number.isNaN(o) || o < 0 || o > 255)) return false;
   if (LOOPBACK_V4_PREFIXES.includes(octets[0])) return true;
   for (const [prefixA, prefixB, cidr] of PRIVATE_V4_RANGES) {
     if (cidr === 8 && octets[0] === prefixA) return true;
@@ -121,7 +121,8 @@ function meta(html: string, key: string): string {
   const tags = (html.match(/<meta\b[^>]{0,2000}>/gi) ?? []).slice(0, MAX_TAGS_SCANNED);
   for (const tag of tags) {
     const property = attr(tag, "property") ?? attr(tag, "name");
-    if (property?.toLowerCase() === key.toLowerCase()) return decodeEntities(attr(tag, "content") ?? "");
+    if (property?.toLowerCase() === key.toLowerCase())
+      return decodeEntities(attr(tag, "content") ?? "");
   }
   return "";
 }
@@ -133,7 +134,9 @@ function title(html: string): string {
 
 function favicon(html: string, base: string): string {
   const links = (html.match(/<link\b[^>]{0,2000}>/gi) ?? []).slice(0, MAX_TAGS_SCANNED);
-  const icon = links.find((tag) => /\brel\s*=\s*(["']).*?(?:apple-touch-icon|icon).*?\1/i.test(tag));
+  const icon = links.find((tag) =>
+    /\brel\s*=\s*(["']).*?(?:apple-touch-icon|icon).*?\1/i.test(tag),
+  );
   return absolutize(icon ? attr(icon, "href") : "/favicon.ico", base);
 }
 
@@ -142,7 +145,10 @@ function parsePreview(html: string, finalUrl: string): UrlPreview {
   return {
     url: finalUrl,
     title: meta(html, "og:title") || meta(html, "twitter:title") || title(html) || url.hostname,
-    description: meta(html, "og:description") || meta(html, "twitter:description") || meta(html, "description"),
+    description:
+      meta(html, "og:description") ||
+      meta(html, "twitter:description") ||
+      meta(html, "description"),
     image: absolutize(meta(html, "og:image") || meta(html, "twitter:image"), finalUrl),
     siteName: meta(html, "og:site_name") || url.hostname.replace(/^www\./, ""),
     favicon: favicon(html, finalUrl),
@@ -158,7 +164,8 @@ async function fetchWithGuard(initialUrl: URL): Promise<{ body: string; finalUrl
       redirect: "manual",
       signal: AbortSignal.timeout(5000),
       headers: {
-        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
         accept: "text/html,application/xhtml+xml",
       },
     });

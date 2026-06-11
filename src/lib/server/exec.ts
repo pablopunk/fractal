@@ -13,7 +13,9 @@ export class ExecError extends Error {
   cmd: string;
   args: string[];
   constructor(cmd: string, args: string[], result: ExecResult) {
-    super(`${cmd} ${args.join(" ")} exited ${result.code}: ${result.stderr.trim() || result.stdout.trim()}`);
+    super(
+      `${cmd} ${args.join(" ")} exited ${result.code}: ${result.stderr.trim() || result.stdout.trim()}`,
+    );
     this.cmd = cmd;
     this.args = args;
     this.result = result;
@@ -30,12 +32,16 @@ function getSecretsEnv(): NodeJS.ProcessEnv {
   if (!existsSync(secretsPath)) return secretsEnv;
 
   try {
-    const output = execFileSync("/bin/zsh", ["-c", "source $HOME/.zshrc.d/01-secrets.sh >/dev/null 2>&1; /usr/bin/env -0"], {
-      encoding: "utf8",
-      timeout: 5_000,
-      maxBuffer: 1024 * 1024,
-      env: process.env,
-    });
+    const output = execFileSync(
+      "/bin/zsh",
+      ["-c", "source $HOME/.zshrc.d/01-secrets.sh >/dev/null 2>&1; /usr/bin/env -0"],
+      {
+        encoding: "utf8",
+        timeout: 5_000,
+        maxBuffer: 1024 * 1024,
+        env: process.env,
+      },
+    );
     for (const entry of output.split("\0")) {
       const eq = entry.indexOf("=");
       if (eq <= 0) continue;
@@ -100,8 +106,8 @@ export function exec(
     });
     let stdout = "";
     let stderr = "";
-    child.stdout!.on("data", (d) => (stdout += d.toString()));
-    child.stderr!.on("data", (d) => (stderr += d.toString()));
+    child.stdout?.on("data", (d) => (stdout += d.toString()));
+    child.stderr?.on("data", (d) => (stderr += d.toString()));
     if (opts.input && child.stdin) {
       child.stdin.write(opts.input);
       child.stdin.end();

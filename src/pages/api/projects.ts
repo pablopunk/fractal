@@ -1,8 +1,8 @@
-import type { APIRoute } from "astro";
 import { existsSync, mkdirSync, statSync } from "node:fs";
-import { createProject, getProjectByPath, listProjects } from "~/lib/server/store.js";
-import { getRepoName } from "~/lib/server/git.js";
+import type { APIRoute } from "astro";
 import { expandPath } from "~/lib/server/fs.js";
+import { getRepoName } from "~/lib/server/git.js";
+import { createProject, getProjectByPath, listProjects } from "~/lib/server/store.js";
 
 export const prerender = false;
 
@@ -13,7 +13,8 @@ export const POST: APIRoute = async ({ request }) => {
   if (!body.path) return Response.json({ error: "path required" }, { status: 400 });
   const abs = expandPath(body.path);
   if (!existsSync(abs)) mkdirSync(abs, { recursive: true });
-  if (!statSync(abs).isDirectory()) return Response.json({ error: "path is not a directory" }, { status: 400 });
+  if (!statSync(abs).isDirectory())
+    return Response.json({ error: "path is not a directory" }, { status: 400 });
   const existing = getProjectByPath(abs);
   if (existing) return Response.json({ project: existing });
   const name = body.name?.trim() || (await getRepoName(abs));

@@ -1,6 +1,6 @@
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import type { APIRoute } from "astro";
-import { readFileSync, existsSync, statSync } from "node:fs";
-import { join, resolve, relative, isAbsolute } from "node:path";
 import { getProject } from "~/lib/server/store.js";
 
 const FAVICON_CANDIDATES = [

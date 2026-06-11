@@ -1,6 +1,6 @@
-import { GitBranch, Hash } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GitBranch, Hash } from "lucide-react";
 import type { GithubIssue, LinearIssue } from "~/lib/client/types.js";
 
 export type BoardIssue = {
@@ -54,7 +54,9 @@ export function issueFromLinear(issue: LinearIssue): BoardIssue {
 }
 
 export function SortableIssueCard({ issue }: { issue: BoardIssue }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: issue.id,
+  });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -74,8 +76,14 @@ export function SortableIssueCard({ issue }: { issue: BoardIssue }) {
         draggable={false}
       >
         <div className="issue-card-head">
-          {isGithub ? <GitBranch size={13} className="issue-card-icon" /> : <Hash size={13} className="issue-card-icon" />}
-          <span className="issue-card-number">{isGithub ? `#${issue.number}` : issue.identifier}</span>
+          {isGithub ? (
+            <GitBranch size={13} className="issue-card-icon" />
+          ) : (
+            <Hash size={13} className="issue-card-icon" />
+          )}
+          <span className="issue-card-number">
+            {isGithub ? `#${issue.number}` : issue.identifier}
+          </span>
           {!isGithub && issue.priority && (
             <span className="issue-card-state" style={{ color: priorityColor(issue.priority) }}>
               {issue.priority}
@@ -86,7 +94,9 @@ export function SortableIssueCard({ issue }: { issue: BoardIssue }) {
         {isGithub && issue.labels && issue.labels.length > 0 && (
           <div className="issue-card-labels">
             {issue.labels.map((label) => (
-              <span key={label} className="tag">{label}</span>
+              <span key={label} className="tag">
+                {label}
+              </span>
             ))}
           </div>
         )}
@@ -113,7 +123,9 @@ export function GithubIssueCard({ issue }: { issue: GithubIssue }) {
       {issue.labels.length > 0 && (
         <div className="issue-card-labels">
           {issue.labels.map((label) => (
-            <span key={label} className="tag">{label}</span>
+            <span key={label} className="tag">
+              {label}
+            </span>
           ))}
         </div>
       )}

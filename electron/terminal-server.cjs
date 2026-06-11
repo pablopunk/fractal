@@ -12,13 +12,20 @@ function buildTerminalEnv() {
   // unset or "C" — that makes tmux/zsh/etc transliterate Unicode glyphs to ASCII
   // (underscores). Force a UTF-8 locale so Nerd Font / Powerline / box-drawing
   // characters survive the pipeline.
-  const hasUtf8Lang = /UTF-?8/i.test(String(env.LANG || "")) || /UTF-?8/i.test(String(env.LC_ALL || "")) || /UTF-?8/i.test(String(env.LC_CTYPE || ""));
+  const hasUtf8Lang =
+    /UTF-?8/i.test(String(env.LANG || "")) ||
+    /UTF-?8/i.test(String(env.LC_ALL || "")) ||
+    /UTF-?8/i.test(String(env.LC_CTYPE || ""));
   if (!hasUtf8Lang) {
     env.LANG = "en_US.UTF-8";
     env.LC_ALL = "en_US.UTF-8";
     env.LC_CTYPE = "en_US.UTF-8";
   }
-  const entries = new Set(String(env.PATH || "").split(path.delimiter).filter(Boolean));
+  const entries = new Set(
+    String(env.PATH || "")
+      .split(path.delimiter)
+      .filter(Boolean),
+  );
   for (const candidate of [
     path.join(os.homedir(), ".pi/agent/bin"),
     path.join(os.homedir(), ".bun/bin"),
@@ -42,14 +49,21 @@ function buildTerminalEnv() {
 }
 
 function sanitizeSessionName(name) {
-  return String(name || "").replace(/[.:\s]/g, "-").replace(/-+/g, "-").slice(0, 80);
+  return String(name || "")
+    .replace(/[.:\s]/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80);
 }
 
-const TMUX_MISSING_MESSAGE = "tmux is required to run agents and open terminals. Please install tmux and restart Fractal.";
+const TMUX_MISSING_MESSAGE =
+  "tmux is required to run agents and open terminals. Please install tmux and restart Fractal.";
 
 function hasTmuxSession(name) {
   if (!name || sanitizeSessionName(name) !== name) return { ok: false };
-  const res = spawnSync("tmux", ["has-session", "-t", name], { stdio: "ignore", env: buildTerminalEnv() });
+  const res = spawnSync("tmux", ["has-session", "-t", name], {
+    stdio: "ignore",
+    env: buildTerminalEnv(),
+  });
   if (res.error && res.error.code === "ENOENT") return { ok: false, error: TMUX_MISSING_MESSAGE };
   return { ok: res.status === 0 };
 }
@@ -58,7 +72,10 @@ function ensureTmuxSession(name, cwd) {
   const existing = hasTmuxSession(name);
   if (existing.ok || existing.error) return existing;
   if (!cwd || !path.isAbsolute(cwd) || !fs.existsSync(cwd)) return { ok: false };
-  const res = spawnSync("tmux", ["new-session", "-d", "-s", name, "-c", cwd], { stdio: "ignore", env: buildTerminalEnv() });
+  const res = spawnSync("tmux", ["new-session", "-d", "-s", name, "-c", cwd], {
+    stdio: "ignore",
+    env: buildTerminalEnv(),
+  });
   if (res.error && res.error.code === "ENOENT") return { ok: false, error: TMUX_MISSING_MESSAGE };
   return { ok: res.status === 0 };
 }
@@ -89,9 +106,13 @@ function createTerminalServer() {
   server.closeTerminalConnections = () => {
     for (const cleanup of Array.from(connectionCleanups)) cleanup();
     for (const client of wss.clients) {
-      try { client.terminate(); } catch {}
+      try {
+        client.terminate();
+      } catch {}
     }
-    try { wss.close(); } catch {}
+    try {
+      wss.close();
+    } catch {}
   };
 
   wss.on("connection", (ws, req) => {
@@ -123,7 +144,9 @@ function createTerminalServer() {
       connectionCleanups.delete(cleanupConnection);
       dataDisposable.dispose();
       exitDisposable.dispose();
-      try { kill(); } catch {}
+      try {
+        kill();
+      } catch {}
     }
 
     connectionCleanups.add(cleanupConnection);
@@ -152,26 +175,34 @@ function createTerminalServer() {
       kill = () => term.kill();
     } catch (error) {
       console.error("[fractal-terminal] node-pty failed, falling back to script(1):", error);
-      const scriptArgs = process.platform === "linux"
-        ? ["-q", "-c", `tmux attach-session -t ${session}`, "/dev/null"]
-        : ["-q", "/dev/null", "tmux", "attach-session", "-t", session];
+      const scriptArgs =
+        process.platform === "linux"
+          ? ["-q", "-c", `tmux attach-session -t ${session}`, "/dev/null"]
+          : ["-q", "/dev/null", "tmux", "attach-session", "-t", session];
       child = spawn("script", scriptArgs, {
         cwd: os.homedir(),
         env: { ...buildTerminalEnv(), TERM: "xterm-256color" },
         stdio: "pipe",
       });
       child.stdout.on("data", (data) => {
-        if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: "data", data: data.toString("utf8") }));
+        if (ws.readyState === ws.OPEN)
+          ws.send(JSON.stringify({ type: "data", data: data.toString("utf8") }));
       });
       child.stderr.on("data", (data) => {
-        if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: "data", data: data.toString("utf8") }));
+        if (ws.readyState === ws.OPEN)
+          ws.send(JSON.stringify({ type: "data", data: data.toString("utf8") }));
       });
       child.on("exit", (exitCode) => {
         if (ws.readyState === ws.OPEN) ws.close(1000, `terminal exited ${exitCode}`);
       });
       child.on("error", (childError) => {
         if (ws.readyState === ws.OPEN) {
-          ws.send(JSON.stringify({ type: "error", message: childError instanceof Error ? childError.message : String(childError) }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: childError instanceof Error ? childError.message : String(childError),
+            }),
+          );
           ws.close(1011, "failed to attach");
         }
       });

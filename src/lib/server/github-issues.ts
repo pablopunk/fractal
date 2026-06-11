@@ -31,7 +31,9 @@ export async function isGhConfigured(): Promise<boolean> {
 
 export async function detectGithubRepo(projectPath: string): Promise<string> {
   try {
-    const { stdout } = await exec("git", ["-C", projectPath, "remote", "get-url", "origin"], { timeoutMs: 3000 });
+    const { stdout } = await exec("git", ["-C", projectPath, "remote", "get-url", "origin"], {
+      timeoutMs: 3000,
+    });
     const url = stdout.trim();
     if (!url) return "";
 
@@ -50,13 +52,22 @@ export async function detectGithubRepo(projectPath: string): Promise<string> {
 export async function fetchGithubIssues(repo: string, limit = 20): Promise<GithubIssue[]> {
   if (!(await isGhConfigured())) return [];
   try {
-    const { stdout } = await exec("gh", [
-      "issue", "list",
-      "--repo", repo,
-      "--state", "open",
-      "--limit", String(limit),
-      "--json", "number,title,url,labels,createdAt",
-    ], { timeoutMs: 10000 });
+    const { stdout } = await exec(
+      "gh",
+      [
+        "issue",
+        "list",
+        "--repo",
+        repo,
+        "--state",
+        "open",
+        "--limit",
+        String(limit),
+        "--json",
+        "number,title,url,labels,createdAt",
+      ],
+      { timeoutMs: 10000 },
+    );
 
     const parsed = JSON.parse(stdout) as GhIssueJson[];
     return parsed.map((issue) => ({

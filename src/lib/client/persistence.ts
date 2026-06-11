@@ -44,7 +44,14 @@ export const SIDEBAR_COLLAPSE_THRESHOLD = 132;
 export const SIDEBAR_MIN_WIDTH = 176;
 export const SIDEBAR_MAX_WIDTH = 260;
 
-const DEFAULT_COLLAPSED = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, GITHUB: false, LINEAR: false, ARCHIVED: true } as Record<Column, boolean>;
+const DEFAULT_COLLAPSED = {
+  PROMPTS: false,
+  RUN_IN_PLACE: false,
+  RUN_IN_WORKTREE: false,
+  GITHUB: false,
+  LINEAR: false,
+  ARCHIVED: true,
+} as Record<Column, boolean>;
 
 const LEGACY_KEYS = [
   COLLAPSED_KEY,
@@ -68,20 +75,32 @@ function collapsedKey(projectId: string | null | undefined): string {
 }
 
 function storageGet(key: string): string | null {
-  try { return typeof localStorage !== "undefined" ? localStorage.getItem(key) : null; } catch { return null; }
+  try {
+    return typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
 }
 
 function storageSet(key: string, value: string): void {
-  try { localStorage.setItem(key, value); } catch {}
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
 }
 
 function storageRemove(key: string): void {
-  try { localStorage.removeItem(key); } catch {}
+  try {
+    localStorage.removeItem(key);
+  } catch {}
 }
 
 function parseJson<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback;
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 function validColumnMap(value: unknown): Record<Column, boolean> {
@@ -107,10 +126,16 @@ export function loadCollapsed(projectId?: string | null): Record<Column, boolean
   return validColumnMap(parseJson(storageGet(collapsedKey(projectId)), DEFAULT_COLLAPSED));
 }
 
-export function saveCollapsed(projectId: string | null | undefined, collapsed: Record<Column, boolean>): void {
+export function saveCollapsed(
+  projectId: string | null | undefined,
+  collapsed: Record<Column, boolean>,
+): void {
   const key = projectId || "global";
   const uiState = loadUiStateCache();
-  saveUiStateCache({ ...uiState, collapsedColumns: { ...uiState.collapsedColumns, [key]: validColumnMap(collapsed) } });
+  saveUiStateCache({
+    ...uiState,
+    collapsedColumns: { ...uiState.collapsedColumns, [key]: validColumnMap(collapsed) },
+  });
   storageSet(collapsedKey(projectId), JSON.stringify(collapsed));
 }
 
@@ -124,13 +149,22 @@ export function loadTerminalTabs(): TerminalTab[] {
 function isTerminalTab(value: unknown): value is TerminalTab {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<TerminalTab>;
-  return typeof item.id === "string" && typeof item.promptId === "string" && typeof item.session === "string" && typeof item.title === "string";
+  return (
+    typeof item.id === "string" &&
+    typeof item.promptId === "string" &&
+    typeof item.session === "string" &&
+    typeof item.title === "string"
+  );
 }
 
 function isCommandRecent(value: unknown): value is CommandRecent {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<CommandRecent>;
-  return (item.kind === "project" || item.kind === "prompt" || item.kind === "tab") && typeof item.id === "string" && typeof item.at === "number";
+  return (
+    (item.kind === "project" || item.kind === "prompt" || item.kind === "tab") &&
+    typeof item.id === "string" &&
+    typeof item.at === "number"
+  );
 }
 
 export function loadCommandRecents(): CommandRecent[] {
@@ -149,7 +183,7 @@ export function saveCommandRecents(recents: CommandRecent[]): void {
 export function loadActiveTerminalId(tabs: TerminalTab[]): string | null {
   const uiState = loadStoredUiState();
   const raw = uiState?.activeTerminalTabId ?? storageGet(ACTIVE_TERMINAL_TAB_KEY);
-  return raw && tabs.some((tab) => tab.id === raw) ? raw : tabs[0]?.id ?? null;
+  return raw && tabs.some((tab) => tab.id === raw) ? raw : (tabs[0]?.id ?? null);
 }
 
 function halfViewportWidth(): number {
@@ -264,7 +298,9 @@ function migrateGlassBlur(parsed: Partial<GlassSettings>, fallback: number): num
   return rawBlur;
 }
 
-export function normalizeGlassSettings(settings: Partial<GlassSettings> | undefined): GlassSettings {
+export function normalizeGlassSettings(
+  settings: Partial<GlassSettings> | undefined,
+): GlassSettings {
   const fallback = { enabled: false, opacity: 0.68, blur: 22, version: 2 };
   if (!settings) return fallback;
   return {
@@ -278,7 +314,9 @@ export function normalizeGlassSettings(settings: Partial<GlassSettings> | undefi
 export function loadGlassSettings(): GlassSettings {
   const uiState = loadStoredUiState();
   if (uiState) return normalizeGlassSettings(uiState.glassSettings);
-  return normalizeGlassSettings(parseJson<Partial<GlassSettings> | undefined>(storageGet(GLASS_SETTINGS_KEY), undefined));
+  return normalizeGlassSettings(
+    parseJson<Partial<GlassSettings> | undefined>(storageGet(GLASS_SETTINGS_KEY), undefined),
+  );
 }
 
 export function saveGlassSettings(settings: GlassSettings): void {
@@ -343,30 +381,34 @@ function loadLegacyCollapsedColumns(): Record<string, Record<Column, boolean>> {
       const key = localStorage.key(i);
       if (!key?.startsWith(PROJECT_COLLAPSED_KEY_PREFIX)) continue;
       const projectId = key.slice(PROJECT_COLLAPSED_KEY_PREFIX.length);
-      if (projectId) collapsedColumns[projectId] = validColumnMap(parseJson(storageGet(key), DEFAULT_COLLAPSED));
+      if (projectId)
+        collapsedColumns[projectId] = validColumnMap(parseJson(storageGet(key), DEFAULT_COLLAPSED));
     }
   } catch {}
   return collapsedColumns;
 }
 
 export function loadUiStateCache(): UiState {
-  return loadStoredUiState() ?? normalizeUiState({
-    version: 1,
-    sidebarWidth: loadSidebarWidth(),
-    collapsedColumns: loadLegacyCollapsedColumns(),
-    terminalPosition: loadTerminalPosition(),
-    terminalWidth: loadTerminalWidth(),
-    terminalHeight: loadTerminalHeight(),
-    terminalTabs: loadTerminalTabs(),
-    activeTerminalTabId: storageGet(ACTIVE_TERMINAL_TAB_KEY),
-    theme: loadTheme(),
-    terminalTheme: loadTerminalTheme(),
-    glassSettings: loadGlassSettings(),
-    commandRecents: loadCommandRecents(),
-    boardLayout: loadBoardLayout(),
-    lastProjectId: storageGet(LAST_PROJECT_ID_KEY) || "",
-    lastTerminalByProject: loadLastTerminalByProject(),
-  });
+  return (
+    loadStoredUiState() ??
+    normalizeUiState({
+      version: 1,
+      sidebarWidth: loadSidebarWidth(),
+      collapsedColumns: loadLegacyCollapsedColumns(),
+      terminalPosition: loadTerminalPosition(),
+      terminalWidth: loadTerminalWidth(),
+      terminalHeight: loadTerminalHeight(),
+      terminalTabs: loadTerminalTabs(),
+      activeTerminalTabId: storageGet(ACTIVE_TERMINAL_TAB_KEY),
+      theme: loadTheme(),
+      terminalTheme: loadTerminalTheme(),
+      glassSettings: loadGlassSettings(),
+      commandRecents: loadCommandRecents(),
+      boardLayout: loadBoardLayout(),
+      lastProjectId: storageGet(LAST_PROJECT_ID_KEY) || "",
+      lastTerminalByProject: loadLastTerminalByProject(),
+    })
+  );
 }
 
 export function saveUiStateCache(state: UiState): void {
@@ -374,7 +416,8 @@ export function saveUiStateCache(state: UiState): void {
   storageSet(UI_STATE_KEY, JSON.stringify(normalized));
   storageSet(SIDEBAR_WIDTH_KEY, String(normalized.sidebarWidth));
   storageSet(TERMINAL_TABS_KEY, JSON.stringify(normalized.terminalTabs));
-  if (normalized.activeTerminalTabId) storageSet(ACTIVE_TERMINAL_TAB_KEY, normalized.activeTerminalTabId);
+  if (normalized.activeTerminalTabId)
+    storageSet(ACTIVE_TERMINAL_TAB_KEY, normalized.activeTerminalTabId);
   else storageRemove(ACTIVE_TERMINAL_TAB_KEY);
   storageSet(TERMINAL_WIDTH_KEY, String(normalized.terminalWidth));
   storageSet(TERMINAL_HEIGHT_KEY, String(normalized.terminalHeight));
@@ -388,7 +431,10 @@ export function saveUiStateCache(state: UiState): void {
   else storageRemove(LAST_PROJECT_ID_KEY);
   storageSet(LAST_TERMINAL_BY_PROJECT_KEY, JSON.stringify(normalized.lastTerminalByProject));
   for (const [projectId, collapsed] of Object.entries(normalized.collapsedColumns)) {
-    storageSet(projectId === "global" ? COLLAPSED_KEY : `${PROJECT_COLLAPSED_KEY_PREFIX}${projectId}`, JSON.stringify(collapsed));
+    storageSet(
+      projectId === "global" ? COLLAPSED_KEY : `${PROJECT_COLLAPSED_KEY_PREFIX}${projectId}`,
+      JSON.stringify(collapsed),
+    );
   }
 }
 
@@ -410,17 +456,35 @@ export function normalizeUiState(value: Partial<UiState> | null | undefined): Ui
     lastProjectId: "",
     lastTerminalByProject: {} as Record<string, string>,
   };
-  const collapsedColumns: Record<string, Record<Column, boolean>> = { ...fallback.collapsedColumns };
+  const collapsedColumns: Record<string, Record<Column, boolean>> = {
+    ...fallback.collapsedColumns,
+  };
   for (const [key, collapsed] of Object.entries(value?.collapsedColumns ?? {})) {
     collapsedColumns[key || "global"] = validColumnMap(collapsed);
   }
-  const terminalTabs = Array.isArray(value?.terminalTabs) ? value.terminalTabs.filter(isTerminalTab) : fallback.terminalTabs;
-  const activeTerminalTabId = typeof value?.activeTerminalTabId === "string" && terminalTabs.some((tab) => tab.id === value.activeTerminalTabId) ? value.activeTerminalTabId : terminalTabs[0]?.id ?? null;
+  const terminalTabs = Array.isArray(value?.terminalTabs)
+    ? value.terminalTabs.filter(isTerminalTab)
+    : fallback.terminalTabs;
+  const activeTerminalTabId =
+    typeof value?.activeTerminalTabId === "string" &&
+    terminalTabs.some((tab) => tab.id === value.activeTerminalTabId)
+      ? value.activeTerminalTabId
+      : (terminalTabs[0]?.id ?? null);
   const theme = value?.theme === "light" || value?.theme === "dark" ? value.theme : fallback.theme;
-  const terminalTheme = value?.terminalTheme === "catppuccin" || value?.terminalTheme === "tokyo-night" || value?.terminalTheme === "solarized" ? value.terminalTheme : fallback.terminalTheme;
-  const boardLayout = value?.boardLayout === "rows" || value?.boardLayout === "compact" ? value.boardLayout : fallback.boardLayout;
+  const terminalTheme =
+    value?.terminalTheme === "catppuccin" ||
+    value?.terminalTheme === "tokyo-night" ||
+    value?.terminalTheme === "solarized"
+      ? value.terminalTheme
+      : fallback.terminalTheme;
+  const boardLayout =
+    value?.boardLayout === "rows" || value?.boardLayout === "compact"
+      ? value.boardLayout
+      : fallback.boardLayout;
   const terminalPosition = value?.terminalPosition === "bottom" ? "bottom" : "right";
-  const commandRecents = Array.isArray(value?.commandRecents) ? value.commandRecents.filter(isCommandRecent).slice(0, 20) : fallback.commandRecents;
+  const commandRecents = Array.isArray(value?.commandRecents)
+    ? value.commandRecents.filter(isCommandRecent).slice(0, 20)
+    : fallback.commandRecents;
   return {
     version: 1,
     sidebarWidth: snapSidebarWidth(finiteNumber(value?.sidebarWidth, fallback.sidebarWidth)),
@@ -435,7 +499,8 @@ export function normalizeUiState(value: Partial<UiState> | null | undefined): Ui
     glassSettings: normalizeGlassSettings(value?.glassSettings),
     commandRecents,
     boardLayout,
-    lastProjectId: typeof value?.lastProjectId === "string" ? value.lastProjectId : fallback.lastProjectId,
+    lastProjectId:
+      typeof value?.lastProjectId === "string" ? value.lastProjectId : fallback.lastProjectId,
     lastTerminalByProject: validTerminalByProject(value?.lastTerminalByProject),
   };
 }

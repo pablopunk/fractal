@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { getProject } from "~/lib/server/store.js";
 import { fetchLinearIssues } from "~/lib/server/linear-issues.js";
+import { getProject } from "~/lib/server/store.js";
 
 export const prerender = false;
 
