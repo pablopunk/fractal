@@ -274,6 +274,9 @@ function TerminalView({
     let resizeObserver: ResizeObserver | null = null;
     let input: { dispose: () => void } | null = null;
     let osc52: { dispose: () => void } | null = null;
+    let sendResize: (() => void) | null = null;
+    let onMessage: ((event: MessageEvent) => void) | null = null;
+    let onClose: ((event: CloseEvent) => void) | null = null;
     let disposed = false;
     const sendData = (data: string) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
@@ -448,7 +451,7 @@ function TerminalView({
       const params = new URLSearchParams({ session: tab.session });
       if (tab.cwd) params.set("cwd", tab.cwd);
       ws = new WebSocket(`ws://127.0.0.1:${port}/terminal?${params.toString()}`);
-      const sendResize = () => {
+      sendResize = () => {
         fit.fit();
         if (ws?.readyState === WebSocket.OPEN)
           ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
@@ -456,24 +459,34 @@ function TerminalView({
       resizeObserver = new ResizeObserver(sendResize);
       resizeObserver.observe(host);
 
-      ws.addEventListener("open", sendResize);
-      ws.addEventListener("message", (event) => {
-        const msg = JSON.parse(String(event.data)) as {
-          type: string;
-          data?: string;
-          message?: string;
-        };
-        if (msg.type === "data" && msg.data) term.write(msg.data);
-        if (msg.type === "error") term.writeln(`\r\n${msg.message ?? "Terminal error"}`);
-      });
-      ws.addEventListener("close", (event) => {
+      onMessage = (event: MessageEvent) => {
+        if (disposed) return;
+        let msg: unknown;
+        try {
+          msg = JSON.parse(String(event.data));
+        } catch {
+          return;
+        }
+        if (!msg || typeof msg !== "object") return;
+        const terminalMsg = msg as { type?: unknown; data?: unknown; message?: unknown };
+        if (terminalMsg.type === "data" && typeof terminalMsg.data === "string")
+          term.write(terminalMsg.data);
+        if (terminalMsg.type === "error")
+          term.writeln(
+            `\r\n${typeof terminalMsg.message === "string" ? terminalMsg.message : "Terminal error"}`,
+          );
+      };
+      onClose = (event: CloseEvent) => {
         if (disposed) return;
         if (event.code === 1000 && event.reason.startsWith("terminal exited")) {
           onCloseRef.current(tab.id);
           return;
         }
         term.writeln(`\r\nTerminal disconnected${event.reason ? `: ${event.reason}` : ""}`);
-      });
+      };
+      ws.addEventListener("open", sendResize);
+      ws.addEventListener("message", onMessage);
+      ws.addEventListener("close", onClose);
 
       input = term.onData(sendData);
     })();
@@ -487,6 +500,9 @@ function TerminalView({
       host.removeEventListener("drop", onDrop);
       host.removeEventListener("mousedown", onLinkMouseDown, { capture: true });
       host.removeEventListener("mousedown", onShiftMouseDown, { capture: true });
+      if (sendResize) ws?.removeEventListener("open", sendResize);
+      if (onMessage) ws?.removeEventListener("message", onMessage);
+      if (onClose) ws?.removeEventListener("close", onClose);
       ws?.close();
       termRef.current = null;
       osc52?.dispose();
