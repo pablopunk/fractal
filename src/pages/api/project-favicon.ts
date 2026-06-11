@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import type { APIRoute } from "astro";
+import { resolvedPathIsWithin } from "~/lib/server/path-containment.js";
 import { getProject } from "~/lib/server/store.js";
 
 const FAVICON_CANDIDATES = [
@@ -50,17 +51,13 @@ function extractIconHref(source: string): string | null {
   return null;
 }
 
-function isPathWithinProject(projectCwd: string, candidatePath: string): boolean {
-  const rel = relative(resolve(projectCwd), resolve(candidatePath));
-  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
-}
-
 function findExistingFile(projectCwd: string, candidates: readonly string[]): string | null {
   for (const candidate of candidates) {
-    if (!isPathWithinProject(projectCwd, candidate)) continue;
     try {
       const stats = statSync(candidate);
-      if (stats.isFile()) return candidate;
+      if (!stats.isFile()) continue;
+      if (!resolvedPathIsWithin(projectCwd, candidate)) continue;
+      return candidate;
     } catch {
       // ignore
     }
