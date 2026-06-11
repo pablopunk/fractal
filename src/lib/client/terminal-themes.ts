@@ -214,13 +214,20 @@ export function resolveThemeMode(theme: ThemeMode): ResolvedThemeMode {
   return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
-export function terminalTheme(theme: ThemeMode, terminalThemeName: TerminalThemeName, transparent = false): ITheme {
+export function terminalTheme(
+  theme: ThemeMode,
+  terminalThemeName: TerminalThemeName,
+  transparent = false,
+): ITheme {
   const family = THEMES[terminalThemeName] ?? THEMES.fractal;
   const resolved = family[resolveThemeMode(theme)];
   return transparent ? { ...resolved, background: "#00000000" } : resolved;
 }
 
-export function terminalThemePreview(theme: ThemeMode, terminalThemeName: TerminalThemeName): { background: string; foreground: string; accent: string } {
+export function terminalThemePreview(
+  theme: ThemeMode,
+  terminalThemeName: TerminalThemeName,
+): { background: string; foreground: string; accent: string } {
   const resolved = terminalTheme(theme, terminalThemeName);
   return {
     background: resolved.background ?? "#0b0b0d",

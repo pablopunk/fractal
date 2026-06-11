@@ -16,12 +16,38 @@ export type AgentPreset = {
 };
 
 export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
-  { id: "pi", name: "Pi", kind: "pi", binary: "pi", argsTemplate: "--model {{model}} {{prompt}}", model: "" },
-  { id: "claude", name: "Claude Code", kind: "claude", binary: "claude", argsTemplate: "--model {{model}} {{prompt}}", model: "sonnet" },
-  { id: "opencode", name: "OpenCode", kind: "opencode", binary: "opencode", argsTemplate: "--model {{model}} --prompt {{prompt}}", model: "" },
+  {
+    id: "pi",
+    name: "Pi",
+    kind: "pi",
+    binary: "pi",
+    argsTemplate: "--model {{model}} {{prompt}}",
+    model: "",
+  },
+  {
+    id: "claude",
+    name: "Claude Code",
+    kind: "claude",
+    binary: "claude",
+    argsTemplate: "--model {{model}} {{prompt}}",
+    model: "sonnet",
+  },
+  {
+    id: "opencode",
+    name: "OpenCode",
+    kind: "opencode",
+    binary: "opencode",
+    argsTemplate: "--model {{model}} --prompt {{prompt}}",
+    model: "",
+  },
 ];
 
-export type AgentModel = { id: string; provider: string; model: string; agent: "pi" | "claude" | "opencode" };
+export type AgentModel = {
+  id: string;
+  provider: string;
+  model: string;
+  agent: "pi" | "claude" | "opencode";
+};
 
 function findBin(name: string): string {
   const home = process.env.HOME ?? "";
@@ -69,16 +95,23 @@ export function listClaudeModels(): AgentModel[] {
     "claude-3-5-sonnet",
     "claude-3-5-haiku",
   ];
-  return ids.map((model) => ({ id: model, provider: "anthropic", model, agent: "claude" as const }));
+  return ids.map((model) => ({
+    id: model,
+    provider: "anthropic",
+    model,
+    agent: "claude" as const,
+  }));
 }
 
 export async function listOpenCodeModels(): Promise<AgentModel[]> {
   const { stdout } = await exec(findBin("opencode"), ["models"], { timeoutMs: 30000 });
   return stdout.split(/\r?\n/).flatMap((line) => {
     const id = line.trim();
-    if (!id || !id.includes("/")) return [];
+    if (!id?.includes("/")) return [];
     const slash = id.indexOf("/");
-    return [{ id, provider: id.slice(0, slash), model: id.slice(slash + 1), agent: "opencode" as const }];
+    return [
+      { id, provider: id.slice(0, slash), model: id.slice(slash + 1), agent: "opencode" as const },
+    ];
   });
 }
 
@@ -110,18 +143,25 @@ function promptArgForPreset(preset: Pick<AgentPreset, "kind" | "binary">, value:
   return value;
 }
 
-function renderTemplate(template: string, vars: Record<string, string | undefined>, preset: Pick<AgentPreset, "kind" | "binary">): string {
+function renderTemplate(
+  template: string,
+  vars: Record<string, string | undefined>,
+  preset: Pick<AgentPreset, "kind" | "binary">,
+): string {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => {
     const value = vars[key] ?? "";
     return key === "prompt" ? shellPrompt(promptArgForPreset(preset, value)) : shellQuote(value);
   });
 }
 
-export function thinkingArgsForPreset(preset: Pick<AgentPreset, "kind" | "binary" | "thinking">): string[] {
+export function thinkingArgsForPreset(
+  preset: Pick<AgentPreset, "kind" | "binary" | "thinking">,
+): string[] {
   if (!preset.thinking) return [];
   if (preset.kind === "pi" || preset.binary === "pi") return ["--thinking", preset.thinking];
   if (preset.kind === "claude" || preset.binary === "claude") return ["--effort", preset.thinking];
-  if (preset.kind === "opencode" || preset.binary === "opencode") return ["--variant", preset.thinking];
+  if (preset.kind === "opencode" || preset.binary === "opencode")
+    return ["--variant", preset.thinking];
   return [];
 }
 
@@ -130,6 +170,10 @@ export function renderAgentCommand(preset: AgentPreset, prompt: string): string 
     ? preset.promptTemplate.replace(/{{\s*prompt\s*}}/g, () => prompt)
     : prompt;
   const thinkingArgs = thinkingArgsForPreset(preset).map(shellQuote).join(" ");
-  const args = renderTemplate(preset.argsTemplate, { prompt: renderedPrompt, model: preset.model }, preset);
+  const args = renderTemplate(
+    preset.argsTemplate,
+    { prompt: renderedPrompt, model: preset.model },
+    preset,
+  );
   return [preset.binary, thinkingArgs, args].filter(Boolean).join(" ");
 }

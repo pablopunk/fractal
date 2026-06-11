@@ -1,7 +1,7 @@
 import { useState } from "react";
+import type { AgentPreset, Project } from "~/lib/client/types.js";
 import Portal from "./Portal.js";
 import PresetPicker from "./PresetPicker.js";
-import type { AgentPreset, Project } from "~/lib/client/types.js";
 
 export default function ProjectSettingsModal(props: {
   project: Project;
@@ -33,13 +33,17 @@ export default function ProjectSettingsModal(props: {
         <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
           <header className="preset-modal-header">
             <h2>{props.project.name} settings</h2>
-            <button className="btn ghost sm" onClick={props.onClose}>Close</button>
+            <button className="btn ghost sm" onClick={props.onClose}>
+              Close
+            </button>
           </header>
 
           <div className="project-settings-body">
             <div className="project-settings-section">
               <label className="project-settings-label">Default preset</label>
-              <p className="project-settings-hint">Overrides the global default for new prompts in this project.</p>
+              <p className="project-settings-hint">
+                Overrides the global default for new prompts in this project.
+              </p>
               <PresetPicker
                 presets={props.presets}
                 value={defaultPresetId}
@@ -50,7 +54,9 @@ export default function ProjectSettingsModal(props: {
 
             <div className="project-settings-section">
               <label className="project-settings-label">GitHub repo</label>
-              <p className="project-settings-hint">owner/repo — issues appear in the GitHub column when set.</p>
+              <p className="project-settings-hint">
+                owner/repo — issues appear in the GitHub column when set.
+              </p>
               <div className="project-settings-row">
                 <input
                   className="input"
@@ -58,11 +64,7 @@ export default function ProjectSettingsModal(props: {
                   value={githubRepo}
                   onChange={(e) => setGithubRepo(e.target.value)}
                 />
-                <button
-                  className="btn ghost sm"
-                  disabled={detectingGithub}
-                  onClick={detectGithub}
-                >
+                <button className="btn ghost sm" disabled={detectingGithub} onClick={detectGithub}>
                   {detectingGithub ? "…" : "Detect"}
                 </button>
               </div>
@@ -70,7 +72,9 @@ export default function ProjectSettingsModal(props: {
 
             <div className="project-settings-section">
               <label className="project-settings-label">Linear</label>
-              <p className="project-settings-hint">Shows your assigned Linear issues in a dedicated column.</p>
+              <p className="project-settings-hint">
+                Shows your assigned Linear issues in a dedicated column.
+              </p>
               <label className="project-settings-toggle">
                 <input
                   type="checkbox"
@@ -83,8 +87,12 @@ export default function ProjectSettingsModal(props: {
           </div>
 
           <footer className="project-settings-footer">
-            <button className="btn ghost sm" onClick={props.onClose}>Cancel</button>
-            <button className="btn primary sm" onClick={save}>Save</button>
+            <button className="btn ghost sm" onClick={props.onClose}>
+              Cancel
+            </button>
+            <button className="btn primary sm" onClick={save}>
+              Save
+            </button>
           </footer>
         </div>
       </div>

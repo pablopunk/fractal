@@ -1,17 +1,18 @@
+import { existsSync } from "node:fs";
 import type { APIRoute } from "astro";
-import { getPrompt, getProject, updatePrompt } from "~/lib/server/store.js";
+import type { Prompt } from "~/lib/server/db/schema.js";
 import {
+  createPullRequest,
   getUncommittedChanges,
   hasPullRequest,
   hasUncommittedChanges,
   isBranchMerged,
-  removeWorktree,
-  createPullRequest,
   mergeBranchToDefault,
+  removeWorktree,
 } from "~/lib/server/git.js";
-import { killSession } from "~/lib/server/tmux.js";
 import { withPromptStatus } from "~/lib/server/prompt-status.js";
-import { existsSync } from "node:fs";
+import { getProject, getPrompt, updatePrompt } from "~/lib/server/store.js";
+import { killSession } from "~/lib/server/tmux.js";
 
 export const prerender = false;
 
@@ -29,28 +30,34 @@ function archiveError(detail: string, status: number, extra: Record<string, unkn
   return Response.json({ error: "Cannot mark as done", detail, ...extra }, { status });
 }
 
-async function completeArchive(prompt: ReturnType<typeof getPrompt>, projectPath: string) {
-  if (prompt!.tmuxSession) {
-    try { await killSession(prompt!.tmuxSession); } catch (e) {
-      console.error(`Failed to kill tmux session ${prompt!.tmuxSession}:`, e);
+async function completeArchive(prompt: Prompt, projectPath: string) {
+  if (prompt?.tmuxSession) {
+    try {
+      await killSession(prompt?.tmuxSession);
+    } catch (e) {
+      console.error(`Failed to kill tmux session ${prompt?.tmuxSession}:`, e);
     }
   }
 
-  let worktreePath = prompt!.worktreePath;
-  if (prompt!.runMode === "worktree" && prompt!.worktreePath && existsSync(prompt!.worktreePath)) {
+  let worktreePath = prompt?.worktreePath;
+  if (prompt?.runMode === "worktree" && prompt?.worktreePath && existsSync(prompt?.worktreePath)) {
     try {
       // Check if worktree is clean before removing
-      const dirty = await hasUncommittedChanges(prompt!.worktreePath);
+      const dirty = await hasUncommittedChanges(prompt?.worktreePath);
       if (!dirty) {
-        await removeWorktree(projectPath, prompt!.worktreePath);
+        await removeWorktree(projectPath, prompt?.worktreePath);
         worktreePath = null;
       }
     } catch (e) {
-      console.error(`Failed to remove worktree ${prompt!.worktreePath}:`, e);
+      console.error(`Failed to remove worktree ${prompt?.worktreePath}:`, e);
     }
   }
 
-  const updated = updatePrompt(prompt!.id, { isArchived: true, tmuxSession: null, worktreePath } as never);
+  const updated = updatePrompt(prompt?.id, {
+    isArchived: true,
+    tmuxSession: null,
+    worktreePath,
+  } as never);
   return updated ? await withPromptStatus(updated) : updated;
 }
 
@@ -80,14 +87,22 @@ export const POST: APIRoute = async ({ params, request }) => {
   // ── Discard: force-remove worktree, archive ──
   if (action === "discard") {
     if (prompt.tmuxSession) {
-      try { await killSession(prompt.tmuxSession); } catch {}
+      try {
+        await killSession(prompt.tmuxSession);
+      } catch {}
     }
     if (prompt.worktreePath && existsSync(prompt.worktreePath)) {
-      try { await removeWorktree(project.path, prompt.worktreePath, true); } catch (e) {
+      try {
+        await removeWorktree(project.path, prompt.worktreePath, true);
+      } catch (e) {
         console.error(`Failed to discard worktree ${prompt.worktreePath}:`, e);
       }
     }
-    const updated = updatePrompt(id, { isArchived: true, tmuxSession: null, worktreePath: null } as never);
+    const updated = updatePrompt(id, {
+      isArchived: true,
+      tmuxSession: null,
+      worktreePath: null,
+    } as never);
     return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
   }
 
@@ -105,7 +120,10 @@ export const POST: APIRoute = async ({ params, request }) => {
     try {
       await mergeBranchToDefault(project.path, prompt.branch);
     } catch (e) {
-      return Response.json({ error: "Merge failed", detail: (e as Error).message }, { status: 500 });
+      return Response.json(
+        { error: "Merge failed", detail: (e as Error).message },
+        { status: 500 },
+      );
     }
     const updated = await completeArchive(prompt, project.path);
     return Response.json({ prompt: updated });
@@ -131,11 +149,16 @@ export const POST: APIRoute = async ({ params, request }) => {
       const title = prompt.text.slice(0, 240).split("\n")[0].trim() || prompt.branch;
       await createPullRequest(project.path, prompt.branch, title);
     } catch (e) {
-      return Response.json({ error: "PR creation failed", detail: (e as Error).message }, { status: 500 });
+      return Response.json(
+        { error: "PR creation failed", detail: (e as Error).message },
+        { status: 500 },
+      );
     }
     // Archive without removing worktree (PR needs it)
     if (prompt.tmuxSession) {
-      try { await killSession(prompt.tmuxSession); } catch {}
+      try {
+        await killSession(prompt.tmuxSession);
+      } catch {}
     }
     const updated = updatePrompt(id, { isArchived: true, tmuxSession: null } as never);
     return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });

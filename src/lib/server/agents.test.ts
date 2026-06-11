@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { renderAgentCommand, thinkingArgsForPreset, DEFAULT_AGENT_PRESETS } from "./agents.js";
+import { describe, expect, it } from "vitest";
+import { DEFAULT_AGENT_PRESETS, renderAgentCommand, thinkingArgsForPreset } from "./agents.js";
 
 const pi = DEFAULT_AGENT_PRESETS[0];
 const claude = DEFAULT_AGENT_PRESETS[1];
@@ -14,9 +14,10 @@ describe("thinkingArgsForPreset", () => {
   });
 
   it("returns --effort for claude", () => {
-    expect(
-      thinkingArgsForPreset({ kind: "claude", binary: "claude", thinking: "high" }),
-    ).toEqual(["--effort", "high"]);
+    expect(thinkingArgsForPreset({ kind: "claude", binary: "claude", thinking: "high" })).toEqual([
+      "--effort",
+      "high",
+    ]);
   });
 
   it("returns --variant for opencode", () => {
@@ -36,12 +37,14 @@ describe("thinkingArgsForPreset", () => {
       "--thinking",
       "low",
     ]);
-    expect(
-      thinkingArgsForPreset({ kind: "custom", binary: "claude", thinking: "low" }),
-    ).toEqual(["--effort", "low"]);
-    expect(
-      thinkingArgsForPreset({ kind: "custom", binary: "opencode", thinking: "low" }),
-    ).toEqual(["--variant", "low"]);
+    expect(thinkingArgsForPreset({ kind: "custom", binary: "claude", thinking: "low" })).toEqual([
+      "--effort",
+      "low",
+    ]);
+    expect(thinkingArgsForPreset({ kind: "custom", binary: "opencode", thinking: "low" })).toEqual([
+      "--variant",
+      "low",
+    ]);
   });
 });
 
@@ -78,7 +81,7 @@ describe("renderAgentCommand", () => {
     expect(cmd.indexOf(dangerous, firstOccurrence + 1)).toBe(-1);
     // Heredoc open before prompt, close after prompt
     const heredocStart = cmd.indexOf("<<'EOF'");
-    const heredocEnd = cmd.indexOf("EOF\n)\"");
+    const heredocEnd = cmd.indexOf('EOF\n)"');
     expect(heredocStart).toBeLessThan(firstOccurrence);
     expect(firstOccurrence).toBeLessThan(heredocEnd);
   });

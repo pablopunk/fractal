@@ -1,4 +1,4 @@
-import { readdirSync, type Dirent } from "node:fs";
+import { type Dirent, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { exec } from "./exec.js";
 
@@ -24,8 +24,14 @@ export async function listProjectFiles(projectPath: string, limit = 1000): Promi
 }
 
 async function listGitFiles(projectPath: string, limit: number): Promise<string[]> {
-  const result = await exec("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: projectPath, timeoutMs: 3_000 });
-  return uniqueSorted(result.stdout.split(/\r?\n/).map(cleanRelativePath).filter(Boolean)).slice(0, limit);
+  const result = await exec("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
+    cwd: projectPath,
+    timeoutMs: 3_000,
+  });
+  return uniqueSorted(result.stdout.split(/\r?\n/).map(cleanRelativePath).filter(Boolean)).slice(
+    0,
+    limit,
+  );
 }
 
 function listFsFiles(projectPath: string, limit: number): string[] {
@@ -63,7 +69,13 @@ function walk(dir: string, root: string, out: string[], limit: number): void {
 
 function cleanRelativePath(value: string): string {
   const normalized = value.trim().split(sep).join("/");
-  if (!normalized || normalized.startsWith("../") || normalized.includes("/../") || normalized.startsWith("/")) return "";
+  if (
+    !normalized ||
+    normalized.startsWith("../") ||
+    normalized.includes("/../") ||
+    normalized.startsWith("/")
+  )
+    return "";
   return normalized;
 }
 

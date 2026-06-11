@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { summarizePromptText } from "~/lib/server/ai-helper.js";
-import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/store.js";
 import { withPromptStatus } from "~/lib/server/prompt-status.js";
+import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/store.js";
 
 export const prerender = false;
 
@@ -18,7 +18,12 @@ export const POST: APIRoute = async ({ params, request }) => {
     const settings = getSettings();
     const preset = settings.agentPresets.find((p) => p.id === settings.helperPresetId);
     if (!preset) return Response.json({ prompt: await withPromptStatus(prompt) });
-    const summary = await summarizePromptText({ preset, cwd: project.path, text: prompt.text, force });
+    const summary = await summarizePromptText({
+      preset,
+      cwd: project.path,
+      text: prompt.text,
+      force,
+    });
     const updated = updatePrompt(id, { summary: summary || null } as never);
     return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
   } catch (e) {

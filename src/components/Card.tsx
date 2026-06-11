@@ -1,22 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Check, Copy, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, Copy, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
-import PresetPicker from "./PresetPicker.js";
-import Tooltip from "./Tooltip.js";
-import PresetIcon from "./PresetIcon.js";
-import EditablePromptText from "./EditablePromptText.js";
-import { LocalImageAttachment, UrlPreviewLink, extractImagePaths, parseImagePaths } from "./PromptMedia.js";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
+import EditablePromptText from "./EditablePromptText.js";
+import PresetIcon from "./PresetIcon.js";
+import PresetPicker from "./PresetPicker.js";
+import {
+  extractImagePaths,
+  LocalImageAttachment,
+  parseImagePaths,
+  UrlPreviewLink,
+} from "./PromptMedia.js";
+import Tooltip from "./Tooltip.js";
 
 function PromptMarkdown({ text }: { text: string }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        a: ({ href, children }) => href ? <UrlPreviewLink url={href}>{children}</UrlPreviewLink> : <>{children}</>,
+        a: ({ href, children }) =>
+          href ? <UrlPreviewLink url={href}>{children}</UrlPreviewLink> : children,
       }}
     >
       {text}
@@ -24,18 +30,45 @@ function PromptMarkdown({ text }: { text: string }) {
   );
 }
 
-export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive, onOpenTerminal, onSummarize, isSummarizing, isTerminalOpen, isActiveTerminal, home, isArchivedCol }: { prompt: Prompt; presets: AgentPreset[]; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, patch: { text?: string; modelProfile?: ModelProfile; presetId?: string }) => void | Promise<void>; onArchive: (id: string) => void | Promise<void>; onUnarchive: (id: string) => void | Promise<void>; onOpenTerminal: (prompt: Prompt) => void; onSummarize?: (id: string) => void | Promise<void>; isSummarizing?: boolean; isTerminalOpen: boolean; isActiveTerminal: boolean; home: string; isArchivedCol?: boolean }) {
+export function Card({
+  prompt,
+  presets,
+  onDelete,
+  onEdit,
+  onArchive,
+  onUnarchive,
+  onOpenTerminal,
+  onSummarize,
+  isSummarizing,
+  isTerminalOpen,
+  isActiveTerminal,
+  home,
+  isArchivedCol,
+}: {
+  prompt: Prompt;
+  presets: AgentPreset[];
+  onDelete: (id: string) => void | Promise<void>;
+  onEdit: (
+    id: string,
+    patch: { text?: string; modelProfile?: ModelProfile; presetId?: string },
+  ) => void | Promise<void>;
+  onArchive: (id: string) => void | Promise<void>;
+  onUnarchive: (id: string) => void | Promise<void>;
+  onOpenTerminal: (prompt: Prompt) => void;
+  onSummarize?: (id: string) => void | Promise<void>;
+  isSummarizing?: boolean;
+  isTerminalOpen: boolean;
+  isActiveTerminal: boolean;
+  home: string;
+  isArchivedCol?: boolean;
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(prompt.text);
   const [editPresetId, setEditPresetId] = useState(prompt.presetId);
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: prompt.id, disabled: isEditing });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: prompt.id,
+    disabled: isEditing,
+  });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -43,11 +76,17 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
   const isRunning = !!prompt.isRunning;
   const presetForBadge = presets.find((preset) => preset.id === prompt.presetId);
   const presetName = presetForBadge?.name ?? prompt.presetId;
-  const imagePaths = useMemo(() => [...new Set([...parseImagePaths(prompt.imagePaths), ...extractImagePaths(prompt.text)])], [prompt.imagePaths, prompt.text]);
-  const displayText = prompt.column === "PROMPTS" ? prompt.text : (prompt.summary?.trim() || prompt.text);
+  const imagePaths = useMemo(
+    () => [...new Set([...parseImagePaths(prompt.imagePaths), ...extractImagePaths(prompt.text)])],
+    [prompt.imagePaths, prompt.text],
+  );
+  const displayText =
+    prompt.column === "PROMPTS" ? prompt.text : prompt.summary?.trim() || prompt.text;
   const isShowingSummary = prompt.column !== "PROMPTS" && !!prompt.summary?.trim();
   const [copied, setCopied] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"save" | "archive" | "unarchive" | "delete" | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    "save" | "archive" | "unarchive" | "delete" | null
+  >(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -78,7 +117,10 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
     setEditPresetId(prompt.presetId);
   }
 
-  async function runCardAction(action: NonNullable<typeof pendingAction>, task: () => void | Promise<void>) {
+  async function runCardAction(
+    action: NonNullable<typeof pendingAction>,
+    task: () => void | Promise<void>,
+  ) {
     if (pendingAction) return;
     setPendingAction(action);
     try {
@@ -119,10 +161,7 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
             <PresetPicker presets={presets} value={editPresetId} onChange={setEditPresetId} />
           )}
           <div style={{ flex: 1 }} />
-          <button
-            className="btn ghost sm"
-            onClick={cancelEdit}
-          >
+          <button className="btn ghost sm" onClick={cancelEdit}>
             Cancel
           </button>
           <button
@@ -151,20 +190,42 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
     >
       {prompt.tmuxSession && prompt.isRunning && (
         <Tooltip content={isActiveTerminal ? "Active terminal" : "Terminal open"}>
-          <div className={`terminal-card-button ${isActiveTerminal ? "active" : ""}`} aria-hidden="true">
+          <div
+            className={`terminal-card-button ${isActiveTerminal ? "active" : ""}`}
+            aria-hidden="true"
+          >
             <SquareTerminal size={18} />
           </div>
         </Tooltip>
       )}
-      <Tooltip content={displayText === prompt.text ? "" : <><span className="ai-helper-tooltip-title">Generated summary from</span><div className="markdown-text tooltip-markdown"><PromptMarkdown text={prompt.text} /></div></>}>
+      <Tooltip
+        content={
+          displayText === prompt.text ? (
+            ""
+          ) : (
+            <>
+              <span className="ai-helper-tooltip-title">Generated summary from</span>
+              <div className="markdown-text tooltip-markdown">
+                <PromptMarkdown text={prompt.text} />
+              </div>
+            </>
+          )
+        }
+      >
         <div className="text markdown-text">
           <PromptMarkdown text={displayText} />
-          {isShowingSummary && <span className="ai-helper-mark" aria-label="Prompt summary was generated">∗</span>}
+          {isShowingSummary && (
+            <span className="ai-helper-mark" aria-label="Prompt summary was generated">
+              ∗
+            </span>
+          )}
         </div>
       </Tooltip>
       {imagePaths.length > 0 && (
         <div className="image-attachments">
-          {imagePaths.map((path) => <LocalImageAttachment key={path} path={path} />)}
+          {imagePaths.map((path) => (
+            <LocalImageAttachment key={path} path={path} />
+          ))}
         </div>
       )}
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
@@ -189,12 +250,18 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
         </div>
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
-      <div className="card-actions" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="card-actions"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         {prompt.column === "PROMPTS" ? (
           <PresetPicker
             presets={presets}
             value={prompt.presetId}
-            onChange={(id) => { if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id }); }}
+            onChange={(id) => {
+              if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id });
+            }}
           />
         ) : (
           <Tooltip content={prompt.presetId}>
@@ -205,7 +272,11 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
           </Tooltip>
         )}
         <div className="card-actions-group">
-          {copied && <span className="copy-notice" role="status" aria-live="polite">Copied</span>}
+          {copied && (
+            <span className="copy-notice" role="status" aria-live="polite">
+              Copied
+            </span>
+          )}
           {prompt.column !== "PROMPTS" && !prompt.summary?.trim() && onSummarize && (
             <Tooltip content={isSummarizing ? "Summarizing…" : "Summarize prompt"}>
               <button
@@ -218,7 +289,11 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
                 }}
                 aria-label={isSummarizing ? "Summarizing prompt" : "Summarize prompt"}
               >
-                {isSummarizing ? <span className="btn-spinner" aria-hidden="true" /> : <Sparkles size={14} />}
+                {isSummarizing ? (
+                  <span className="btn-spinner" aria-hidden="true" />
+                ) : (
+                  <Sparkles size={14} />
+                )}
               </button>
             </Tooltip>
           )}
@@ -238,22 +313,20 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
             </button>
           </Tooltip>
           {prompt.tmuxSession && (
-            <>
-              <Tooltip content="Copy worktree name">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyWorktreeName();
-                  }}
-                  aria-label="Copy worktree name"
-                >
-                  <Copy size={14} />
-                </button>
-              </Tooltip>
-            </>
+            <Tooltip content="Copy worktree name">
+              <button
+                type="button"
+                className="icon-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyWorktreeName();
+                }}
+                aria-label="Copy worktree name"
+              >
+                <Copy size={14} />
+              </button>
+            </Tooltip>
           )}
           {isArchivedCol ? (
             <Tooltip content="Move prompt out of DONE">
@@ -261,10 +334,17 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
                 className="icon-btn"
                 onPointerDown={(e) => e.stopPropagation()}
                 disabled={!!pendingAction}
-                onClick={(e) => { e.stopPropagation(); void runCardAction("unarchive", () => onUnarchive(prompt.id)); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void runCardAction("unarchive", () => onUnarchive(prompt.id));
+                }}
                 aria-label="Move prompt out of DONE"
               >
-                {pendingAction === "unarchive" ? <span className="btn-spinner" aria-hidden="true" /> : <Undo2 size={14} />}
+                {pendingAction === "unarchive" ? (
+                  <span className="btn-spinner" aria-hidden="true" />
+                ) : (
+                  <Undo2 size={14} />
+                )}
               </button>
             </Tooltip>
           ) : (
@@ -273,10 +353,17 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
                 className="icon-btn"
                 onPointerDown={(e) => e.stopPropagation()}
                 disabled={!!pendingAction}
-                onClick={(e) => { e.stopPropagation(); void runCardAction("archive", () => onArchive(prompt.id)); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void runCardAction("archive", () => onArchive(prompt.id));
+                }}
                 aria-label="Mark prompt as done"
               >
-                {pendingAction === "archive" ? <span className="btn-spinner" aria-hidden="true" /> : <Check size={14} />}
+                {pendingAction === "archive" ? (
+                  <span className="btn-spinner" aria-hidden="true" />
+                ) : (
+                  <Check size={14} />
+                )}
               </button>
             </Tooltip>
           )}
@@ -291,7 +378,11 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
               }}
               aria-label="Delete prompt and cleanup resources"
             >
-              {pendingAction === "delete" ? <span className="btn-spinner" aria-hidden="true" /> : <Trash2 size={14} />}
+              {pendingAction === "delete" ? (
+                <span className="btn-spinner" aria-hidden="true" />
+              ) : (
+                <Trash2 size={14} />
+              )}
             </button>
           </Tooltip>
         </div>
@@ -299,4 +390,3 @@ export function Card({ prompt, presets, onDelete, onEdit, onArchive, onUnarchive
     </div>
   );
 }
-

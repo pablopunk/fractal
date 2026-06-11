@@ -26,10 +26,20 @@ jobs:
       - name: Install dependencies
         run: mise exec -- pnpm install --frozen-lockfile
 
+      - name: Typecheck
+        run: mise exec -- pnpm run typecheck
+
+      - name: Lint
+        run: mise exec -- pnpm run lint
+
+      - name: Test
+        run: mise exec -- pnpm run test
+
       - name: Build app
         run: mise exec -- pnpm run build
 
   release-mac:
+    needs: check
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 45
@@ -124,6 +134,7 @@ jobs:
           gh release upload "$tag" mac-artifacts/* --clobber
 
   release-linux:
+    needs: check
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30

@@ -32,10 +32,7 @@ export async function isLinearConfigured(): Promise<boolean> {
 export async function fetchLinearIssues(limit = 20): Promise<LinearIssue[]> {
   if (!(await isLinearConfigured())) return [];
   try {
-    const { stdout } = await exec("linear", [
-      "api",
-      "--variable", `limit=${limit}`,
-    ], {
+    const { stdout } = await exec("linear", ["api", "--variable", `limit=${limit}`], {
       timeoutMs: 15000,
       input: `query($limit: Int!) {
   issues(

@@ -1,8 +1,8 @@
-import { asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { asc, eq } from "drizzle-orm";
+import { type AgentPreset, DEFAULT_AGENT_PRESETS } from "./agents.js";
 import { getDb } from "./db/client.js";
-import { projects, prompts, settings, type Project, type Prompt } from "./db/schema.js";
-import { DEFAULT_AGENT_PRESETS, type AgentPreset } from "./agents.js";
+import { type Project, type Prompt, projects, prompts, settings } from "./db/schema.js";
 
 export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "GITHUB" | "LINEAR";
 export type ModelProfile = "smart" | "fast";
@@ -23,7 +23,14 @@ export type UiState = {
   terminalPosition: "right" | "bottom";
   terminalWidth: number;
   terminalHeight: number;
-  terminalTabs: Array<{ id: string; promptId: string; projectId?: string; session: string; title: string; cwd?: string }>;
+  terminalTabs: Array<{
+    id: string;
+    promptId: string;
+    projectId?: string;
+    session: string;
+    title: string;
+    cwd?: string;
+  }>;
   activeTerminalTabId: string | null;
   theme: "system" | "light" | "dark";
   terminalTheme: "fractal" | "catppuccin" | "tokyo-night" | "solarized";
@@ -42,7 +49,14 @@ const DEFAULT_SETTINGS: AppSettings = {
   lastProjectId: "",
 };
 
-const DEFAULT_COLLAPSED = { PROMPTS: false, RUN_IN_PLACE: false, RUN_IN_WORKTREE: false, GITHUB: false, LINEAR: false, ARCHIVED: true } as Record<UiColumn, boolean>;
+const DEFAULT_COLLAPSED = {
+  PROMPTS: false,
+  RUN_IN_PLACE: false,
+  RUN_IN_WORKTREE: false,
+  GITHUB: false,
+  LINEAR: false,
+  ARCHIVED: true,
+} as Record<UiColumn, boolean>;
 
 const DEFAULT_UI_STATE: UiState = {
   version: 1,
@@ -62,7 +76,11 @@ const DEFAULT_UI_STATE: UiState = {
 };
 
 export function listProjects(): Project[] {
-  return getDb().select().from(projects).orderBy(asc(projects.sortOrder), asc(projects.createdAt)).all();
+  return getDb()
+    .select()
+    .from(projects)
+    .orderBy(asc(projects.sortOrder), asc(projects.createdAt))
+    .all();
 }
 
 export function getProject(id: string): Project | undefined {
@@ -125,7 +143,13 @@ export function getPrompt(id: string): Prompt | undefined {
   return getDb().select().from(prompts).where(eq(prompts.id, id)).get();
 }
 
-export function createPrompt(input: { projectId: string; text: string; imagePaths?: string[]; modelProfile?: ModelProfile; presetId?: string }): Prompt {
+export function createPrompt(input: {
+  projectId: string;
+  text: string;
+  imagePaths?: string[];
+  modelProfile?: ModelProfile;
+  presetId?: string;
+}): Prompt {
   const now = new Date();
   const row = {
     id: randomUUID(),
@@ -156,9 +180,11 @@ export function deletePrompt(id: string): void {
 }
 
 function defaultHelperPresetId(presets: AgentPreset[]): string {
-  return presets.find((preset) => preset.kind === "pi" || preset.binary === "pi")?.id
-    ?? presets.find((preset) => preset.kind === "opencode" || preset.binary === "opencode")?.id
-    ?? "";
+  return (
+    presets.find((preset) => preset.kind === "pi" || preset.binary === "pi")?.id ??
+    presets.find((preset) => preset.kind === "opencode" || preset.binary === "opencode")?.id ??
+    ""
+  );
 }
 
 export function getSettings(): AppSettings {
@@ -169,7 +195,9 @@ export function getSettings(): AppSettings {
     if (row.key === "fastModel") out.fastModel = row.value;
     if (row.key === "smartModel") out.smartModel = row.value;
     if (row.key === "agentPresets") {
-      try { out.agentPresets = JSON.parse(row.value); } catch (err) {
+      try {
+        out.agentPresets = JSON.parse(row.value);
+      } catch (err) {
         console.error("[fractal-settings] failed to parse agentPresets, using defaults:", err);
       }
     }
@@ -184,7 +212,8 @@ export function getSettings(): AppSettings {
     if (!out.agentPresets.some((p) => p.id === preset.id)) out.agentPresets.push(preset);
   }
   if (!hasStoredHelperPresetId) out.helperPresetId = defaultHelperPresetId(out.agentPresets);
-  if (out.helperPresetId && !out.agentPresets.some((p) => p.id === out.helperPresetId)) out.helperPresetId = "";
+  if (out.helperPresetId && !out.agentPresets.some((p) => p.id === out.helperPresetId))
+    out.helperPresetId = "";
   return out;
 }
 
@@ -193,10 +222,14 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
   const next = { ...getSettings(), ...patch };
   for (const [key, value] of Object.entries(next)) {
     const storedValue = typeof value === "string" ? value : JSON.stringify(value);
-    getDb().insert(settings).values({ key, value: storedValue, updatedAt: now }).onConflictDoUpdate({
-      target: settings.key,
-      set: { value: storedValue, updatedAt: now },
-    }).run();
+    getDb()
+      .insert(settings)
+      .values({ key, value: storedValue, updatedAt: now })
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: { value: storedValue, updatedAt: now },
+      })
+      .run();
   }
   return getSettings();
 }
@@ -217,12 +250,21 @@ function normalizeCollapsed(value: unknown): Record<UiColumn, boolean> {
 
 function isTerminalTab(value: unknown): value is UiState["terminalTabs"][number] {
   if (!isObject(value)) return false;
-  return typeof value.id === "string" && typeof value.promptId === "string" && typeof value.session === "string" && typeof value.title === "string";
+  return (
+    typeof value.id === "string" &&
+    typeof value.promptId === "string" &&
+    typeof value.session === "string" &&
+    typeof value.title === "string"
+  );
 }
 
 function isCommandRecent(value: unknown): value is UiState["commandRecents"][number] {
   if (!isObject(value)) return false;
-  return (value.kind === "project" || value.kind === "prompt" || value.kind === "tab") && typeof value.id === "string" && typeof value.at === "number";
+  return (
+    (value.kind === "project" || value.kind === "prompt" || value.kind === "tab") &&
+    typeof value.id === "string" &&
+    typeof value.at === "number"
+  );
 }
 
 export function normalizeUiState(value: unknown): UiState {
@@ -233,13 +275,26 @@ export function normalizeUiState(value: unknown): UiState {
       collapsedColumns[key || "global"] = normalizeCollapsed(collapsed);
     }
   }
-  const terminalTabs = Array.isArray(input.terminalTabs) ? input.terminalTabs.filter(isTerminalTab) : [];
-  const activeTerminalTabId = typeof input.activeTerminalTabId === "string" && terminalTabs.some((tab) => tab.id === input.activeTerminalTabId)
-    ? input.activeTerminalTabId
-    : terminalTabs[0]?.id ?? null;
-  const theme = input.theme === "light" || input.theme === "dark" ? input.theme : DEFAULT_UI_STATE.theme;
-  const terminalTheme = input.terminalTheme === "catppuccin" || input.terminalTheme === "tokyo-night" || input.terminalTheme === "solarized" ? input.terminalTheme : DEFAULT_UI_STATE.terminalTheme;
-  const boardLayout = input.boardLayout === "rows" || input.boardLayout === "compact" ? input.boardLayout : DEFAULT_UI_STATE.boardLayout;
+  const terminalTabs = Array.isArray(input.terminalTabs)
+    ? input.terminalTabs.filter(isTerminalTab)
+    : [];
+  const activeTerminalTabId =
+    typeof input.activeTerminalTabId === "string" &&
+    terminalTabs.some((tab) => tab.id === input.activeTerminalTabId)
+      ? input.activeTerminalTabId
+      : (terminalTabs[0]?.id ?? null);
+  const theme =
+    input.theme === "light" || input.theme === "dark" ? input.theme : DEFAULT_UI_STATE.theme;
+  const terminalTheme =
+    input.terminalTheme === "catppuccin" ||
+    input.terminalTheme === "tokyo-night" ||
+    input.terminalTheme === "solarized"
+      ? input.terminalTheme
+      : DEFAULT_UI_STATE.terminalTheme;
+  const boardLayout =
+    input.boardLayout === "rows" || input.boardLayout === "compact"
+      ? input.boardLayout
+      : DEFAULT_UI_STATE.boardLayout;
   const terminalPosition = input.terminalPosition === "bottom" ? "bottom" : "right";
   const glass = isObject(input.glassSettings) ? input.glassSettings : {};
   return {
@@ -259,7 +314,9 @@ export function normalizeUiState(value: unknown): UiState {
       opacity: numberInRange(glass.opacity, DEFAULT_UI_STATE.glassSettings.opacity, 0.45, 1),
       blur: numberInRange(glass.blur, DEFAULT_UI_STATE.glassSettings.blur, 0, 40),
     },
-    commandRecents: Array.isArray(input.commandRecents) ? input.commandRecents.filter(isCommandRecent).slice(0, 20) : [],
+    commandRecents: Array.isArray(input.commandRecents)
+      ? input.commandRecents.filter(isCommandRecent).slice(0, 20)
+      : [],
     boardLayout,
     lastProjectId: typeof input.lastProjectId === "string" ? input.lastProjectId : "",
   };
@@ -268,15 +325,23 @@ export function normalizeUiState(value: unknown): UiState {
 export function getUiState(): UiState {
   const row = getDb().select().from(settings).where(eq(settings.key, "uiState")).get();
   if (!row) return DEFAULT_UI_STATE;
-  try { return normalizeUiState(JSON.parse(row.value)); } catch { return DEFAULT_UI_STATE; }
+  try {
+    return normalizeUiState(JSON.parse(row.value));
+  } catch {
+    return DEFAULT_UI_STATE;
+  }
 }
 
 export function updateUiState(patch: Partial<UiState>): UiState {
   const now = new Date();
   const next = normalizeUiState({ ...getUiState(), ...patch });
-  getDb().insert(settings).values({ key: "uiState", value: JSON.stringify(next), updatedAt: now }).onConflictDoUpdate({
-    target: settings.key,
-    set: { value: JSON.stringify(next), updatedAt: now },
-  }).run();
+  getDb()
+    .insert(settings)
+    .values({ key: "uiState", value: JSON.stringify(next), updatedAt: now })
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value: JSON.stringify(next), updatedAt: now },
+    })
+    .run();
   return next;
 }

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { unlinkSync } from "node:fs";
-import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const TEST_DB_PATH = join(tmpdir(), `fractal-test-${randomUUID()}.db`);
 
@@ -36,11 +36,7 @@ describe("store", () => {
     expect(settings.smartModel).toBe("");
     expect(settings.lastProjectId).toBe("");
     expect(settings.agentPresets).toHaveLength(3);
-    expect(settings.agentPresets.map((p) => p.id).sort()).toEqual([
-      "claude",
-      "opencode",
-      "pi",
-    ]);
+    expect(settings.agentPresets.map((p) => p.id).sort()).toEqual(["claude", "opencode", "pi"]);
     // Empty DB: helperPresetId auto-resolves to first pi preset
     expect(settings.helperPresetId).toBe("pi");
   });

@@ -16,7 +16,8 @@ export function getFilePaths(dt: DataTransfer): string[] {
 
   if (fromFiles.length > 0) return fromFiles;
 
-  return dt.getData("text/uri-list")
+  return dt
+    .getData("text/uri-list")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#") && line.startsWith("file://"))

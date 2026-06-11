@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { getUiState, updateUiState, type UiState } from "~/lib/server/store.js";
+import { getUiState, type UiState, updateUiState } from "~/lib/server/store.js";
 
 export const prerender = false;
 
@@ -8,6 +8,6 @@ export const GET: APIRoute = async () => {
 };
 
 export const PATCH: APIRoute = async ({ request }) => {
-  const body = await request.json().catch(() => ({})) as Partial<UiState>;
+  const body = (await request.json().catch(() => ({}))) as Partial<UiState>;
   return Response.json({ uiState: updateUiState(body) });
 };

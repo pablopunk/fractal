@@ -1,6 +1,7 @@
-import { exec, ExecError } from "./exec.js";
+import { ExecError, exec } from "./exec.js";
 
-const TMUX_MISSING_MESSAGE = "tmux is required to run agents and open terminals. Please install tmux and restart Fractal.";
+const TMUX_MISSING_MESSAGE =
+  "tmux is required to run agents and open terminals. Please install tmux and restart Fractal.";
 
 function isMissingTmuxError(error: unknown): boolean {
   return error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT";
@@ -13,7 +14,10 @@ function rethrowMissingTmux(error: unknown): never {
 
 /** tmux session names cannot contain `.` or `:`. */
 export function sanitizeSessionName(name: string): string {
-  return name.replace(/[.:\s]/g, "-").replace(/-+/g, "-").slice(0, 80);
+  return name
+    .replace(/[.:\s]/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80);
 }
 
 export async function hasSession(name: string): Promise<boolean> {
@@ -29,7 +33,10 @@ export async function hasSession(name: string): Promise<boolean> {
 export async function listSessions(): Promise<string[]> {
   try {
     const { stdout } = await exec("tmux", ["list-sessions", "-F", "#{session_name}"]);
-    return stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+    return stdout
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
   } catch (e) {
     if (e instanceof ExecError) return [];
     rethrowMissingTmux(e);

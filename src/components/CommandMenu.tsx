@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { Command, useCommandState } from "cmdk";
 import { Check, Copy, FolderKanban, Pencil, Play, SquareTerminal, Trash2 } from "lucide-react";
-import type { Project, Prompt, TerminalTab } from "~/lib/client/types.js";
+import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import type { CommandRecent } from "~/lib/client/persistence.js";
+import type { Project, Prompt, TerminalTab } from "~/lib/client/types.js";
 
 type Props = {
   projects: Project[];
@@ -55,21 +55,47 @@ export default function CommandMenu(props: Props) {
   }
 
   return (
-    <Command.Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setRunPrompt(null); }} label="Command menu" className="cmdk-dialog" overlayClassName="cmdk-overlay" shouldFilter={!runPrompt} loop>
-      <Command.Input className="cmdk-input" autoFocus placeholder={runPrompt ? `Run ${promptTitle(runPrompt)}…` : "Open project, prompt, or run…"} />
+    <Command.Dialog
+      open={open}
+      onOpenChange={(value) => {
+        setOpen(value);
+        if (!value) setRunPrompt(null);
+      }}
+      label="Command menu"
+      className="cmdk-dialog"
+      overlayClassName="cmdk-overlay"
+      shouldFilter={!runPrompt}
+      loop
+    >
+      <Command.Input
+        className="cmdk-input"
+        autoFocus
+        placeholder={runPrompt ? `Run ${promptTitle(runPrompt)}…` : "Open project, prompt, or run…"}
+      />
       <Command.List className="cmdk-list">
         <Command.Empty className="cmdk-empty">No results found.</Command.Empty>
         {runPrompt ? (
           <RunPromptChoices prompt={runPrompt} run={run} onRunPrompt={props.onRunPrompt} />
         ) : (
-          <MenuItems {...props} run={run} copySession={copySession} onChooseRunPrompt={setRunPrompt} />
+          <MenuItems
+            {...props}
+            run={run}
+            copySession={copySession}
+            onChooseRunPrompt={setRunPrompt}
+          />
         )}
       </Command.List>
     </Command.Dialog>
   );
 }
 
-function MenuItems(props: Props & { run: (action: () => void) => void; copySession: (value: string) => void; onChooseRunPrompt: (prompt: Prompt) => void }) {
+function MenuItems(
+  props: Props & {
+    run: (action: () => void) => void;
+    copySession: (value: string) => void;
+    onChooseRunPrompt: (prompt: Prompt) => void;
+  },
+) {
   const search = useCommandState((state) => state.search);
   const showActions = search.length > 0;
 
@@ -130,7 +156,11 @@ function MenuItems(props: Props & { run: (action: () => void) => void; copySessi
   const activeTabPrompt = useMemo(() => {
     const tab = props.tabs.find((item) => item.id === props.activeTabId);
     if (!tab) return null;
-    return promptsByProject.find((prompt) => prompt.id === tab.promptId || prompt.tmuxSession === tab.session) ?? null;
+    return (
+      promptsByProject.find(
+        (prompt) => prompt.id === tab.promptId || prompt.tmuxSession === tab.session,
+      ) ?? null
+    );
   }, [props.tabs, props.activeTabId, promptsByProject]);
 
   function run(action: () => void) {
@@ -255,7 +285,11 @@ function StartedPromptActions(props: {
   );
 }
 
-function RunPromptChoices(props: { prompt: Prompt; run: (action: () => void) => void; onRunPrompt: Props["onRunPrompt"] }) {
+function RunPromptChoices(props: {
+  prompt: Prompt;
+  run: (action: () => void) => void;
+  onRunPrompt: Props["onRunPrompt"];
+}) {
   const title = promptTitle(props.prompt);
   return (
     <>
@@ -293,12 +327,12 @@ function ActionItem(props: ActionItemProps) {
 
 function promptTitle(prompt: Prompt): string {
   const text = prompt.summary?.trim() || prompt.text.trim() || "Untitled prompt";
-  return text.length > 72 ? text.slice(0, 71) + "…" : text;
+  return text.length > 72 ? `${text.slice(0, 71)}…` : text;
 }
 
 function tildeify(abs: string, home: string): string {
   if (!home) return abs;
   if (abs === home) return "~";
-  if (abs.startsWith(home + "/")) return "~" + abs.slice(home.length);
+  if (abs.startsWith(`${home}/`)) return `~${abs.slice(home.length)}`;
   return abs;
 }

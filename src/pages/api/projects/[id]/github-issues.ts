@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { getProject } from "~/lib/server/store.js";
 import { fetchGithubIssues } from "~/lib/server/github-issues.js";
+import { getProject } from "~/lib/server/store.js";
 
 export const prerender = false;
 

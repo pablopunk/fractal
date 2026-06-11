@@ -1,6 +1,6 @@
-import type { APIRoute } from "astro";
 import { resolve, sep } from "node:path";
-import { HOME, expandPath, listDirectories } from "~/lib/server/fs.js";
+import type { APIRoute } from "astro";
+import { expandPath, HOME, listDirectories } from "~/lib/server/fs.js";
 
 export const prerender = false;
 

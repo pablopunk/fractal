@@ -16,14 +16,14 @@ const logStream = createWriteStream(logFile, { flags: "a" });
 const originalLog = console.log;
 const originalError = console.error;
 
-console.log = function(...args) {
-  const msg = args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
+console.log = (...args) => {
+  const msg = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
   logStream.write(`[${new Date().toISOString()}] ${msg}\n`);
   originalLog.apply(console, args);
 };
 
-console.error = function(...args) {
-  const msg = args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
+console.error = (...args) => {
+  const msg = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
   logStream.write(`[${new Date().toISOString()}] ERROR: ${msg}\n`);
   originalError.apply(console, args);
 };
@@ -60,11 +60,13 @@ function ensureUserPath() {
     const { execFileSync } = require("node:child_process");
     const fs = require("node:fs");
     const ALLOWED_SHELL_DIRS = ["/bin/", "/usr/bin/", "/usr/local/bin/", "/opt/homebrew/bin/"];
-    const fallbackShells = process.platform === "darwin" ? ["/bin/zsh", "/bin/bash"] : ["/bin/bash", "/bin/zsh"];
+    const fallbackShells =
+      process.platform === "darwin" ? ["/bin/zsh", "/bin/bash"] : ["/bin/bash", "/bin/zsh"];
     const envShell = process.env.SHELL || "";
-    const shellOk = envShell.startsWith("/")
-      && ALLOWED_SHELL_DIRS.some((d) => envShell.startsWith(d))
-      && fs.existsSync(envShell);
+    const shellOk =
+      envShell.startsWith("/") &&
+      ALLOWED_SHELL_DIRS.some((d) => envShell.startsWith(d)) &&
+      fs.existsSync(envShell);
     const shellBin = shellOk ? envShell : fallbackShells.find((shell) => fs.existsSync(shell));
     if (!shellBin) return;
     const out = execFileSync(shellBin, ["-l", "-c", "/usr/bin/env -0"], {
@@ -292,7 +294,7 @@ async function createWindow() {
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.on("closed", () => {
-    if (mainWindow && mainWindow.isDestroyed()) {
+    if (mainWindow?.isDestroyed()) {
       mainWindow = null;
     }
   });
@@ -315,8 +317,16 @@ function closeTerminalServer() {
   terminalServer = null;
   terminalServerPromise = null;
   if (!server) return;
-  try { server.closeTerminalConnections?.(); } catch (error) { console.error("[fractal-terminal] failed to close terminal connections", error); }
-  try { server.close(); } catch (error) { console.error("[fractal-terminal] failed to close terminal server", error); }
+  try {
+    server.closeTerminalConnections?.();
+  } catch (error) {
+    console.error("[fractal-terminal] failed to close terminal connections", error);
+  }
+  try {
+    server.close();
+  } catch (error) {
+    console.error("[fractal-terminal] failed to close terminal server", error);
+  }
 }
 
 function buildMenu() {

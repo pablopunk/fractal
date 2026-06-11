@@ -1,11 +1,16 @@
+import { Columns2, Rows2, Terminal as TerminalIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Columns2, Rows2, X, Terminal as TerminalIcon } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 import type { Terminal as XTermTerminal } from "@xterm/xterm";
-import Tooltip from "./Tooltip.js";
-import { filePathsAsTerminalPaste, getFilePaths, handleOsc52, writeClipboard } from "~/lib/client/terminal-utils.js";
 import type { ThemeMode } from "~/lib/client/persistence.js";
-import { terminalTheme, type TerminalThemeName } from "~/lib/client/terminal-themes.js";
+import { type TerminalThemeName, terminalTheme } from "~/lib/client/terminal-themes.js";
+import {
+  filePathsAsTerminalPaste,
+  getFilePaths,
+  handleOsc52,
+  writeClipboard,
+} from "~/lib/client/terminal-utils.js";
+import Tooltip from "./Tooltip.js";
 
 type TerminalTab = {
   id: string;
@@ -78,14 +83,26 @@ export default function TerminalPane(props: {
       if (props.position === "right") {
         const right = workspaceRect?.right ?? window.innerWidth;
         const width = workspaceRect?.width ?? window.innerWidth;
-        props.onResize(Math.min(Math.max(right - e.clientX, 320), Math.max(320, width - BOARD_ICON_RAIL_MIN_WIDTH)));
+        props.onResize(
+          Math.min(
+            Math.max(right - e.clientX, 320),
+            Math.max(320, width - BOARD_ICON_RAIL_MIN_WIDTH),
+          ),
+        );
       } else {
         const bottom = workspaceRect?.bottom ?? window.innerHeight;
         const height = workspaceRect?.height ?? window.innerHeight;
-        props.onResize(Math.min(Math.max(bottom - e.clientY, 180), Math.max(180, height - BOARD_STACK_MIN_HEIGHT)));
+        props.onResize(
+          Math.min(
+            Math.max(bottom - e.clientY, 180),
+            Math.max(180, height - BOARD_STACK_MIN_HEIGHT),
+          ),
+        );
       }
     }
-    function onUp() { dragging.current = false; }
+    function onUp() {
+      dragging.current = false;
+    }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     return () => {
@@ -97,7 +114,17 @@ export default function TerminalPane(props: {
   if (!active) return null;
 
   return (
-    <aside ref={paneRef} className={`terminal-pane terminal-pane-${props.position}`} style={props.snug ? undefined : props.position === "right" ? { width: props.size } : { height: props.size }}>
+    <aside
+      ref={paneRef}
+      className={`terminal-pane terminal-pane-${props.position}`}
+      style={
+        props.snug
+          ? undefined
+          : props.position === "right"
+            ? { width: props.size }
+            : { height: props.size }
+      }
+    >
       <div
         className={`terminal-resizer terminal-resizer-${props.position}`}
         onPointerDown={(e) => {
@@ -116,18 +143,35 @@ export default function TerminalPane(props: {
                 onDragStart={(e) => {
                   setDraggingTabId(tab.id);
                   e.dataTransfer.effectAllowed = "move";
-                  try { e.dataTransfer.setData("text/plain", tab.id); } catch {}
+                  try {
+                    e.dataTransfer.setData("text/plain", tab.id);
+                  } catch {}
                 }}
-                onDragEnter={(e) => { e.preventDefault(); if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id); }}
-                onDragOver={(e) => { if (draggingTabId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
-                onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOverTabId((id) => id === tab.id ? null : id); }}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id);
+                }}
+                onDragOver={(e) => {
+                  if (draggingTabId) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget === e.target)
+                    setDragOverTabId((id) => (id === tab.id ? null : id));
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (draggingTabId && draggingTabId !== tab.id) props.onReorder(draggingTabId, tab.id);
+                  if (draggingTabId && draggingTabId !== tab.id)
+                    props.onReorder(draggingTabId, tab.id);
                   setDraggingTabId(null);
                   setDragOverTabId(null);
                 }}
-                onDragEnd={() => { setDraggingTabId(null); setDragOverTabId(null); }}
+                onDragEnd={() => {
+                  setDraggingTabId(null);
+                  setDragOverTabId(null);
+                }}
               >
                 <TerminalIcon size={13} />
                 <span>{tab.title}</span>
@@ -135,8 +179,16 @@ export default function TerminalPane(props: {
                   className="terminal-tab-close"
                   role="button"
                   tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); props.onClose(tab.id); }}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); props.onClose(tab.id); } }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onClose(tab.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.stopPropagation();
+                      props.onClose(tab.id);
+                    }
+                  }}
                   aria-label={`Close ${tab.title}`}
                 >
                   <X size={12} />
@@ -145,18 +197,48 @@ export default function TerminalPane(props: {
             </Tooltip>
           ))}
         </div>
-        <Tooltip content={props.position === "right" ? "Move terminal to bottom" : "Move terminal to right"}>
-          <button className="terminal-pane-toggle" onClick={props.onTogglePosition} aria-label="Toggle terminal position">
+        <Tooltip
+          content={
+            props.position === "right" ? "Move terminal to bottom" : "Move terminal to right"
+          }
+        >
+          <button
+            className="terminal-pane-toggle"
+            onClick={props.onTogglePosition}
+            aria-label="Toggle terminal position"
+          >
             {props.position === "right" ? <Rows2 size={14} /> : <Columns2 size={14} />}
           </button>
         </Tooltip>
       </div>
-      <TerminalView key={active.id} tab={active} onClose={props.onClose} focusKey={props.focusKey} theme={props.theme} terminalThemeName={props.terminalThemeName} glassEnabled={props.glassEnabled} />
+      <TerminalView
+        key={active.id}
+        tab={active}
+        onClose={props.onClose}
+        focusKey={props.focusKey}
+        theme={props.theme}
+        terminalThemeName={props.terminalThemeName}
+        glassEnabled={props.glassEnabled}
+      />
     </aside>
   );
 }
 
-function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassEnabled }: { tab: TerminalTab; onClose: (id: string) => void; focusKey: number; theme: ThemeMode; terminalThemeName: TerminalThemeName; glassEnabled: boolean }) {
+function TerminalView({
+  tab,
+  onClose,
+  focusKey,
+  theme,
+  terminalThemeName,
+  glassEnabled,
+}: {
+  tab: TerminalTab;
+  onClose: (id: string) => void;
+  focusKey: number;
+  theme: ThemeMode;
+  terminalThemeName: TerminalThemeName;
+  glassEnabled: boolean;
+}) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<XTermTerminal | null>(null);
   const onCloseRef = useRef(onClose);
@@ -167,11 +249,12 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
 
   useEffect(() => {
     termRef.current?.focus();
-  }, [focusKey]);
+  }, []);
 
   useEffect(() => {
     const applyTheme = () => {
-      if (termRef.current) termRef.current.options.theme = terminalTheme(theme, terminalThemeName, glassEnabled);
+      if (termRef.current)
+        termRef.current.options.theme = terminalTheme(theme, terminalThemeName, glassEnabled);
     };
     applyTheme();
     if (theme !== "system") return;
@@ -208,7 +291,12 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
       event.stopPropagation();
     };
     const onDragOver = (event: DragEvent) => {
-      if (!Array.from(event.dataTransfer?.types ?? []).some((type) => type === "Files" || type === "text/uri-list")) return;
+      if (
+        !Array.from(event.dataTransfer?.types ?? []).some(
+          (type) => type === "Files" || type === "text/uri-list",
+        )
+      )
+        return;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     };
@@ -219,7 +307,15 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
       term?.focus();
     };
     const onLinkMouseDown = (event: MouseEvent) => {
-      if (!event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey || event.button !== 0 || !term) return;
+      if (
+        !event.metaKey ||
+        !event.shiftKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.button !== 0 ||
+        !term
+      )
+        return;
       const url = terminalLinkAt(term, host, event);
       if (!url) return;
       event.preventDefault();
@@ -229,8 +325,17 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
     const onShiftMouseDown = (event: MouseEvent) => {
       // xterm.js forces selection with Shift on Linux/Windows, but with Option on macOS.
       // Re-dispatch Shift+drag as Option+drag so this app matches other terminals.
-      if (!event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.button !== 0 || event.defaultPrevented) return;
-      if ((event as MouseEvent & { __fractalShiftSelection?: boolean }).__fractalShiftSelection) return;
+      if (
+        !event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.button !== 0 ||
+        event.defaultPrevented
+      )
+        return;
+      if ((event as MouseEvent & { __fractalShiftSelection?: boolean }).__fractalShiftSelection)
+        return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -257,7 +362,8 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
     };
 
     void (async () => {
-      const terminalFontFamily = '"Fractal JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace';
+      const terminalFontFamily =
+        '"Fractal JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font Mono", "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, Monaco, Consolas, monospace';
       const [{ Terminal }, { FitAddon }, webglMod] = await Promise.all([
         import("@xterm/xterm"),
         import("@xterm/addon-fit"),
@@ -292,14 +398,24 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
           return false;
         }
 
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && term.hasSelection()) {
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.key.toLowerCase() === "c" &&
+          term.hasSelection()
+        ) {
           event.preventDefault();
           void writeClipboard(term.getSelection());
           term.clearSelection();
           return false;
         }
 
-        if (event.key === "Enter" && event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        if (
+          event.key === "Enter" &&
+          event.shiftKey &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          !event.metaKey
+        ) {
           event.preventDefault();
           sendData("\x1b[13;2u");
           return false;
@@ -334,14 +450,19 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
       ws = new WebSocket(`ws://127.0.0.1:${port}/terminal?${params.toString()}`);
       const sendResize = () => {
         fit.fit();
-        if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+        if (ws?.readyState === WebSocket.OPEN)
+          ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
       };
       resizeObserver = new ResizeObserver(sendResize);
       resizeObserver.observe(host);
 
       ws.addEventListener("open", sendResize);
       ws.addEventListener("message", (event) => {
-        const msg = JSON.parse(String(event.data)) as { type: string; data?: string; message?: string };
+        const msg = JSON.parse(String(event.data)) as {
+          type: string;
+          data?: string;
+          message?: string;
+        };
         if (msg.type === "data" && msg.data) term.write(msg.data);
         if (msg.type === "error") term.writeln(`\r\n${msg.message ?? "Terminal error"}`);
       });
@@ -371,7 +492,7 @@ function TerminalView({ tab, onClose, focusKey, theme, terminalThemeName, glassE
       osc52?.dispose();
       term?.dispose();
     };
-  }, [tab.id, tab.session, tab.cwd, glassEnabled]);
+  }, [tab.id, tab.session, tab.cwd, glassEnabled, theme, terminalThemeName]);
 
   return <div ref={hostRef} className="terminal-host" />;
 }

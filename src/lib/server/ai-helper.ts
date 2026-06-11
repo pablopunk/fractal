@@ -1,5 +1,5 @@
+import type { AgentPreset } from "./agents.js";
 import { exec } from "./exec.js";
-import { type AgentPreset } from "./agents.js";
 
 const SUMMARY_TIMEOUT_MS = 60_000;
 const MIN_SUMMARY_CHARACTERS = 96;
@@ -21,7 +21,12 @@ function wordCount(text: string): number {
 
 export function shouldSummarizePromptText(text: string): boolean {
   const normalized = normalizePromptForSummary(text);
-  return text.length >= MIN_SUMMARY_CHARACTERS || wordCount(text) >= MIN_SUMMARY_WORDS || normalized.length >= MIN_SUMMARY_CHARACTERS || wordCount(normalized) >= MIN_SUMMARY_WORDS;
+  return (
+    text.length >= MIN_SUMMARY_CHARACTERS ||
+    wordCount(text) >= MIN_SUMMARY_WORDS ||
+    normalized.length >= MIN_SUMMARY_CHARACTERS ||
+    wordCount(normalized) >= MIN_SUMMARY_WORDS
+  );
 }
 
 function cleanOutput(value: string): string {
@@ -63,39 +68,59 @@ Task:
 ${text}`;
 }
 
-export async function runPresetForText(input: { preset: AgentPreset; cwd: string; prompt: string }): Promise<string> {
+export async function runPresetForText(input: {
+  preset: AgentPreset;
+  cwd: string;
+  prompt: string;
+}): Promise<string> {
   const prompt = input.preset.promptTemplate?.trim()
     ? input.preset.promptTemplate.replace(/{{\s*prompt\s*}}/g, () => input.prompt)
     : input.prompt;
   const modelArgs = input.preset.model ? ["--model", input.preset.model] : [];
 
   if (input.preset.binary === "pi" || input.preset.kind === "pi") {
-    const { stdout } = await exec(input.preset.binary, [
-      "-p",
-      "--no-tools",
-      "--no-extensions",
-      "--no-skills",
-      "--no-prompt-templates",
-      "--no-themes",
-      "--no-context-files",
-      "--no-session",
-      "--thinking",
-      "off",
-      ...modelArgs,
-      prompt,
-    ], { cwd: input.cwd, timeoutMs: SUMMARY_TIMEOUT_MS });
+    const { stdout } = await exec(
+      input.preset.binary,
+      [
+        "-p",
+        "--no-tools",
+        "--no-extensions",
+        "--no-skills",
+        "--no-prompt-templates",
+        "--no-themes",
+        "--no-context-files",
+        "--no-session",
+        "--thinking",
+        "off",
+        ...modelArgs,
+        prompt,
+      ],
+      { cwd: input.cwd, timeoutMs: SUMMARY_TIMEOUT_MS },
+    );
     return cleanOutput(stdout);
   }
 
   if (input.preset.binary === "opencode" || input.preset.kind === "opencode") {
-    const { stdout } = await exec(input.preset.binary, ["run", "--pure", ...modelArgs, prompt], { cwd: input.cwd, timeoutMs: SUMMARY_TIMEOUT_MS });
+    const { stdout } = await exec(input.preset.binary, ["run", "--pure", ...modelArgs, prompt], {
+      cwd: input.cwd,
+      timeoutMs: SUMMARY_TIMEOUT_MS,
+    });
     return cleanOutput(stdout);
   }
 
   throw new Error(`Preset ${input.preset.name} cannot be used as a Fractal AI helper yet`);
 }
 
-export async function summarizePromptText(input: { preset: AgentPreset; cwd: string; text: string; force?: boolean }): Promise<string> {
+export async function summarizePromptText(input: {
+  preset: AgentPreset;
+  cwd: string;
+  text: string;
+  force?: boolean;
+}): Promise<string> {
   if (!input.force && !shouldSummarizePromptText(input.text)) return "";
-  return runPresetForText({ preset: input.preset, cwd: input.cwd, prompt: helperPrompt(input.text) });
+  return runPresetForText({
+    preset: input.preset,
+    cwd: input.cwd,
+    prompt: helperPrompt(input.text),
+  });
 }

@@ -4,8 +4,10 @@ import type { UrlPreview } from "~/lib/client/types.js";
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 const TRAILING_URL_PUNCTUATION_RE = /[),.;:!?]+$/;
-const QUOTED_IMAGE_PATH_RE = /(["'])((?:~|\/)[^"']+?\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif))\1/gi;
-const UNQUOTED_IMAGE_PATH_RE = /(?:^|\s)((?:~|\/)[^\n\r\t"']+?\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif))(?=$|\s)/gi;
+const QUOTED_IMAGE_PATH_RE =
+  /(["'])((?:~|\/)[^"']+?\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif))\1/gi;
+const UNQUOTED_IMAGE_PATH_RE =
+  /(?:^|\s)((?:~|\/)[^\n\r\t"']+?\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif))(?=$|\s)/gi;
 
 export function extractImagePaths(text: string): string[] {
   const paths = new Set<string>();
@@ -18,7 +20,9 @@ export function parseImagePaths(value: string | null | undefined): string[] {
   if (!value) return [];
   try {
     const paths = JSON.parse(value);
-    return Array.isArray(paths) ? paths.filter((path): path is string => typeof path === "string" && path.trim().length > 0) : [];
+    return Array.isArray(paths)
+      ? paths.filter((path): path is string => typeof path === "string" && path.trim().length > 0)
+      : [];
   } catch {
     return [];
   }
@@ -45,7 +49,11 @@ export function UrlPreviewLink({ url, children }: { url: string; children?: Reac
         const height = 128;
         const left = Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
         const hasRoomAbove = rect.top > height + 16;
-        setPopoverStyle({ left, top: hasRoomAbove ? rect.top - height - 8 : rect.bottom + 8, width });
+        setPopoverStyle({
+          left,
+          top: hasRoomAbove ? rect.top - height - 8 : rect.bottom + 8,
+          width,
+        });
       }
       setShowPreview(true);
     }, 250);
@@ -59,7 +67,9 @@ export function UrlPreviewLink({ url, children }: { url: string; children?: Reac
   useEffect(() => {
     if (!showPreview || preview || previewError) return;
     const controller = new AbortController();
-    void api<UrlPreview>(`/api/url-preview?url=${encodeURIComponent(url)}`, { signal: controller.signal })
+    void api<UrlPreview>(`/api/url-preview?url=${encodeURIComponent(url)}`, {
+      signal: controller.signal,
+    })
       .then(setPreview)
       .catch((e) => {
         if (!controller.signal.aborted) setPreviewError(e instanceof Error ? e.message : String(e));
@@ -68,7 +78,12 @@ export function UrlPreviewLink({ url, children }: { url: string; children?: Reac
   }, [preview, previewError, showPreview, url]);
 
   return (
-    <span ref={wrapRef} className="url-preview-wrap" onMouseEnter={openPreview} onMouseLeave={closePreview}>
+    <span
+      ref={wrapRef}
+      className="url-preview-wrap"
+      onMouseEnter={openPreview}
+      onMouseLeave={closePreview}
+    >
       <a
         href={url}
         target="_blank"
@@ -94,14 +109,18 @@ export function UrlPreviewLink({ url, children }: { url: string; children?: Reac
           {previewError && <span className="url-preview-loading">Preview unavailable</span>}
           {preview && (
             <>
-              {preview.image && <img className="url-preview-image" src={preview.image} alt="" loading="lazy" />}
+              {preview.image && (
+                <img className="url-preview-image" src={preview.image} alt="" loading="lazy" />
+              )}
               <span className="url-preview-content">
                 <span className="url-preview-site">
                   {preview.favicon && <img src={preview.favicon} alt="" loading="lazy" />}
                   {preview.siteName}
                 </span>
                 <span className="url-preview-title">{preview.title}</span>
-                {preview.description && <span className="url-preview-description">{preview.description}</span>}
+                {preview.description && (
+                  <span className="url-preview-description">{preview.description}</span>
+                )}
                 <span className="url-preview-url">{preview.url}</span>
               </span>
             </>
@@ -118,7 +137,6 @@ export function LocalImageAttachment({ path, onRemove }: { path: string; onRemov
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties | null>(null);
   const wrapRef = useRef<HTMLSpanElement>(null);
 
-  if (!exists) return null;
   const src = `/api/local-image?path=${encodeURIComponent(path)}`;
 
   function togglePreview() {
@@ -139,20 +157,53 @@ export function LocalImageAttachment({ path, onRemove }: { path: string; onRemov
   function handleLoad(e: React.SyntheticEvent<HTMLImageElement>) {
     const { naturalWidth, naturalHeight } = e.currentTarget;
     const isWide = naturalWidth > naturalHeight;
-    setPopoverStyle(isWide ? { width: "85vw", maxWidth: "85vw" } : { height: "85vh", maxHeight: "85vh" });
+    setPopoverStyle(
+      isWide ? { width: "85vw", maxWidth: "85vw" } : { height: "85vh", maxHeight: "85vh" },
+    );
   }
+
+  if (!exists) return null;
 
   return (
     <span ref={wrapRef} className="image-attachment-wrap">
-      <a className="image-attachment" href={src} target="_blank" rel="noreferrer" title={path} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePreview(); }}>
+      <a
+        className="image-attachment"
+        href={src}
+        target="_blank"
+        rel="noreferrer"
+        title={path}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          togglePreview();
+        }}
+      >
         <img src={src} alt={basename(path)} loading="lazy" onError={() => setExists(false)} />
         <span>{basename(path)}</span>
       </a>
       {onRemove && (
-        <button type="button" className="image-attachment-remove" aria-label={`Remove ${basename(path)}`} title="Remove attachment" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}>×</button>
+        <button
+          type="button"
+          className="image-attachment-remove"
+          aria-label={`Remove ${basename(path)}`}
+          title="Remove attachment"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          ×
+        </button>
       )}
       {showPreview && (
-        <span className="image-attachment-popover" style={popoverStyle ?? undefined} aria-hidden="true">
+        <span
+          className="image-attachment-popover"
+          style={popoverStyle ?? undefined}
+          aria-hidden="true"
+        >
           <img src={src} alt={basename(path)} loading="lazy" onLoad={handleLoad} />
         </span>
       )}
@@ -179,4 +230,3 @@ export function LinkifiedText({ text }: { text: string }) {
   if (lastIndex < text.length) parts.push(text.slice(lastIndex));
   return <>{parts}</>;
 }
-

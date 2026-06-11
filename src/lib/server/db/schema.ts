@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
@@ -23,9 +23,13 @@ export const prompts = sqliteTable("prompts", {
   text: text("text").notNull(),
   summary: text("summary"),
   imagePaths: text("image_paths").notNull().default("[]"),
-  modelProfile: text("model_profile", { enum: ["smart", "fast"] }).notNull().default("smart"),
+  modelProfile: text("model_profile", { enum: ["smart", "fast"] })
+    .notNull()
+    .default("smart"),
   presetId: text("preset_id").notNull().default("pi"),
-  column: text("column", { enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE", "GITHUB", "LINEAR"] })
+  column: text("column", {
+    enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE", "GITHUB", "LINEAR"],
+  })
     .notNull()
     .default("PROMPTS"),
   runMode: text("run_mode", { enum: ["in_place", "worktree"] }),

@@ -12,10 +12,7 @@ export const prerender = false;
  */
 export const POST: APIRoute = async () => {
   try {
-    const [archived, deleted] = await Promise.all([
-      autoArchiveOrphans(),
-      autoCleanupDonePrompts(),
-    ]);
+    const [archived, deleted] = await Promise.all([autoArchiveOrphans(), autoCleanupDonePrompts()]);
     return Response.json({
       ok: true,
       archivedCount: archived.length,
