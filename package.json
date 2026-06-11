@@ -56,6 +56,9 @@
     "ws": "^8.20.1"
   },
   "pnpm": {
+    "overrides": {
+      "devalue": "^5.8.1"
+    },
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "esbuild",
@@ -67,12 +70,12 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
-    "@electron/rebuild": "^3.6.0",
+    "@electron/rebuild": "^4.0.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.18.1",
-    "concurrently": "^9.2.1",
+    "concurrently": "^10.0.3",
     "drizzle-kit": "^0.31.10",
     "electron": "^41.5.0",
     "electron-builder": "^26.8.1",
