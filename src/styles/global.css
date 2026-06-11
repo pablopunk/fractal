@@ -1873,6 +1873,7 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   padding: 8px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+  min-width: 0;
 }
 .terminal-tabs {
   display: flex;
@@ -2026,6 +2027,7 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
 }
 .terminal-pane-toggle {
   margin-left: auto;
+  flex: 0 0 auto;
   width: 28px;
   height: 26px;
   display: inline-flex;
