@@ -18,6 +18,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     imagePaths?: string[];
     modelProfile?: "fast" | "smart";
     presetId?: string;
+    issueRef?: string;
   };
   const text = body.text?.trim();
   const imagePaths = Array.isArray(body.imagePaths)
@@ -31,6 +32,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     imagePaths,
     modelProfile: body.modelProfile,
     presetId: body.presetId,
+    issueRef: body.issueRef,
   });
   return Response.json({ prompt: await withPromptStatus(prompt) });
 };

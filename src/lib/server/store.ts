@@ -151,6 +151,7 @@ export function createPrompt(input: {
   imagePaths?: string[];
   modelProfile?: ModelProfile;
   presetId?: string;
+  issueRef?: string;
 }): Prompt {
   const now = new Date();
   const row = {
@@ -160,6 +161,7 @@ export function createPrompt(input: {
     imagePaths: JSON.stringify(input.imagePaths ?? []),
     modelProfile: input.modelProfile ?? "smart",
     presetId: input.presetId || getSettings().defaultPresetId,
+    issueRef: input.issueRef ?? null,
     column: "PROMPTS" as const,
     createdAt: now,
     updatedAt: now,
@@ -179,6 +181,14 @@ export function updatePrompt(id: string, patch: Partial<Prompt>): Prompt | undef
 
 export function deletePrompt(id: string): void {
   getDb().delete(prompts).where(eq(prompts.id, id)).run();
+}
+
+export function linkPromptToIssue(promptId: string, issueRef: string): Prompt | undefined {
+  return updatePrompt(promptId, { issueRef } as Partial<Prompt>);
+}
+
+export function unlinkPromptFromIssue(promptId: string): Prompt | undefined {
+  return updatePrompt(promptId, { issueRef: null } as Partial<Prompt>);
 }
 
 function defaultHelperPresetId(presets: AgentPreset[]): string {

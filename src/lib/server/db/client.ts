@@ -66,6 +66,7 @@ function ensureSchema(sqlite: Database.Database) {
       tmux_session TEXT,
       error TEXT,
       is_archived INTEGER NOT NULL DEFAULT 0,
+      issue_ref TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       launched_at INTEGER
@@ -104,6 +105,12 @@ function ensureSchema(sqlite: Database.Database) {
   }
   try {
     sqlite.exec("ALTER TABLE prompts ADD COLUMN summary TEXT;");
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN issue_ref TEXT;");
   } catch (err) {
     if (!/duplicate column/i.test(String(err)))
       console.error("[fractal-db] migration step failed:", err);
