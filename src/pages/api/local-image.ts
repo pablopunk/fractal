@@ -1,7 +1,8 @@
 import { readFileSync, statSync } from "node:fs";
-import { resolve, sep } from "node:path";
+import { resolve } from "node:path";
 import type { APIRoute } from "astro";
 import { expandPath, HOME } from "~/lib/server/fs.js";
+import { resolvedPathIsWithin } from "~/lib/server/path-containment.js";
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
@@ -26,15 +27,11 @@ export const GET: APIRoute = async ({ url }) => {
 
   const path = resolve(expandPath(rawPath));
   if (!IMAGE_RE.test(path)) return new Response("Unsupported image type", { status: 415 });
-  // Containment: only serve files under the user's home directory.
-  const homeRoot = resolve(HOME) + sep;
-  if (path !== resolve(HOME) && !path.startsWith(homeRoot)) {
-    return new Response("Forbidden", { status: 403 });
-  }
 
   try {
     const stats = statSync(path);
     if (!stats.isFile()) return new Response("Not found", { status: 404 });
+    if (!resolvedPathIsWithin(HOME, path)) return new Response("Forbidden", { status: 403 });
     if (stats.size > MAX_IMAGE_BYTES) return new Response("Image too large", { status: 413 });
     const buf = readFileSync(path);
     return new Response(buf, {
