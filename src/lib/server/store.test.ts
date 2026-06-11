@@ -52,6 +52,20 @@ describe("store", () => {
     expect(store.getSettings().helperPresetId).toBe("");
   });
 
+  it("reorderProjects updates all projects inside a single transaction", () => {
+    const a = store.createProject({ name: "A", path: "/tmp/a" });
+    const b = store.createProject({ name: "B", path: "/tmp/b" });
+    const c = store.createProject({ name: "C", path: "/tmp/c" });
+    store.reorderProjects([c.id, a.id, b.id]);
+    const list = store.listProjects();
+    expect(list.map((p) => p.id)).toEqual([c.id, a.id, b.id]);
+    expect(list.map((p) => p.sortOrder)).toEqual([0, 1, 2]);
+    // Clean up
+    store.deleteProject(a.id);
+    store.deleteProject(b.id);
+    store.deleteProject(c.id);
+  });
+
   it("updateSettings persists and returns updated settings", () => {
     const updated = store.updateSettings({ defaultPresetId: "claude" });
     expect(updated.defaultPresetId).toBe("claude");

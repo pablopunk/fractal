@@ -128,8 +128,10 @@ export function updateProject(id: string, patch: Partial<Project>): Project | un
 export function reorderProjects(ids: string[]): Project[] {
   const db = getDb();
   const now = new Date();
-  ids.forEach((id, sortOrder) => {
-    db.update(projects).set({ sortOrder, updatedAt: now }).where(eq(projects.id, id)).run();
+  db.transaction((tx) => {
+    ids.forEach((id, sortOrder) => {
+      tx.update(projects).set({ sortOrder, updatedAt: now }).where(eq(projects.id, id)).run();
+    });
   });
   return listProjects();
 }
