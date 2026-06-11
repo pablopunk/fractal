@@ -44,6 +44,7 @@ export type Prompt = {
   tmuxSession?: string | null;
   error?: string | null;
   isArchived?: boolean | null;
+  issueRef?: string | null;
   launchedAt?: number | null;
   isRunning?: boolean;
 };

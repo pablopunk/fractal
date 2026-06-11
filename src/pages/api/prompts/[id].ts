@@ -14,6 +14,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     modelProfile?: "fast" | "smart";
     presetId?: string;
     column?: "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE";
+    issueRef?: string | null;
   };
   const patch: Record<string, unknown> = {};
   if (typeof body.text === "string") {
@@ -30,6 +31,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     body.column === "RUN_IN_WORKTREE"
   )
     patch.column = body.column;
+  if (body.issueRef !== undefined) patch.issueRef = body.issueRef;
   const prompt = updatePrompt(id, patch as never);
   return Response.json({ prompt: prompt ? await withPromptStatus(prompt) : prompt });
 };
