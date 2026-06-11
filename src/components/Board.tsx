@@ -1425,11 +1425,7 @@ export default function Board() {
       return;
     }
     void refreshIssues();
-  }, [
-    activeProject?.id,
-    activeProject?.githubRepo,
-    activeProject?.showLinearIssues,
-  ]);
+  }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showLinearIssues]);
 
   const githubBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
     if (!activeProject) return [];
