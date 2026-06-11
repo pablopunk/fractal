@@ -27,7 +27,7 @@ import {
   Sun,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { ApiError, api } from "~/lib/client/api.js";
 import {
@@ -559,18 +559,6 @@ export default function Board() {
   }, [commandRecents]);
 
   useEffect(() => {
-    void refresh();
-    // Run health check on mount
-    void api("/api/health-check", { method: "POST" }).catch(() => {});
-    // Then every 30 seconds
-    const interval = setInterval(() => {
-      void api("/api/health-check", { method: "POST" }).catch(() => {});
-      void refresh();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [refresh]);
-
-  useEffect(() => {
     const url = new URL(window.location.href);
     saveLastProjectId(activeProjectId);
     if (activeProjectId) {
@@ -827,7 +815,7 @@ export default function Board() {
     });
   }
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       const data = await api<{
         home: string;
@@ -899,7 +887,17 @@ export default function Board() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    void api("/api/health-check", { method: "POST" }).catch(() => {});
+    const interval = setInterval(() => {
+      void api("/api/health-check", { method: "POST" }).catch(() => {});
+      void refresh();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refresh]);
 
   async function addProject(path: string) {
     if (!path) return;
@@ -1389,7 +1387,7 @@ export default function Board() {
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
-  async function refreshIssues() {
+  const refreshIssues = useCallback(async () => {
     if (!activeProject) return;
     setLoadingIssues(true);
     try {
@@ -1411,7 +1409,7 @@ export default function Board() {
     } finally {
       setLoadingIssues(false);
     }
-  }
+  }, [activeProjectId, activeProject?.githubRepo, activeProject?.showLinearIssues]);
 
   useEffect(() => {
     if (!activeProject) {
@@ -1425,8 +1423,6 @@ export default function Board() {
     activeProject?.id,
     activeProject?.githubRepo,
     activeProject?.showLinearIssues,
-    refreshIssues,
-    activeProject,
   ]);
 
   const githubBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
