@@ -393,6 +393,7 @@ export default function Board() {
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   const shouldHydrateUiStateFromServer = useRef(!hasLocalUiState());
   const didReceiveState = useRef(false);
+  const lastFetchedState = useRef<string | null>(null);
   const collapsedProjectId = useRef(activeProjectId);
   const pendingCollapsedProjectId = useRef<string | null | undefined>(undefined);
   const pendingCollapsedValue = useRef<Record<Column, boolean> | null>(null);
@@ -825,6 +826,11 @@ export default function Board() {
         uiState?: UiState;
         terminalSessions?: string[] | null;
       }>("/api/state");
+
+      const stateKey = JSON.stringify(data);
+      if (stateKey === lastFetchedState.current) return;
+      lastFetchedState.current = stateKey;
+
       const serverUiState = data.uiState ? normalizeUiState(data.uiState) : null;
       if (serverUiState && shouldHydrateUiStateFromServer.current) {
         const tabs = validTerminalTabs(
@@ -1419,11 +1425,7 @@ export default function Board() {
       return;
     }
     void refreshIssues();
-  }, [
-    activeProject?.id,
-    activeProject?.githubRepo,
-    activeProject?.showLinearIssues,
-  ]);
+  }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showLinearIssues]);
 
   const githubBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
     if (!activeProject) return [];

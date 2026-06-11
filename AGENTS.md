@@ -5,3 +5,4 @@
 * When changing/adding code, always explore the repo to understand conventions and similar use cases.
 * Comments are a smell. 3 long named functions is better than 1 function with a comment.
 * Commit often.
+* When debugging or diagnosing symptoms, search `docs/solutions/` for related prior fixes before investigating from scratch.
