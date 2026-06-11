@@ -16,6 +16,7 @@ export const GLASS_SETTINGS_KEY = "fractal:glassSettings";
 export const COMMAND_RECENTS_KEY = "fractal:commandRecents";
 export const BOARD_LAYOUT_KEY = "fractal:boardLayout";
 export const LAST_PROJECT_ID_KEY = "fractal:lastProjectId";
+export const LAST_TERMINAL_BY_PROJECT_KEY = "fractal:lastTerminalByProject";
 export const UI_STATE_KEY = "fractal:uiState";
 export type ThemeMode = "system" | "light" | "dark";
 export type GlassSettings = { enabled: boolean; opacity: number; blur: number; version?: number };
@@ -36,6 +37,7 @@ export type UiState = {
   commandRecents: CommandRecent[];
   boardLayout: BoardLayout;
   lastProjectId: string;
+  lastTerminalByProject: Record<string, string>;
 };
 export const SIDEBAR_COLLAPSED_WIDTH = 56;
 export const SIDEBAR_COLLAPSE_THRESHOLD = 132;
@@ -58,6 +60,7 @@ const LEGACY_KEYS = [
   COMMAND_RECENTS_KEY,
   BOARD_LAYOUT_KEY,
   LAST_PROJECT_ID_KEY,
+  LAST_TERMINAL_BY_PROJECT_KEY,
 ];
 
 function collapsedKey(projectId: string | null | undefined): string {
@@ -302,6 +305,21 @@ export function loadLastProjectId(): string {
   return uiState?.lastProjectId || storageGet(LAST_PROJECT_ID_KEY) || "";
 }
 
+function validTerminalByProject(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  const result: Record<string, string> = {};
+  for (const [projectId, tabId] of Object.entries(value as Record<string, unknown>)) {
+    if (projectId && typeof tabId === "string") result[projectId] = tabId;
+  }
+  return result;
+}
+
+export function loadLastTerminalByProject(): Record<string, string> {
+  const uiState = loadStoredUiState();
+  if (uiState) return uiState.lastTerminalByProject;
+  return validTerminalByProject(parseJson(storageGet(LAST_TERMINAL_BY_PROJECT_KEY), {}));
+}
+
 export function saveLastProjectId(id: string | null | undefined): void {
   const value = id ?? "";
   if (value) storageSet(LAST_PROJECT_ID_KEY, value);
@@ -347,6 +365,7 @@ export function loadUiStateCache(): UiState {
     commandRecents: loadCommandRecents(),
     boardLayout: loadBoardLayout(),
     lastProjectId: storageGet(LAST_PROJECT_ID_KEY) || "",
+    lastTerminalByProject: loadLastTerminalByProject(),
   });
 }
 
@@ -367,6 +386,7 @@ export function saveUiStateCache(state: UiState): void {
   storageSet(BOARD_LAYOUT_KEY, normalized.boardLayout);
   if (normalized.lastProjectId) storageSet(LAST_PROJECT_ID_KEY, normalized.lastProjectId);
   else storageRemove(LAST_PROJECT_ID_KEY);
+  storageSet(LAST_TERMINAL_BY_PROJECT_KEY, JSON.stringify(normalized.lastTerminalByProject));
   for (const [projectId, collapsed] of Object.entries(normalized.collapsedColumns)) {
     storageSet(projectId === "global" ? COLLAPSED_KEY : `${PROJECT_COLLAPSED_KEY_PREFIX}${projectId}`, JSON.stringify(collapsed));
   }
@@ -388,6 +408,7 @@ export function normalizeUiState(value: Partial<UiState> | null | undefined): Ui
     commandRecents: [] as CommandRecent[],
     boardLayout: "auto" as BoardLayout,
     lastProjectId: "",
+    lastTerminalByProject: {} as Record<string, string>,
   };
   const collapsedColumns: Record<string, Record<Column, boolean>> = { ...fallback.collapsedColumns };
   for (const [key, collapsed] of Object.entries(value?.collapsedColumns ?? {})) {
@@ -415,5 +436,6 @@ export function normalizeUiState(value: Partial<UiState> | null | undefined): Ui
     commandRecents,
     boardLayout,
     lastProjectId: typeof value?.lastProjectId === "string" ? value.lastProjectId : fallback.lastProjectId,
+    lastTerminalByProject: validTerminalByProject(value?.lastTerminalByProject),
   };
 }

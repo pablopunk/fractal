@@ -31,6 +31,7 @@ import {
   loadCollapsed,
   isSidebarCollapsed,
   loadLastProjectId,
+  loadLastTerminalByProject,
   loadSidebarWidth,
   loadTerminalHeight,
   loadTerminalPosition,
@@ -246,6 +247,7 @@ export default function Board() {
   const [doneActionPending, setDoneActionPending] = useState<string | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>(() => loadTerminalTabs());
   const [activeTerminalId, setActiveTerminalId] = useState<string | null>(() => loadActiveTerminalId(loadTerminalTabs()));
+  const [lastTerminalByProject, setLastTerminalByProject] = useState<Record<string, string>>(() => loadLastTerminalByProject());
   const [terminalWidth, setTerminalWidth] = useState<number>(() => loadTerminalWidth());
   const [terminalHeight, setTerminalHeight] = useState<number>(() => loadTerminalHeight());
   const [terminalPosition, setTerminalPosition] = useState<"right" | "bottom">(() => loadTerminalPosition());
@@ -288,15 +290,16 @@ export default function Board() {
   const boardRows = boardLayout === "rows" || (boardLayout === "auto" && autoBoardRows);
   const boardCompact = boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact);
   const boardSnug = useMemo(() => boardCompact || COLUMNS.every((col) => collapsed[col.id]), [boardCompact, collapsed, COLUMNS]);
+  const tabBelongsToProject = (tab: TerminalTab, project: Project): boolean => {
+    if (tab.projectId) return tab.projectId === project.id;
+    if (tab.promptId === project.id) return true;
+    const prompt = prompts.find((p) => p.id === tab.promptId);
+    if (prompt) return prompt.projectId === project.id;
+    return tab.cwd === project.path;
+  };
   const filteredTerminalTabs = useMemo(() => {
     if (!activeProject) return [];
-    return terminalTabs.filter((tab) => {
-      if (tab.projectId) return tab.projectId === activeProject.id;
-      if (tab.promptId === activeProject.id) return true;
-      const prompt = prompts.find((p) => p.id === tab.promptId);
-      if (prompt) return prompt.projectId === activeProject.id;
-      return tab.cwd === activeProject.path;
-    });
+    return terminalTabs.filter((tab) => tabBelongsToProject(tab, activeProject));
   }, [activeProject, prompts, terminalTabs]);
   const currentUiState = useMemo<UiState>(() => {
     const cached = loadUiStateCache();
@@ -315,8 +318,9 @@ export default function Board() {
       commandRecents,
       boardLayout,
       lastProjectId: activeProjectId ?? cached.lastProjectId,
+      lastTerminalByProject,
     });
-  }, [activeProjectId, boardLayout, collapsed, commandRecents, glassSettings, sidebarWidth, terminalHeight, terminalPosition, terminalTabs, activeTerminalId, terminalThemeName, terminalWidth, theme]);
+  }, [activeProjectId, boardLayout, collapsed, commandRecents, glassSettings, sidebarWidth, terminalHeight, terminalPosition, terminalTabs, activeTerminalId, lastTerminalByProject, terminalThemeName, terminalWidth, theme]);
 
   function rememberCommandRecent(kind: CommandRecent["kind"], id: string) {
     setCommandRecents((items) => [
@@ -346,6 +350,7 @@ export default function Board() {
     setCollapsed(nextCollapsed);
     setTerminalTabs(normalized.terminalTabs);
     setActiveTerminalId(normalized.activeTerminalTabId);
+    setLastTerminalByProject(normalized.lastTerminalByProject);
     setTerminalWidth(normalized.terminalWidth);
     setTerminalHeight(normalized.terminalHeight);
     setTerminalPosition(normalized.terminalPosition);
@@ -534,6 +539,22 @@ export default function Board() {
 
     return () => cancelAnimationFrame(frame);
   }, [activeTerminalId, boardElement, prompts, terminalFocusKey, terminalTabs]);
+
+  useEffect(() => {
+    if (!activeTerminalId) return;
+    const tab = terminalTabs.find((item) => item.id === activeTerminalId);
+    const project = tab ? projects.find((p) => tabBelongsToProject(tab, p)) : null;
+    if (!project) return;
+    setLastTerminalByProject((map) => map[project.id] === activeTerminalId ? map : { ...map, [project.id]: activeTerminalId });
+  }, [activeTerminalId, terminalTabs, projects, prompts]);
+
+  useEffect(() => {
+    if (!activeProject) return;
+    if (activeTerminalId && filteredTerminalTabs.some((tab) => tab.id === activeTerminalId)) return;
+    const remembered = lastTerminalByProject[activeProject.id];
+    const restored = remembered && filteredTerminalTabs.some((tab) => tab.id === remembered) ? remembered : filteredTerminalTabs[0]?.id ?? null;
+    if (restored !== activeTerminalId) setActiveTerminalId(restored);
+  }, [activeProject, activeTerminalId, filteredTerminalTabs, lastTerminalByProject]);
 
   useEffect(() => {
     const updateProjectShortcuts = (event: KeyboardEvent | MouseEvent | FocusEvent) => {
