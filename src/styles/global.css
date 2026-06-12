@@ -2626,3 +2626,106 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 .topbar-title-button + .icon-btn {
   margin-left: 2px;
 }
+
+/* Reconnect banner */
+.reconnect-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 180, 60, 0.12);
+  border-bottom: 1px solid rgba(255, 180, 60, 0.25);
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  color: #ffb83c;
+}
+.reconnect-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reconnect-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 180, 60, 0.3);
+  border-top-color: #ffb83c;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.reconnect-banner-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.reconnect-banner-dismiss:hover {
+  opacity: 1;
+}
+
+/* Remote access settings */
+.remote-access-section {
+  margin-bottom: 24px;
+}
+.remote-access-loading {
+  color: #888;
+  font-size: 0.85rem;
+  padding: 8px 0;
+}
+.remote-access-details {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.remote-access-warning {
+  background: rgba(255, 180, 60, 0.1);
+  border: 1px solid rgba(255, 180, 60, 0.2);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #ffb83c;
+}
+.remote-access-warning a {
+  color: inherit;
+  text-decoration: underline;
+}
+.remote-access-info {
+  color: #888;
+  font-size: 0.85rem;
+}
+.remote-access-error {
+  color: #ff5555;
+  font-size: 0.85rem;
+}
+.remote-access-url-row {
+  display: flex;
+  gap: 6px;
+}
+.remote-access-url-row .input {
+  flex: 1;
+  font-size: 0.75rem;
+}
+.remote-access-qr {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  background: #fff;
+  border-radius: 8px;
+}
+.remote-access-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.remote-access-token {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
