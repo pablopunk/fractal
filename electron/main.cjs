@@ -477,9 +477,9 @@ function createRemoteWindow(remoteUrl) {
     shell.openExternal(url);
     return { action: "deny" };
   });
+  const origin = new URL(targetUrl).origin;
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    const allowedPrefix = remoteUrl.replace(/\/$/, "");
-    if (url !== allowedPrefix && !url.startsWith(`${allowedPrefix}/`)) {
+    if (!url.startsWith(origin)) {
       event.preventDefault();
       void shell.openExternal(url);
     }
