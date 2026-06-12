@@ -5,7 +5,6 @@ const { app, BrowserWindow, shell, Menu, dialog, ipcMain } = require("electron")
 const { autoUpdater } = require("electron-updater");
 const http = require("node:http");
 const path = require("node:path");
-const net = require("node:net");
 const { pathToFileURL } = require("node:url");
 const { homedir } = require("node:os");
 const { createWriteStream, mkdirSync } = require("node:fs");
@@ -32,6 +31,7 @@ console.error = (...args) => {
 let mainWindow = null;
 let mainServer = null;
 let serverCleanup = null;
+let serverStartPromise = null;
 let updateCheckInFlight = false;
 let updateDownloadInFlight = false;
 let updateStartupTimer = null;
@@ -211,127 +211,126 @@ function configureAutoUpdater() {
   updatePollTimer.unref?.();
 }
 
-async function findFreePort() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.unref();
-    srv.on("error", reject);
-    srv.listen(0, "127.0.0.1", () => {
-      const port = srv.address().port;
-      srv.close(() => resolve(port));
-    });
-  });
-}
-
 async function startUnifiedServer() {
-  if (mainServer)
-    return { port: mainServer.address().port, server: mainServer, cleanup: serverCleanup };
-  ensureUserPath();
-  const port = await findFreePort();
-  const fractalHome = path.join(homedir(), ".fractal");
-  process.env.FRACTAL_HOME = fractalHome;
-  process.env.FRACTAL_DB_PATH = path.join(fractalHome, "fractal.db");
-  process.env.FRACTAL_BOOT = "1";
-  console.log(`[fractal-boot] setting FRACTAL_HOME=${fractalHome}`);
-  console.log(`[fractal-boot] setting FRACTAL_DB_PATH=${path.join(fractalHome, "fractal.db")}`);
+  if (serverStartPromise) return serverStartPromise;
+  serverStartPromise = (async () => {
+    ensureUserPath();
+    const fractalHome = path.join(homedir(), ".fractal");
+    process.env.FRACTAL_HOME = fractalHome;
+    process.env.FRACTAL_DB_PATH = path.join(fractalHome, "fractal.db");
+    process.env.FRACTAL_BOOT = "1";
+    console.log(`[fractal-boot] setting FRACTAL_HOME=${fractalHome}`);
+    console.log(`[fractal-boot] setting FRACTAL_DB_PATH=${path.join(fractalHome, "fractal.db")}`);
 
-  const entry = path.join(__dirname, "..", "dist", "server", "entry.mjs");
-  console.log(`[fractal-boot] importing server entry: ${entry}`);
-  const mod = await import(pathToFileURL(entry).href);
-  const handler = mod.handler;
-  if (typeof handler !== "function") {
-    throw new Error("Astro standalone entry did not export a handler function");
-  }
+    const entry = path.join(__dirname, "..", "dist", "server", "entry.mjs");
+    console.log(`[fractal-boot] importing server entry: ${entry}`);
+    process.env.ASTRO_NODE_AUTOSTART = "disabled";
+    const mod = await import(pathToFileURL(entry).href);
+    const handler = mod.handler;
+    if (typeof handler !== "function") {
+      throw new Error("Astro standalone entry did not export a handler function");
+    }
 
-  const server = http.createServer(handler);
-  const { attachTerminalWSServer } = require("./terminal-server.cjs");
-  const closeTerminal = attachTerminalWSServer(server);
+    const server = http.createServer(handler);
+    const { attachTerminalWSServer } = require("./terminal-server.cjs");
+    const { cleanup: closeTerminal, handleUpgrade } = attachTerminalWSServer();
 
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => {
-      server.off("error", reject);
-      resolve();
+    server.on("upgrade", (req, socket, head) => {
+      handleUpgrade(req, socket, head);
     });
-  });
 
-  mainServer = server;
-  serverCleanup = closeTerminal;
-  console.log(`[fractal-server] listening on http://127.0.0.1:${port}`);
-  return { port, server, cleanup: closeTerminal };
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+
+    const port = server.address().port;
+    mainServer = server;
+    serverCleanup = closeTerminal;
+    console.log(`[fractal-server] listening on http://127.0.0.1:${port}`);
+    return { port, server, cleanup: closeTerminal };
+  })();
+  return serverStartPromise;
 }
 
 async function startDevProxy(astroDevPort) {
-  if (mainServer)
-    return { port: mainServer.address().port, server: mainServer, cleanup: serverCleanup };
-  const astroOrigin = `http://127.0.0.1:${astroDevPort}`;
+  if (serverStartPromise) return serverStartPromise;
+  serverStartPromise = (async () => {
+    const astroOrigin = `http://127.0.0.1:${astroDevPort}`;
 
-  const server = http.createServer((clientReq, clientRes) => {
-    const proxyReq = http.request(
-      {
+    const server = http.createServer((clientReq, clientRes) => {
+      const proxyReq = http.request(
+        {
+          hostname: "127.0.0.1",
+          port: astroDevPort,
+          path: clientReq.url,
+          method: clientReq.method,
+          headers: clientReq.headers,
+        },
+        (proxyRes) => {
+          clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
+          proxyRes.pipe(clientRes);
+        },
+      );
+      proxyReq.on("error", () => {
+        if (!clientRes.headersSent) {
+          clientRes.writeHead(502);
+          clientRes.end("Dev proxy error");
+        }
+      });
+      clientReq.pipe(proxyReq);
+    });
+
+    const { attachTerminalWSServer } = require("./terminal-server.cjs");
+    const { cleanup: closeTerminal, handleUpgrade } = attachTerminalWSServer();
+
+    server.on("upgrade", (req, socket, head) => {
+      const url = new URL(req.url, astroOrigin);
+      if (url.pathname === "/api/terminal/ws") {
+        handleUpgrade(req, socket, head);
+        return;
+      }
+
+      const proxyReq = http.request({
         hostname: "127.0.0.1",
         port: astroDevPort,
-        path: clientReq.url,
-        method: clientReq.method,
-        headers: clientReq.headers,
-      },
-      (proxyRes) => {
-        clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
-        proxyRes.pipe(clientRes);
-      },
-    );
-    proxyReq.on("error", () => {
-      if (!clientRes.headersSent) {
-        clientRes.writeHead(502);
-        clientRes.end("Dev proxy error");
-      }
-    });
-    clientReq.pipe(proxyReq);
-  });
-
-  server.on("upgrade", (req, socket, _head) => {
-    const url = new URL(req.url, astroOrigin);
-    if (url.pathname === "/api/terminal/ws") return;
-
-    const proxyReq = http.request({
-      hostname: "127.0.0.1",
-      port: astroDevPort,
-      path: req.url,
-      method: req.method,
-      headers: req.headers,
+        path: req.url,
+        method: req.method,
+        headers: req.headers,
+      });
+      proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
+        const headers = [
+          `HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}`,
+          ...Object.entries(proxyRes.headers).map(([k, v]) => `${k}: ${v}`),
+          "",
+          "",
+        ].join("\r\n");
+        socket.write(headers);
+        if (proxyHead.length) socket.write(proxyHead);
+        proxySocket.pipe(socket);
+        socket.pipe(proxySocket);
+      });
+      proxyReq.on("error", () => socket.destroy());
+      proxyReq.end(head);
     });
 
-    proxyReq.on("upgrade", (proxyRes, proxySocket) => {
-      const headers = [
-        `HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}`,
-        ...Object.entries(proxyRes.headers).map(([k, v]) => `${k}: ${v}`),
-        "",
-        "",
-      ].join("\r\n");
-      socket.write(headers);
-      proxySocket.pipe(socket);
-      socket.pipe(proxySocket);
+    const port = await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve(server.address().port);
+      });
     });
 
-    proxyReq.on("error", () => socket.destroy());
-    proxyReq.end();
-  });
-
-  const { attachTerminalWSServer } = require("./terminal-server.cjs");
-  const closeTerminal = attachTerminalWSServer(server);
-
-  const port = await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      server.off("error", reject);
-      resolve(server.address().port);
-    });
-  });
-
-  mainServer = server;
-  serverCleanup = closeTerminal;
-  console.log(`[fractal-dev-proxy] listening on http://127.0.0.1:${port} -> ${astroOrigin}`);
-  return { port, server, cleanup: closeTerminal };
+    mainServer = server;
+    serverCleanup = closeTerminal;
+    console.log(`[fractal-dev-proxy] listening on http://127.0.0.1:${port} -> ${astroOrigin}`);
+    return { port, server, cleanup: closeTerminal };
+  })();
+  return serverStartPromise;
 }
 
 async function createWindow() {

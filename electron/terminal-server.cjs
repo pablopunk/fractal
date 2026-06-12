@@ -1,4 +1,3 @@
-const http = require("node:http");
 const os = require("node:os");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -94,9 +93,9 @@ function ensureNodePtySpawnHelperExecutable() {
   }
 }
 
-function attachTerminalWSServer(httpServer) {
+function attachTerminalWSServer() {
   ensureNodePtySpawnHelperExecutable();
-  const wss = new WebSocketServer({ server: httpServer, path: "/api/terminal/ws" });
+  const wss = new WebSocketServer({ noServer: true, path: "/api/terminal/ws" });
   const connectionCleanups = new Set();
 
   function closeAllConnections() {
@@ -221,17 +220,13 @@ function attachTerminalWSServer(httpServer) {
     ws.on("close", cleanupConnection);
   });
 
-  return closeAllConnections;
+  function handleUpgrade(req, socket, head) {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  }
+
+  return { cleanup: closeAllConnections, handleUpgrade };
 }
 
-function createTerminalServer() {
-  const server = http.createServer((_, res) => {
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true }));
-  });
-  const closeAll = attachTerminalWSServer(server);
-  server.closeTerminalConnections = closeAll;
-  return server;
-}
-
-module.exports = { attachTerminalWSServer, createTerminalServer };
+module.exports = { attachTerminalWSServer };
