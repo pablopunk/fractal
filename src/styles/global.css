@@ -2772,5 +2772,5 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 }
 
 .app-settings-tabs + .project-settings-body {
-  padding-top: 12px;
+  padding-top: 24px;
 }
