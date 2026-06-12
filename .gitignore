@@ -13,3 +13,6 @@ dist
 # Electron
 release/
 *.blockmap
+
+plans/
+.plans/
