@@ -94,16 +94,12 @@ function ensureNodePtySpawnHelperExecutable() {
   }
 }
 
-function createTerminalServer() {
+function attachTerminalWSServer(httpServer) {
   ensureNodePtySpawnHelperExecutable();
-  const server = http.createServer((_, res) => {
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true }));
-  });
-  const wss = new WebSocketServer({ server, path: "/terminal" });
+  const wss = new WebSocketServer({ server: httpServer, path: "/api/terminal/ws" });
   const connectionCleanups = new Set();
 
-  server.closeTerminalConnections = () => {
+  function closeAllConnections() {
     for (const cleanup of Array.from(connectionCleanups)) cleanup();
     for (const client of wss.clients) {
       try {
@@ -113,7 +109,7 @@ function createTerminalServer() {
     try {
       wss.close();
     } catch {}
-  };
+  }
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
@@ -225,7 +221,17 @@ function createTerminalServer() {
     ws.on("close", cleanupConnection);
   });
 
+  return closeAllConnections;
+}
+
+function createTerminalServer() {
+  const server = http.createServer((_, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  });
+  const closeAll = attachTerminalWSServer(server);
+  server.closeTerminalConnections = closeAll;
   return server;
 }
 
-module.exports = { createTerminalServer };
+module.exports = { attachTerminalWSServer, createTerminalServer };

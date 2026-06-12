@@ -23,7 +23,6 @@ type TerminalTab = {
 
 type ElectronGlobals = typeof window & {
   electron?: {
-    terminalPort?: number | null;
     getPathForFile?: (file: File) => string;
     openExternal?: (url: string) => Promise<boolean>;
   };
@@ -269,7 +268,6 @@ function TerminalView({
   }, [theme, terminalThemeName, glassEnabled]);
 
   useEffect(() => {
-    const port = (window as ElectronGlobals).electron?.terminalPort;
     const host = hostRef.current;
     if (!host) return;
 
@@ -448,14 +446,12 @@ function TerminalView({
       host.addEventListener("mousedown", onShiftMouseDown, { capture: true });
       fit.fit();
 
-      if (!port) {
-        term.writeln("Terminal server is only available in the Electron app.");
-        return;
-      }
-
       const params = new URLSearchParams({ session: tab.session });
       if (tab.cwd) params.set("cwd", tab.cwd);
-      ws = new WebSocket(`ws://127.0.0.1:${port}/terminal?${params.toString()}`);
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      ws = new WebSocket(
+        `${protocol}//${window.location.host}/api/terminal/ws?${params.toString()}`,
+      );
       sendResize = () => {
         fit.fit();
         if (ws?.readyState === WebSocket.OPEN)

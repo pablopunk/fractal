@@ -3,6 +3,7 @@
  */
 const { app, BrowserWindow, shell, Menu, dialog, ipcMain } = require("electron");
 const { autoUpdater } = require("electron-updater");
+const http = require("node:http");
 const path = require("node:path");
 const net = require("node:net");
 const { pathToFileURL } = require("node:url");
@@ -29,9 +30,8 @@ console.error = (...args) => {
 };
 
 let mainWindow = null;
-let serverPromise = null;
-let terminalServer = null;
-let terminalServerPromise = null;
+let mainServer = null;
+let serverCleanup = null;
 let updateCheckInFlight = false;
 let updateDownloadInFlight = false;
 let updateStartupTimer = null;
@@ -223,56 +223,129 @@ async function findFreePort() {
   });
 }
 
-async function startTerminalServer() {
-  if (terminalServerPromise) return terminalServerPromise;
+async function startUnifiedServer() {
+  if (mainServer)
+    return { port: mainServer.address().port, server: mainServer, cleanup: serverCleanup };
   ensureUserPath();
-  terminalServerPromise = (async () => {
-    const port = await findFreePort();
-    const { createTerminalServer } = require("./terminal-server.cjs");
-    const server = createTerminalServer();
-    terminalServer = server;
-    await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(port, "127.0.0.1", () => {
-        server.off("error", reject);
-        resolve();
-      });
+  const port = await findFreePort();
+  const fractalHome = path.join(homedir(), ".fractal");
+  process.env.FRACTAL_HOME = fractalHome;
+  process.env.FRACTAL_DB_PATH = path.join(fractalHome, "fractal.db");
+  process.env.FRACTAL_BOOT = "1";
+  console.log(`[fractal-boot] setting FRACTAL_HOME=${fractalHome}`);
+  console.log(`[fractal-boot] setting FRACTAL_DB_PATH=${path.join(fractalHome, "fractal.db")}`);
+
+  const entry = path.join(__dirname, "..", "dist", "server", "entry.mjs");
+  console.log(`[fractal-boot] importing server entry: ${entry}`);
+  const mod = await import(pathToFileURL(entry).href);
+  const handler = mod.handler;
+  if (typeof handler !== "function") {
+    throw new Error("Astro standalone entry did not export a handler function");
+  }
+
+  const server = http.createServer(handler);
+  const { attachTerminalWSServer } = require("./terminal-server.cjs");
+  const closeTerminal = attachTerminalWSServer(server);
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
     });
-    console.log(`[fractal-terminal] server listening on 127.0.0.1:${port}`);
-    return port;
-  })();
-  return terminalServerPromise;
+  });
+
+  mainServer = server;
+  serverCleanup = closeTerminal;
+  console.log(`[fractal-server] listening on http://127.0.0.1:${port}`);
+  return { port, server, cleanup: closeTerminal };
 }
 
-async function startAstroServer() {
-  if (serverPromise) return serverPromise;
-  ensureUserPath();
-  serverPromise = (async () => {
-    const port = await findFreePort();
-    const fractalHome = path.join(homedir(), ".fractal");
-    process.env.HOST = "127.0.0.1";
-    process.env.PORT = String(port);
-    process.env.FRACTAL_HOME = fractalHome;
-    process.env.FRACTAL_DB_PATH = path.join(fractalHome, "fractal.db");
-    process.env.FRACTAL_BOOT = "1";
-    console.log(`[fractal-boot] setting FRACTAL_HOME=${fractalHome}`);
-    console.log(`[fractal-boot] setting FRACTAL_DB_PATH=${path.join(fractalHome, "fractal.db")}`);
+async function startDevProxy(astroDevPort) {
+  if (mainServer)
+    return { port: mainServer.address().port, server: mainServer, cleanup: serverCleanup };
+  const astroOrigin = `http://127.0.0.1:${astroDevPort}`;
 
-    // Astro Node standalone entry. When the app is asar'd, dist/ is inside
-    // the asar (read-only) — that's fine, the server only reads from there.
-    const entry = path.join(__dirname, "..", "dist", "server", "entry.mjs");
-    console.log(`[fractal-boot] importing server entry: ${entry}`);
-    await import(pathToFileURL(entry).href);
-    console.log(`[fractal-boot] server started successfully`);
-    return port;
-  })();
-  return serverPromise;
+  const server = http.createServer((clientReq, clientRes) => {
+    const proxyReq = http.request(
+      {
+        hostname: "127.0.0.1",
+        port: astroDevPort,
+        path: clientReq.url,
+        method: clientReq.method,
+        headers: clientReq.headers,
+      },
+      (proxyRes) => {
+        clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(clientRes);
+      },
+    );
+    proxyReq.on("error", () => {
+      if (!clientRes.headersSent) {
+        clientRes.writeHead(502);
+        clientRes.end("Dev proxy error");
+      }
+    });
+    clientReq.pipe(proxyReq);
+  });
+
+  server.on("upgrade", (req, socket, _head) => {
+    const url = new URL(req.url, astroOrigin);
+    if (url.pathname === "/api/terminal/ws") return;
+
+    const proxyReq = http.request({
+      hostname: "127.0.0.1",
+      port: astroDevPort,
+      path: req.url,
+      method: req.method,
+      headers: req.headers,
+    });
+
+    proxyReq.on("upgrade", (proxyRes, proxySocket) => {
+      const headers = [
+        `HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}`,
+        ...Object.entries(proxyRes.headers).map(([k, v]) => `${k}: ${v}`),
+        "",
+        "",
+      ].join("\r\n");
+      socket.write(headers);
+      proxySocket.pipe(socket);
+      socket.pipe(proxySocket);
+    });
+
+    proxyReq.on("error", () => socket.destroy());
+    proxyReq.end();
+  });
+
+  const { attachTerminalWSServer } = require("./terminal-server.cjs");
+  const closeTerminal = attachTerminalWSServer(server);
+
+  const port = await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve(server.address().port);
+    });
+  });
+
+  mainServer = server;
+  serverCleanup = closeTerminal;
+  console.log(`[fractal-dev-proxy] listening on http://127.0.0.1:${port} -> ${astroOrigin}`);
+  return { port, server, cleanup: closeTerminal };
 }
 
 async function createWindow() {
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  const terminalPort = await startTerminalServer();
-  const port = rendererUrl ? null : await startAstroServer();
+  let port;
+  if (rendererUrl) {
+    const devUrl = new URL(rendererUrl);
+    const devPort = parseInt(devUrl.port, 10) || 7666;
+    const result = await startDevProxy(devPort);
+    port = result.port;
+  } else {
+    const result = await startUnifiedServer();
+    port = result.port;
+  }
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -289,7 +362,6 @@ async function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.cjs"),
-      additionalArguments: [`--fractal-terminal-port=${terminalPort}`],
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
@@ -303,29 +375,33 @@ async function createWindow() {
     return { action: "deny" };
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    const allowedPrefix = rendererUrl || `http://127.0.0.1:${port}`;
+    const allowedPrefix = `http://127.0.0.1:${port}`;
     if (url !== allowedPrefix && !url.startsWith(`${allowedPrefix}/`)) {
       event.preventDefault();
       void shell.openExternal(url);
     }
   });
-  await mainWindow.loadURL(rendererUrl || `http://127.0.0.1:${port}`);
+  await mainWindow.loadURL(`http://127.0.0.1:${port}`);
 }
 
-function closeTerminalServer() {
-  const server = terminalServer;
-  terminalServer = null;
-  terminalServerPromise = null;
-  if (!server) return;
-  try {
-    server.closeTerminalConnections?.();
-  } catch (error) {
-    console.error("[fractal-terminal] failed to close terminal connections", error);
+function closeMainServer() {
+  const server = mainServer;
+  mainServer = null;
+  const cleanup = serverCleanup;
+  serverCleanup = null;
+  if (cleanup) {
+    try {
+      cleanup();
+    } catch (error) {
+      console.error("[fractal-server] failed to close terminal connections", error);
+    }
   }
-  try {
-    server.close();
-  } catch (error) {
-    console.error("[fractal-terminal] failed to close terminal server", error);
+  if (server) {
+    try {
+      server.close();
+    } catch (error) {
+      console.error("[fractal-server] failed to close server", error);
+    }
   }
 }
 
@@ -399,7 +475,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   clearUpdateTimers();
-  closeTerminalServer();
+  closeMainServer();
 });
 
 app.on("window-all-closed", () => {
