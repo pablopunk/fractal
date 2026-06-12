@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "~/lib/client/api.js";
+import { api, remoteToken } from "~/lib/client/api.js";
 import { snapSidebarWidth } from "~/lib/client/persistence.js";
 import { terminalTabIcon } from "~/lib/client/terminal-tab-icon.js";
 import type {
@@ -379,7 +379,14 @@ function ProjectIcon({
     try {
       const form = new FormData();
       form.set("icon", file);
-      const res = await fetch(`/api/projects/${id}`, { method: "PATCH", body: form });
+      const headers: Record<string, string> = {};
+      const token = remoteToken();
+      if (token) headers.authorization = `Bearer ${token}`;
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        headers,
+        body: form,
+      });
       if (!res.ok) throw new Error(await res.text());
       setStatus("loading");
       setVersion((v) => v + 1);

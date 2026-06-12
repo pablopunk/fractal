@@ -34,8 +34,6 @@ let mainWindow = null;
 let mainServer = null;
 let serverCleanup = null;
 let serverStartPromise = null;
-let remoteAccessEnabled = false;
-let remoteAccessToken = "";
 let updateCheckInFlight = false;
 let updateDownloadInFlight = false;
 let updateStartupTimer = null;
@@ -215,7 +213,12 @@ function configureAutoUpdater() {
   updatePollTimer.unref?.();
 }
 
-function loadRemoteAccessSettings() {
+function isLocalConnection(socket) {
+  const addr = socket.remoteAddress;
+  return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1";
+}
+
+function readRemoteAccessSettings() {
   try {
     const Database = require("better-sqlite3");
     const dbPath = path.join(homedir(), ".fractal", "fractal.db");
@@ -226,21 +229,25 @@ function loadRemoteAccessSettings() {
       )
       .all();
     db.close();
+    let enabled = false;
+    let token = "";
     for (const row of rows) {
-      if (row.key === "remoteAccessEnabled") remoteAccessEnabled = row.value === "true";
-      if (row.key === "remoteAccessToken") remoteAccessToken = row.value;
+      if (row.key === "remoteAccessEnabled") enabled = row.value === "true";
+      if (row.key === "remoteAccessToken") token = row.value;
     }
+    return { enabled, token };
   } catch {
-    remoteAccessEnabled = false;
-    remoteAccessToken = "";
+    return { enabled: true, token: "" };
   }
 }
 
-function verifyTerminalToken(req) {
-  if (!remoteAccessEnabled) return true;
+function verifyTerminalToken(req, socket) {
+  if (isLocalConnection(socket)) return true;
+  const settings = readRemoteAccessSettings();
+  if (!settings.enabled) return true;
   const url = new URL(req.url, "http://127.0.0.1");
   const token = url.searchParams.get("token");
-  return token && token === remoteAccessToken;
+  return Boolean(token && token === settings.token);
 }
 
 async function startUnifiedServer() {
@@ -268,7 +275,7 @@ async function startUnifiedServer() {
     const { cleanup: closeTerminal, handleUpgrade } = attachTerminalWSServer();
 
     server.on("upgrade", (req, socket, head) => {
-      if (!verifyTerminalToken(req)) {
+      if (!verifyTerminalToken(req, socket)) {
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();
         return;
@@ -283,8 +290,6 @@ async function startUnifiedServer() {
         resolve();
       });
     });
-
-    loadRemoteAccessSettings();
 
     const port = server.address().port;
     mainServer = server;
@@ -329,7 +334,7 @@ async function startDevProxy(astroDevPort) {
     server.on("upgrade", (req, socket, head) => {
       const url = new URL(req.url, astroOrigin);
       if (url.pathname === "/api/terminal/ws") {
-        if (!verifyTerminalToken(req)) {
+        if (!verifyTerminalToken(req, socket)) {
           socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
           socket.destroy();
           return;

@@ -16,16 +16,16 @@ function isLocalhost(request: Request): boolean {
   return LOCALHOST_IPS.has(hostname) || hostname === "localhost";
 }
 
-function isPublicPath(pathname: string): boolean {
-  return pathname === "/api/health" || pathname === "/connect";
+function isApiPath(pathname: string): boolean {
+  return pathname.startsWith("/api/") && pathname !== "/api/health";
 }
 
 export async function onRequest(context: APIContext, next: MiddlewareNext): Promise<Response> {
+  if (!isApiPath(context.url.pathname)) return next();
+
   const settings = getSettings();
 
   if (!settings.remoteAccessEnabled) return next();
-
-  if (isPublicPath(context.url.pathname)) return next();
 
   if (isLocalhost(context.request)) return next();
 

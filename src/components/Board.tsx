@@ -1074,31 +1074,22 @@ export default function Board() {
 
   async function deletePrompt(id: string, force = false) {
     try {
-      const res = await fetch(`/api/prompts/${id}`, {
+      await api(`/api/prompts/${id}`, {
         method: "DELETE",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ force }),
       });
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        hasUncommitted?: boolean;
-        changes?: string[];
-      };
-
-      if (!res.ok) {
-        // If 409 Conflict, show confirmation dialog
-        if (res.status === 409 && json.hasUncommitted) {
-          setPendingDeletePromptId(id);
-          setPendingDeleteChanges(json.changes ?? []);
-          return;
-        }
-        throw new Error(json.error ?? `HTTP ${res.status}`);
-      }
-
       setPrompts((p) => p.filter((x) => x.id !== id));
       setPendingDeletePromptId(null);
       setPendingDeleteChanges(null);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const json = e.body as { hasUncommitted?: boolean; changes?: string[] };
+        if (json.hasUncommitted) {
+          setPendingDeletePromptId(id);
+          setPendingDeleteChanges(json.changes ?? []);
+          return;
+        }
+      }
       toast.error(e instanceof Error ? e.message : String(e));
     }
   }

@@ -25,15 +25,19 @@ function ModePicker() {
 
   function switchToRemote() {
     const electron = (window as ElectronGlobals).electron;
-    if (!electron?.setMode) return;
-    const url = remoteUrlInput.trim() || "";
-    void electron.setMode("remote", url).then(() => setMode("remote"));
+    const url = remoteUrlInput.trim();
+    if (!url) return;
+    if (!/^https:\/\//.test(url)) return;
+    void electron?.setMode?.("remote", url).then(() => {
+      window.location.reload();
+    });
   }
 
   function switchToHost() {
     const electron = (window as ElectronGlobals).electron;
-    if (!electron?.setMode) return;
-    void electron.setMode("host", "").then(() => setMode("host"));
+    void electron?.setMode?.("host", "").then(() => {
+      window.location.reload();
+    });
   }
 
   if (mode === "remote") {
@@ -41,7 +45,7 @@ function ModePicker() {
       <div className="remote-access-section">
         <label className="project-settings-label">Mode</label>
         <p className="project-settings-hint">
-          Currently in remote mode. The app restarts when switching.
+          Currently in remote mode. Switching to host mode will reload the app.
         </p>
         <button className="btn ghost sm" onClick={switchToHost}>
           Switch to Host Mode
@@ -53,7 +57,9 @@ function ModePicker() {
   return (
     <div className="remote-access-section">
       <label className="project-settings-label">Mode</label>
-      <p className="project-settings-hint">Connect to a Fractal host on your Tailscale network.</p>
+      <p className="project-settings-hint">
+        Connect to a Fractal host on your Tailscale network. Requires HTTPS.
+      </p>
       <div className="project-settings-row">
         <input
           className="input"
@@ -61,7 +67,7 @@ function ModePicker() {
           value={remoteUrlInput}
           onChange={(e) => setRemoteUrlInput(e.target.value)}
         />
-        <button className="btn ghost sm" onClick={switchToRemote}>
+        <button className="btn ghost sm" onClick={switchToRemote} disabled={!remoteUrlInput.trim()}>
           Switch
         </button>
       </div>

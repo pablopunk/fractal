@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-function remoteToken(): string | null {
+export function remoteToken(): string | null {
   try {
     return localStorage.getItem("fractal:remoteToken");
   } catch {

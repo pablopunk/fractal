@@ -1,5 +1,6 @@
 import fuzzysort from "fuzzysort";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "~/lib/client/api.js";
 
 type Suggestion = { name: string; absolute: string; root: string };
 type Item = {
@@ -40,9 +41,8 @@ export default function ProjectPicker(props: ProjectPickerProps) {
   }, [props.autoFocus]);
 
   useEffect(() => {
-    fetch("/api/fs/suggestions")
-      .then((r) => r.json())
-      .then((d: { home: string; entries: Suggestion[] }) => {
+    api<{ home: string; entries: Suggestion[] }>("/api/fs/suggestions")
+      .then((d) => {
         setHome(d.home ?? "");
         setSuggestions(d.entries ?? []);
       })
