@@ -577,7 +577,7 @@ function showStartupWindow() {
     maximizable: false,
     fullscreenable: false,
     backgroundColor: "#0a0a0a",
-    titleBarStyle: "hiddenInset",
+    titleBarStyle: "default",
     show: false,
     webPreferences: {
       contextIsolation: true,
