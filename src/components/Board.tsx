@@ -425,6 +425,14 @@ export default function Board() {
     if (!activeProject) return [];
     return terminalTabs.filter((tab) => tabBelongsToProject(tab, activeProject));
   }, [activeProject, terminalTabs, tabBelongsToProject]);
+  const tabsByProject = useMemo(() => {
+    const map: Record<string, TerminalTab[]> = {};
+    for (const project of projects) {
+      const tabs = terminalTabs.filter((tab) => tabBelongsToProject(tab, project));
+      if (tabs.length > 0) map[project.id] = tabs;
+    }
+    return map;
+  }, [projects, terminalTabs, tabBelongsToProject]);
   const currentUiState = useMemo<UiState>(() => {
     const cached = loadUiStateCache();
     return normalizeUiState({
@@ -482,6 +490,11 @@ export default function Board() {
     setActiveTerminalId(id);
     setTerminalFocusKey((key) => key + 1);
     rememberCommandRecent("tab", id);
+  };
+
+  const selectProjectTab = (projectId: string, tabId: string) => {
+    if (projectId !== activeProjectId) selectProject(projectId);
+    activateTerminal(tabId);
   };
 
   function applyUiState(uiState: UiState) {
@@ -1501,6 +1514,10 @@ export default function Board() {
           onResize={resizeSidebar}
           collapsed={sidebarCollapsed}
           showShortcuts={showProjectShortcuts && !sidebarCollapsed}
+          tabsByProject={tabsByProject}
+          activeTabId={activeTerminalId}
+          onSelectTab={selectProjectTab}
+          onReorderTabs={reorderTerminal}
           onReorder={async (ids) => {
             const ordered = ids
               .map((id) => projects.find((p) => p.id === id))

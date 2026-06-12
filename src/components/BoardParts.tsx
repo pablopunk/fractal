@@ -34,6 +34,7 @@ import type {
   PiModel,
   Project,
   Prompt,
+  TerminalTab,
 } from "~/lib/client/types.js";
 import { Card } from "./Card.js";
 import { SortableIssueCard } from "./IssueCard.js";
@@ -58,6 +59,10 @@ export function Sidebar(props: {
   collapsed: boolean;
   showShortcuts: boolean;
   onReorder: (ids: string[]) => void | Promise<void>;
+  tabsByProject: Record<string, TerminalTab[]>;
+  activeTabId: string | null;
+  onSelectTab: (projectId: string, tabId: string) => void;
+  onReorderTabs: (fromId: string, toId: string) => void;
 }) {
   const projectSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -117,6 +122,10 @@ export function Sidebar(props: {
                 showShortcuts={props.showShortcuts}
                 onSelect={props.onSelect}
                 onRemove={props.onRemove}
+                tabs={props.tabsByProject[p.id] ?? []}
+                activeTabId={props.activeTabId}
+                onSelectTab={props.onSelectTab}
+                onReorderTabs={props.onReorderTabs}
               />
             ))}
           </SortableContext>
@@ -195,6 +204,10 @@ function SortableProjectItem(props: {
   showShortcuts: boolean;
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
+  tabs: TerminalTab[];
+  activeTabId: string | null;
+  onSelectTab: (projectId: string, tabId: string) => void;
+  onReorderTabs: (fromId: string, toId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.project.id,
@@ -206,43 +219,112 @@ function SortableProjectItem(props: {
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`project-item ${props.active ? "active" : ""}`}
-      onClick={() => props.onSelect(props.project.id)}
-      title={tildeify(props.project.path, props.home)}
-      {...attributes}
-      {...listeners}
-    >
-      {props.showShortcuts && props.index < 9 ? (
-        <span
-          className={`project-shortcut-icon ${props.active ? "active" : ""}`}
-          aria-hidden="true"
-        >
-          ⌘{props.index + 1}
-        </span>
-      ) : (
-        <ProjectIcon
-          id={props.project.id}
-          name={props.project.name}
-          path={props.project.path}
-          active={props.active}
+    <div ref={setNodeRef} style={style} className="project-group">
+      <div
+        className={`project-item ${props.active ? "active" : ""}`}
+        onClick={() => props.onSelect(props.project.id)}
+        title={tildeify(props.project.path, props.home)}
+        {...attributes}
+        {...listeners}
+      >
+        {props.showShortcuts && props.index < 9 ? (
+          <span
+            className={`project-shortcut-icon ${props.active ? "active" : ""}`}
+            aria-hidden="true"
+          >
+            ⌘{props.index + 1}
+          </span>
+        ) : (
+          <ProjectIcon
+            id={props.project.id}
+            name={props.project.name}
+            path={props.project.path}
+            active={props.active}
+          />
+        )}
+        <span className="name">{props.project.name}</span>
+        <Tooltip content="Remove project">
+          <button
+            className="remove"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onRemove(props.project.id);
+            }}
+            aria-label="Remove project"
+          >
+            ×
+          </button>
+        </Tooltip>
+      </div>
+      {props.tabs.length > 0 && (
+        <ProjectTabList
+          projectId={props.project.id}
+          tabs={props.tabs}
+          activeTabId={props.activeTabId}
+          onSelect={props.onSelectTab}
+          onReorder={props.onReorderTabs}
         />
       )}
-      <span className="name">{props.project.name}</span>
-      <Tooltip content="Remove project">
-        <button
-          className="remove"
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onRemove(props.project.id);
-          }}
-          aria-label="Remove project"
-        >
-          ×
-        </button>
-      </Tooltip>
+    </div>
+  );
+}
+
+function ProjectTabList(props: {
+  projectId: string;
+  tabs: TerminalTab[];
+  activeTabId: string | null;
+  onSelect: (projectId: string, tabId: string) => void;
+  onReorder: (fromId: string, toId: string) => void;
+}) {
+  const [draggingTabId, setDraggingTabId] = useState<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+
+  return (
+    <div className="project-tabs">
+      {props.tabs.map((tab) => (
+        <Tooltip key={tab.id} content={tab.session}>
+          <button
+            type="button"
+            className={`project-tab-item ${tab.id === props.activeTabId ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
+            onClick={() => props.onSelect(props.projectId, tab.id)}
+            draggable
+            onDragStart={(e) => {
+              setDraggingTabId(tab.id);
+              e.dataTransfer.effectAllowed = "move";
+              try {
+                e.dataTransfer.setData("text/plain", tab.id);
+              } catch {}
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id);
+            }}
+            onDragOver={(e) => {
+              if (draggingTabId) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget === e.target)
+                setDragOverTabId((id) => (id === tab.id ? null : id));
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggingTabId && draggingTabId !== tab.id) props.onReorder(draggingTabId, tab.id);
+              setDraggingTabId(null);
+              setDragOverTabId(null);
+            }}
+            onDragEnd={() => {
+              setDraggingTabId(null);
+              setDragOverTabId(null);
+            }}
+          >
+            <SquareTerminal size={12} aria-hidden="true" />
+            <span className="name">{tab.title}</span>
+          </button>
+        </Tooltip>
+      ))}
     </div>
   );
 }

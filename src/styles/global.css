@@ -388,10 +388,50 @@ a { color: inherit; }
 .project-item:hover .remove { opacity: 1; }
 .project-item .remove:hover { background: var(--surface-3); color: var(--danger); }
 
+.project-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.project-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 2px;
+}
+.project-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 23px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+}
+.project-tab-item:hover { background: var(--surface-2); color: var(--text); }
+.project-tab-item.active { background: var(--surface-2); color: var(--text); }
+.project-tab-item.dragging { opacity: 0.4; }
+.project-tab-item.drag-over { box-shadow: inset 0 2px 0 0 var(--state-active-border); }
+.project-tab-item > svg { flex: none; }
+.project-tab-item .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar.collapsed .sidebar-head,
 .sidebar.collapsed .sidebar-section,
 .sidebar.collapsed .project-item .name,
-.sidebar.collapsed .project-item .remove {
+.sidebar.collapsed .project-item .remove,
+.sidebar.collapsed .project-tabs {
   display: none;
 }
 .sidebar.collapsed .project-list {
