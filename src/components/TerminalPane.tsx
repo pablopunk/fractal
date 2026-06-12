@@ -327,7 +327,11 @@ function TerminalView({
       event.preventDefault();
       event.stopImmediatePropagation();
       const ext = (window as ElectronGlobals).electron?.openExternal;
-      if (ext) { void ext(url); } else { void window.open(url, "_blank", "noopener"); }
+      if (ext) {
+        void ext(url);
+      } else {
+        void window.open(url, "_blank", "noopener");
+      }
     };
     const onShiftMouseDown = (event: MouseEvent) => {
       // xterm.js forces selection with Shift on Linux/Windows, but with Option on macOS.
@@ -503,13 +507,16 @@ function TerminalView({
           ws.addEventListener("message", (event) => {
             if (disposed) return;
             let msg: unknown;
-            try { msg = JSON.parse(String(event.data)); } catch { return; }
+            try {
+              msg = JSON.parse(String(event.data));
+            } catch {
+              return;
+            }
             if (!msg || typeof msg !== "object") return;
             const m = msg as { type?: unknown; data?: unknown; message?: unknown };
             if (m.type === "data" && typeof m.data === "string") term.write(m.data);
-            if (m.type === "error") term.writeln(
-              `\r\n${typeof m.message === "string" ? m.message : "Terminal error"}`,
-            );
+            if (m.type === "error")
+              term.writeln(`\r\n${typeof m.message === "string" ? m.message : "Terminal error"}`);
           });
           ws.addEventListener("close", onClose);
           input?.dispose();

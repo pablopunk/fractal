@@ -1,6 +1,6 @@
+import { KeepAwakeToggle } from "./KeepAwakeToggle.js";
 import Portal from "./Portal.js";
 import RemoteAccessSettings from "./RemoteAccessSettings.js";
-import { KeepAwakeToggle } from "./KeepAwakeToggle.js";
 
 export default function AppSettingsModal(props: { onClose: () => void }) {
   return (

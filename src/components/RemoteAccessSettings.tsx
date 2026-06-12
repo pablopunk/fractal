@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "~/lib/client/api.js";
 
 type TailscaleStatus = {
@@ -16,9 +16,12 @@ export default function RemoteAccessSettings() {
   const [tailscale, setTailscale] = useState<TailscaleStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const qrRef = useRef<HTMLDivElement | null>(null);
 
   const fetchSettings = useCallback(async () => {
-    const data = await api<{ settings: { remoteAccessEnabled: boolean; remoteAccessToken: string } }>("/api/settings");
+    const data = await api<{
+      settings: { remoteAccessEnabled: boolean; remoteAccessToken: string };
+    }>("/api/settings");
     setEnabled(data.settings.remoteAccessEnabled);
     setToken(data.settings.remoteAccessToken);
   }, []);
@@ -44,15 +47,20 @@ export default function RemoteAccessSettings() {
       const svg = await QRCode.toString(url, { type: "svg", width: 200, margin: 2 });
       if (!cancelled) setQrSvg(svg);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [enabled, tailscale?.dnsName, token]);
+
+  useEffect(() => {
+    if (qrRef.current) qrRef.current.innerHTML = qrSvg ?? "";
+  }, [qrSvg]);
 
   async function toggleEnabled() {
     const next = !enabled;
-    const data = await api<{ settings: { remoteAccessEnabled: boolean; remoteAccessToken: string } }>(
-      "/api/settings",
-      { method: "PATCH", body: JSON.stringify({ remoteAccessEnabled: next }) },
-    );
+    const data = await api<{
+      settings: { remoteAccessEnabled: boolean; remoteAccessToken: string };
+    }>("/api/settings", { method: "PATCH", body: JSON.stringify({ remoteAccessEnabled: next }) });
     setEnabled(data.settings.remoteAccessEnabled);
     setToken(data.settings.remoteAccessToken);
     if (next) fetchTailscale();
@@ -63,9 +71,10 @@ export default function RemoteAccessSettings() {
     setToken(data.token);
   }
 
-  const connectUrl = tailscale?.dnsName && token
-    ? `https://${tailscale.dnsName}/connect#token=${encodeURIComponent(token)}`
-    : null;
+  const connectUrl =
+    tailscale?.dnsName && token
+      ? `https://${tailscale.dnsName}/connect#token=${encodeURIComponent(token)}`
+      : null;
 
   async function copyUrl() {
     if (!connectUrl) return;
@@ -116,15 +125,18 @@ export default function RemoteAccessSettings() {
           {tailscale?.dnsName && (
             <>
               <div className="remote-access-url-row">
-                <input className="input" value={connectUrl ?? ""} readOnly onClick={(e) => (e.target as HTMLInputElement).select()} />
+                <input
+                  className="input"
+                  value={connectUrl ?? ""}
+                  readOnly
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
                 <button className="btn ghost sm" onClick={copyUrl}>
                   Copy
                 </button>
               </div>
 
-              {qrSvg && (
-                <div className="remote-access-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} />
-              )}
+              {qrSvg && <div ref={qrRef} className="remote-access-qr" />}
 
               <div className="remote-access-token-row">
                 <span className="remote-access-token">{token.slice(0, 16)}…</span>
@@ -136,16 +148,10 @@ export default function RemoteAccessSettings() {
           )}
 
           {tailscale?.installed && !tailscale.dnsName && !tailscale.error && (
-            <div className="remote-access-info">
-              Detecting Tailscale device info…
-            </div>
+            <div className="remote-access-info">Detecting Tailscale device info…</div>
           )}
 
-          {tailscale?.error && (
-            <div className="remote-access-error">
-              Error: {tailscale.error}
-            </div>
-          )}
+          {tailscale?.error && <div className="remote-access-error">Error: {tailscale.error}</div>}
         </div>
       )}
     </div>

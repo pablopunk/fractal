@@ -15,8 +15,7 @@ function extractToken(request: Request): string | null {
 
 function isLocalhost(request: Request): boolean {
   const remoteAddr =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    new URL(request.url).hostname;
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? new URL(request.url).hostname;
   return LOCALHOST_IPS.has(remoteAddr) || remoteAddr === "127.0.0.1" || remoteAddr === "localhost";
 }
 
@@ -24,10 +23,7 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/api/health");
 }
 
-export async function onRequest(
-  context: APIContext,
-  next: MiddlewareNext,
-): Promise<Response> {
+export async function onRequest(context: APIContext, next: MiddlewareNext): Promise<Response> {
   const settings = getSettings();
 
   if (!settings.remoteAccessEnabled) return next();
