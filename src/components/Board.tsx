@@ -97,6 +97,7 @@ import { type BoardIssue, issueFromGithub, issueFromLinear } from "./IssueCard.j
 import Portal from "./Portal.js";
 import PresetPicker from "./PresetPicker.js";
 import ProjectSettingsModal from "./ProjectSettingsModal.js";
+import AppSettingsModal from "./AppSettingsModal.js";
 import TerminalPane from "./TerminalPane.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
 
@@ -393,6 +394,7 @@ export default function Board() {
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(() => new Set());
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [githubIssues, setGithubIssues] = useState<GithubIssue[]>([]);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const [loadingIssues, setLoadingIssues] = useState(false);
@@ -1601,6 +1603,16 @@ export default function Board() {
                     <Settings size={15} />
                   </button>
                 </Tooltip>
+                <Tooltip content="App settings">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => setAppSettingsOpen(true)}
+                    aria-label="App settings"
+                  >
+                    <Monitor size={15} />
+                  </button>
+                </Tooltip>
                 <div className="topbar-spacer" />
                 <PresetSettings
                   presets={settings.agentPresets}
@@ -1964,6 +1976,10 @@ export default function Board() {
                     </div>
                   </div>
                 </Portal>
+              )}
+
+              {appSettingsOpen && (
+                <AppSettingsModal onClose={() => setAppSettingsOpen(false)} />
               )}
 
               {projectSettingsOpen && activeProject && (
