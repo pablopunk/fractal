@@ -278,8 +278,8 @@ function TerminalView({
     let input: { dispose: () => void } | null = null;
     let osc52: { dispose: () => void } | null = null;
     let sendResize: (() => void) | null = null;
-    let onMessage: ((event: MessageEvent) => void) | null = null;
-    let onClose: ((event: CloseEvent) => void) | null = null;
+    let onMessage: (event: MessageEvent) => void;
+    let onClose: (event: CloseEvent) => void;
     let disposed = false;
     const sendData = (data: string) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
@@ -326,7 +326,8 @@ function TerminalView({
       if (!url) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      void (window as ElectronGlobals).electron?.openExternal?.(url);
+      const ext = (window as ElectronGlobals).electron?.openExternal;
+      if (ext) { void ext(url); } else { void window.open(url, "_blank", "noopener"); }
     };
     const onShiftMouseDown = (event: MouseEvent) => {
       // xterm.js forces selection with Shift on Linux/Windows, but with Option on macOS.
@@ -477,13 +478,46 @@ function TerminalView({
             `\r\n${typeof terminalMsg.message === "string" ? terminalMsg.message : "Terminal error"}`,
           );
       };
+      let reconnectDelay = 1000;
+      let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
       onClose = (event: CloseEvent) => {
         if (disposed) return;
         if (event.code === 1000 && event.reason.startsWith("terminal exited")) {
           onCloseRef.current(tab.id);
           return;
         }
-        term.writeln(`\r\nTerminal disconnected${event.reason ? `: ${event.reason}` : ""}`);
+        if (event.code === 1000) return;
+        term.writeln("\r\nReconnecting…");
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+          if (disposed) return;
+          ws = new WebSocket(
+            `${protocol}//${window.location.host}/api/terminal/ws?${params.toString()}`,
+          );
+          ws.addEventListener("open", () => {
+            reconnectDelay = 1000;
+            if (sendResize) sendResize();
+            term.writeln("\r\nReconnected.\r\n");
+          });
+          ws.addEventListener("message", (event) => {
+            if (disposed) return;
+            let msg: unknown;
+            try { msg = JSON.parse(String(event.data)); } catch { return; }
+            if (!msg || typeof msg !== "object") return;
+            const m = msg as { type?: unknown; data?: unknown; message?: unknown };
+            if (m.type === "data" && typeof m.data === "string") term.write(m.data);
+            if (m.type === "error") term.writeln(
+              `\r\n${typeof m.message === "string" ? m.message : "Terminal error"}`,
+            );
+          });
+          ws.addEventListener("close", onClose);
+          input?.dispose();
+          input = term.onData((data: string) => {
+            if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "data", data }));
+          });
+        }, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
       };
       ws.addEventListener("open", sendResize);
       ws.addEventListener("message", onMessage);

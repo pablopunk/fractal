@@ -98,6 +98,7 @@ import Portal from "./Portal.js";
 import PresetPicker from "./PresetPicker.js";
 import ProjectSettingsModal from "./ProjectSettingsModal.js";
 import AppSettingsModal from "./AppSettingsModal.js";
+import ReconnectBanner from "./ReconnectBanner.js";
 import TerminalPane from "./TerminalPane.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
 
@@ -1570,6 +1571,7 @@ export default function Board() {
             </div>
           ) : (
             <>
+              <ReconnectBanner />
               <div className="topbar">
                 <Tooltip
                   content={
