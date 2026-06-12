@@ -68,6 +68,7 @@ import {
   type ThemeMode,
   type UiState,
 } from "~/lib/client/persistence.js";
+import { terminalTabTitle } from "~/lib/client/terminal-tab-title.js";
 import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/terminal-themes.js";
 import type {
   AppSettings,
@@ -303,14 +304,28 @@ function validTerminalTabs(
   const sessions = new Set(sessionNames);
   const projectIds = new Set(projects.map((project) => project.id));
   const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt]));
-  return tabs.filter((tab) => {
-    if (sessions.has(tab.session)) return true;
-    if (!tab.cwd) return false;
-    if (tab.projectId && projectIds.has(tab.projectId)) return true;
-    const prompt = promptById.get(tab.promptId);
-    if (prompt) return prompt.tmuxSession === tab.session && projectIds.has(prompt.projectId);
-    return projectIds.has(tab.promptId);
-  });
+  return tabs
+    .filter((tab) => {
+      if (sessions.has(tab.session)) return true;
+      if (!tab.cwd) return false;
+      if (tab.projectId && projectIds.has(tab.projectId)) return true;
+      const prompt = promptById.get(tab.promptId);
+      if (prompt) return prompt.tmuxSession === tab.session && projectIds.has(prompt.projectId);
+      return projectIds.has(tab.promptId);
+    })
+    .map((tab) => retitledTerminalTab(tab, projects, promptById));
+}
+
+function retitledTerminalTab(
+  tab: TerminalTab,
+  projects: Project[],
+  promptById: Map<string, Prompt>,
+): TerminalTab {
+  if (!tab.session.startsWith("fractal-")) return tab;
+  const projectId = tab.projectId ?? promptById.get(tab.promptId)?.projectId;
+  const project = projects.find((p) => p.id === projectId);
+  const title = terminalTabTitle(tab.session, project);
+  return title === tab.title ? tab : { ...tab, title };
 }
 
 export default function Board() {
@@ -793,9 +808,7 @@ export default function Board() {
     }
     const project = projects.find((p) => p.id === prompt.projectId);
     const cwd = prompt.worktreePath ?? project?.path;
-    const baseName = project?.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") ?? "";
-    let title = prompt.tmuxSession.replace(/^fractal-/, "");
-    if (baseName) title = title.replace(new RegExp(`^${baseName}-`), "");
+    const title = terminalTabTitle(prompt.tmuxSession, project);
     const tab: TerminalTab = {
       id: prompt.tmuxSession,
       promptId: prompt.id,
