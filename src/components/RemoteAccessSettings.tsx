@@ -94,7 +94,12 @@ export default function RemoteAccessSettings() {
         });
         setToken(tokenData.token);
       }
-      if (next) fetchTailscale();
+      if (next) {
+        fetchTailscale();
+        void api("/api/tailscale/serve", { method: "POST", body: JSON.stringify({ enable: true }) });
+      } else {
+        void api("/api/tailscale/serve", { method: "POST", body: JSON.stringify({ enable: false }) });
+      }
     } catch {
       setEnabled(wasEnabled);
     } finally {
