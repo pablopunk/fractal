@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Palette, Radio, SlidersHorizontal, Sun } from "lucide-react";
 import type { AgentPreset, PiModel } from "~/lib/client/types.js";
 import type { BoardLayout, GlassSettings, TerminalThemeName, ThemeMode } from "~/lib/client/persistence.js";
 import { terminalThemePreview } from "~/lib/client/terminal-themes.js";
@@ -64,18 +64,21 @@ export default function AppSettingsModal(props: {
               className={`app-settings-tab ${tab === "remote" ? "active" : ""}`}
               onClick={() => setTab("remote")}
             >
+              <Radio size={14} />
               Remote
             </button>
             <button
               className={`app-settings-tab ${tab === "presets" ? "active" : ""}`}
               onClick={() => setTab("presets")}
             >
+              <SlidersHorizontal size={14} />
               Presets
             </button>
             <button
               className={`app-settings-tab ${tab === "appearance" ? "active" : ""}`}
               onClick={() => setTab("appearance")}
             >
+              <Palette size={14} />
               Appearance
             </button>
           </div>

@@ -2740,6 +2740,9 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 }
 
 .app-settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   position: relative;
   padding: 10px 16px;
   font-size: 13px;
