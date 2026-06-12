@@ -187,10 +187,10 @@ export default function AppSettingsModal(props: {
 function ModeDisplay() {
   const [mode, setMode] = useState<"host" | "remote" | null>(null);
   const [remoteUrl, setRemoteUrl] = useState("");
-  const hasElectron = Boolean((window as ElectronGlobals).electron?.setMode);
+  const electron = (window as ElectronGlobals).electron;
+  const hasElectron = Boolean(electron?.setMode);
 
   useEffect(() => {
-    const electron = (window as ElectronGlobals).electron;
     if (!electron?.getConfig) return;
     void electron.getConfig().then((cfg) => {
       setMode(cfg.mode === "remote" ? "remote" : "host");
@@ -198,18 +198,20 @@ function ModeDisplay() {
     });
   }, []);
 
-  if (!hasElectron) return null;
-
   function switchToRemote() {
     const url = window.prompt("Enter the HTTPS URL of your Fractal host:", "https://");
     if (!url || !/^https:\/\//.test(url.trim())) return;
     if (!window.confirm("This will restart Fractal in remote mode. Continue?")) return;
-    void (window as ElectronGlobals).electron?.setMode?.("remote", url.trim());
+    const api = (window as ElectronGlobals).electron;
+    if (!api?.setMode) { console.error("[fractal] setMode not available on electron bridge"); return; }
+    void api.setMode("remote", url.trim()).catch((e) => console.error("[fractal] setMode failed", e));
   }
 
   function switchToHost() {
     if (!window.confirm("This will restart Fractal in host mode. Continue?")) return;
-    void (window as ElectronGlobals).electron?.setMode?.("host", "");
+    const api = (window as ElectronGlobals).electron;
+    if (!api?.setMode) { console.error("[fractal] setMode not available on electron bridge"); return; }
+    void api.setMode("host", "").catch((e) => console.error("[fractal] setMode failed", e));
   }
 
   if (mode === "remote") {
