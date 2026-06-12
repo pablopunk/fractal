@@ -468,6 +468,11 @@ function createRemoteWindow(remoteUrl) {
       mainWindow = null;
     }
   });
+  mainWindow.webContents.on("did-fail-load", (_event, _code, _desc, url) => {
+    if (url === targetUrl || url.startsWith(targetUrl)) {
+      mainWindow.loadFile(path.join(__dirname, "remote-error.html"));
+    }
+  });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
@@ -592,7 +597,7 @@ function showStartupWindow() {
       startupWindow = null;
     }
   });
-  void startupWindow.loadFile(path.join(__dirname, "mode-picker.html"));
+  void startupWindow.loadFile(path.join(__dirname, "remote-error.html"));
 }
 
 function dismissStartupWindow() {
