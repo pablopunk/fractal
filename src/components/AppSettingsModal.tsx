@@ -217,7 +217,7 @@ function ModeDisplay() {
       setError("Enter a valid HTTPS URL");
       return;
     }
-    doSwitch("remote", trimmed);
+    const url = new URL(trimmed); url.pathname = ""; url.hash = ""; url.search = ""; doSwitch("remote", url.toString().replace(/\/$/, ""));
   }
 
   if (!electron?.setMode) return null;
@@ -242,7 +242,7 @@ function ModeDisplay() {
       <div className="project-settings-row">
         <input
           className="input"
-          placeholder="https://laptop.tail1234.ts.net"
+          placeholder="https://m4pro.pangolin-frog.ts.net"
           value={remoteInput}
           onChange={(e) => { setRemoteInput(e.target.value); setError(""); }}
           onKeyDown={(e) => e.key === "Enter" && handleSwitchToRemote()}
