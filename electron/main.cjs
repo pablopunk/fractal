@@ -625,8 +625,12 @@ ipcMain.handle("set-mode", (_event, mode, remoteUrl) => {
       : "";
   if (mode === "remote" && !safeUrl) return readConfig();
   writeConfig({ mode, remoteUrl: safeUrl });
-  app.relaunch();
-  app.quit();
+  const config = readConfig();
+  setImmediate(() => {
+    app.relaunch();
+    app.quit();
+  });
+  return config;
 });
 
 ipcMain.handle("get-config", () => {
