@@ -217,7 +217,7 @@ function ModeDisplay() {
       setError("Enter a valid HTTPS URL");
       return;
     }
-    const url = new URL(trimmed); url.pathname = ""; url.hash = ""; url.search = ""; doSwitch("remote", url.toString().replace(/\/$/, ""));
+    const url = new URL(trimmed); url.search = ""; doSwitch("remote", url.toString().replace(/\/$/, ""));
   }
 
   if (!electron?.setMode) return null;

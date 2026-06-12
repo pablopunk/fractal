@@ -6,7 +6,7 @@ export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
   integrations: [react()],
-  server: { port: 7666, host: "127.0.0.1" },
+  server: { port: 7666, host: "127.0.0.1", allowedHosts: true },
   devToolbar: { enabled: false },
   vite: {
     ssr: {
