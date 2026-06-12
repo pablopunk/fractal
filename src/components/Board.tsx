@@ -440,6 +440,13 @@ export default function Board() {
     if (!activeProject) return [];
     return terminalTabs.filter((tab) => tabBelongsToProject(tab, activeProject));
   }, [activeProject, terminalTabs, tabBelongsToProject]);
+  const terminalPaneTabs = useMemo(() => {
+    return filteredTerminalTabs.map((tab) => {
+      const prompt = prompts.find((p) => p.id === tab.promptId);
+      const label = prompt?.summary?.trim() || prompt?.text?.trim();
+      return label ? { ...tab, title: truncate(label, 80) } : tab;
+    });
+  }, [filteredTerminalTabs, prompts]);
   const tabsByProject = useMemo(() => {
     const map: Record<string, TerminalTab[]> = {};
     for (const project of projects) {
@@ -1706,7 +1713,7 @@ export default function Board() {
                   </div>
                   {filteredTerminalTabs.length > 0 && (
                     <TerminalPane
-                      tabs={filteredTerminalTabs}
+                      tabs={terminalPaneTabs}
                       activeId={activeTerminalId}
                       position={terminalPosition}
                       size={terminalPosition === "right" ? terminalWidth : terminalHeight}
