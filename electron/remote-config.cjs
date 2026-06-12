@@ -1,4 +1,4 @@
-const { readFileSync, writeFileSync, mkdirSync } = require("node:fs");
+const { readFileSync, writeFileSync, mkdirSync, existsSync } = require("node:fs");
 const path = require("node:path");
 const { homedir } = require("node:os");
 
@@ -31,4 +31,17 @@ function writeConfig(partial) {
   return next;
 }
 
-module.exports = { readConfig, writeConfig, defaultConfig };
+module.exports = { readConfig, writeConfig, defaultConfig, hasSavedConfig, getMode };
+
+function hasSavedConfig() {
+  return existsSync(configPath);
+}
+
+function getMode() {
+  const config = readConfig();
+  return {
+    mode: config.mode,
+    remoteUrl: config.mode === "remote" ? config.remoteUrl : "",
+    keepAwakeEnabled: config.keepAwakeEnabled,
+  };
+}

@@ -9,7 +9,7 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { homedir } = require("node:os");
 const { createWriteStream, mkdirSync } = require("node:fs");
-const { readConfig, writeConfig } = require("./remote-config.cjs");
+const { readConfig, writeConfig, hasSavedConfig } = require("./remote-config.cjs");
 
 const fractalLogDir = path.join(homedir(), ".fractal");
 mkdirSync(fractalLogDir, { recursive: true });
@@ -562,10 +562,71 @@ ipcMain.handle("open-external", (_event, url) => {
   return true;
 });
 
+let startupWindow = null;
+
+function showStartupWindow() {
+  if (startupWindow) {
+    startupWindow.focus();
+    return;
+  }
+  startupWindow = new BrowserWindow({
+    width: 420,
+    height: 480,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    backgroundColor: "#0a0a0a",
+    titleBarStyle: "hiddenInset",
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload-startup.cjs"),
+    },
+  });
+  startupWindow.once("ready-to-show", () => startupWindow?.show());
+  startupWindow.on("closed", () => {
+    if (startupWindow?.isDestroyed()) {
+      startupWindow = null;
+    }
+  });
+  void startupWindow.loadFile(path.join(__dirname, "mode-picker.html"));
+}
+
+function dismissStartupWindow() {
+  if (!startupWindow || startupWindow.isDestroyed()) return;
+  startupWindow.close();
+  startupWindow = null;
+}
+
+ipcMain.on("select-mode", (_event, payload) => {
+  if (!payload || typeof payload !== "object") return;
+  const mode = payload.mode;
+  if (mode !== "host" && mode !== "remote") return;
+  const remoteUrl =
+    mode === "remote" &&
+    typeof payload.remoteUrl === "string" &&
+    /^https:\/\//.test(payload.remoteUrl)
+      ? payload.remoteUrl
+      : "";
+  if (mode === "remote" && !remoteUrl) return;
+  writeConfig({ mode, remoteUrl });
+  dismissStartupWindow();
+  void createWindow();
+});
+
 ipcMain.handle("set-mode", (_event, mode, remoteUrl) => {
   if (mode !== "host" && mode !== "remote") return readConfig();
-  const safeUrl = typeof remoteUrl === "string" && /^https?:\/\//.test(remoteUrl) ? remoteUrl : "";
-  return writeConfig({ mode, remoteUrl: safeUrl });
+  const safeUrl =
+    mode === "remote" && typeof remoteUrl === "string" && /^https:\/\//.test(remoteUrl)
+      ? remoteUrl
+      : "";
+  if (mode === "remote" && !safeUrl) return readConfig();
+  writeConfig({ mode, remoteUrl: safeUrl });
+  app.relaunch();
+  app.quit();
 });
 
 ipcMain.handle("get-config", () => {
@@ -615,9 +676,20 @@ app.whenReady().then(() => {
   const config = readConfig();
   if (config.keepAwakeEnabled) startKeepAwake();
 
-  void createWindow();
+  if (hasSavedConfig()) {
+    void createWindow();
+  } else {
+    showStartupWindow();
+  }
+
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (hasSavedConfig()) {
+        void createWindow();
+      } else {
+        showStartupWindow();
+      }
+    }
   });
 });
 

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fractal — Setup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh; overflow: hidden;
+    -webkit-app-region: drag;
+  }
+  .container {
+    text-align: center; padding: 32px 24px; max-width: 360px;
+    -webkit-app-region: no-drag;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; color: #f0f0f0; }
+  p { font-size: 13px; color: #888; margin-bottom: 28px; line-height: 1.5; }
+  .btn {
+    display: block; width: 100%; padding: 14px 16px; margin-bottom: 10px;
+    border: 1px solid #333; border-radius: 10px; background: #1a1a1a;
+    color: #e0e0e0; font-size: 15px; font-weight: 500; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: #262626; border-color: #555; }
+  .btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .btn.primary:hover { background: #1d4ed8; }
+  .btn-sub { font-size: 12px; color: #666; }
+  .back { margin-top: 16px; font-size: 13px; color: #555; cursor: pointer; }
+  .back:hover { color: #999; }
+  .input {
+    width: 100%; padding: 12px 14px; margin-bottom: 12px;
+    background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+    color: #e0e0e0; font-size: 14px; outline: none;
+  }
+  .input:focus { border-color: #2563eb; }
+  .input::placeholder { color: #555; }
+  .error { color: #ef4444; font-size: 12px; margin-top: 6px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Welcome to Fractal</h1>
+  <p>Choose how you want to use Fractal on this device.</p>
+
+  <div id="screen-pick">
+    <button class="btn primary" onclick="pickHost()">🖥️  Host</button>
+    <p class="btn-sub">Run everything on this machine</p>
+    <button class="btn" onclick="showRemote()">🌐 Remote</button>
+    <p class="btn-sub">Connect to a Fractal host on your tailnet</p>
+  </div>
+
+  <div id="screen-remote" class="hidden">
+    <input class="input" id="remote-url" type="url" autofocus
+      placeholder="https://laptop.tail1234.ts.net"
+      oninput="validateUrl()" onkeydown="handleKey(event)">
+    <button class="btn primary" id="connect-btn" disabled onclick="pickRemote()">Connect</button>
+    <div class="error hidden" id="url-error">Enter a valid HTTPS URL</div>
+    <div class="back" onclick="showPick()">← Back</div>
+  </div>
+</div>
+
+<script>
+  const { electronAPI } = window;
+
+  function showScreen(id) {
+    document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+    const target = document.getElementById('screen-' + id);
+    if (target) target.classList.remove('hidden');
+  }
+
+  function showPick() { showScreen('pick'); }
+  function showRemote() {
+    showScreen('remote');
+    setTimeout(() => document.getElementById('remote-url')?.focus(), 50);
+  }
+
+  function validateUrl() {
+    const input = document.getElementById('remote-url');
+    const btn = document.getElementById('connect-btn');
+    const err = document.getElementById('url-error');
+    const val = input.value.trim();
+    if (!val) {
+      btn.disabled = true;
+      err.classList.add('hidden');
+      return;
+    }
+    const ok = /^https:\/\/.+/.test(val);
+    btn.disabled = !ok;
+    if (ok) err.classList.add('hidden');
+    else err.classList.remove('hidden');
+  }
+
+  function handleKey(event) {
+    if (event.key === 'Enter' && !document.getElementById('connect-btn').disabled) {
+      pickRemote();
+    }
+  }
+
+  function pickHost() {
+    electronAPI.selectMode({ mode: 'host' });
+  }
+
+  function pickRemote() {
+    const url = document.getElementById('remote-url').value.trim();
+    electronAPI.selectMode({ mode: 'remote', remoteUrl: url });
+  }
+</script>
+</body>
+</html>

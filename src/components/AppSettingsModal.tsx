@@ -10,43 +10,39 @@ type ElectronGlobals = typeof window & {
   };
 };
 
-function ModePicker() {
+function ModeDisplay() {
   const [mode, setMode] = useState<"host" | "remote" | null>(null);
-  const [remoteUrlInput, setRemoteUrlInput] = useState("");
+  const [remoteUrl, setRemoteUrl] = useState("");
   const hasElectron = Boolean((window as ElectronGlobals).electron?.setMode);
 
   useEffect(() => {
     const electron = (window as ElectronGlobals).electron;
     if (!electron?.getConfig) return;
-    void electron.getConfig().then((cfg) => setMode(cfg.mode === "remote" ? "remote" : "host"));
+    void electron.getConfig().then((cfg) => {
+      setMode(cfg.mode === "remote" ? "remote" : "host");
+      setRemoteUrl(cfg.remoteUrl || "");
+    });
   }, []);
 
   if (!hasElectron) return null;
 
   function switchToRemote() {
-    const electron = (window as ElectronGlobals).electron;
-    const url = remoteUrlInput.trim();
-    if (!url) return;
-    if (!/^https:\/\//.test(url)) return;
-    void electron?.setMode?.("remote", url).then(() => {
-      window.location.reload();
-    });
+    const url = window.prompt("Enter the HTTPS URL of your Fractal host:", "https://");
+    if (!url || !/^https:\/\//.test(url.trim())) return;
+    if (!window.confirm("This will restart Fractal in remote mode. Continue?")) return;
+    void (window as ElectronGlobals).electron?.setMode?.("remote", url.trim());
   }
 
   function switchToHost() {
-    const electron = (window as ElectronGlobals).electron;
-    void electron?.setMode?.("host", "").then(() => {
-      window.location.reload();
-    });
+    if (!window.confirm("This will restart Fractal in host mode. Continue?")) return;
+    void (window as ElectronGlobals).electron?.setMode?.("host", "");
   }
 
   if (mode === "remote") {
     return (
       <div className="remote-access-section">
         <label className="project-settings-label">Mode</label>
-        <p className="project-settings-hint">
-          Currently in remote mode. Switching to host mode will reload the app.
-        </p>
+        <p className="project-settings-hint">Connected to {remoteUrl || "remote host"}</p>
         <button className="btn ghost sm" onClick={switchToHost}>
           Switch to Host Mode
         </button>
@@ -58,19 +54,11 @@ function ModePicker() {
     <div className="remote-access-section">
       <label className="project-settings-label">Mode</label>
       <p className="project-settings-hint">
-        Connect to a Fractal host on your Tailscale network. Requires HTTPS.
+        Running as host. All data and agents run on this machine.
       </p>
-      <div className="project-settings-row">
-        <input
-          className="input"
-          placeholder="https://laptop.tail1234.ts.net"
-          value={remoteUrlInput}
-          onChange={(e) => setRemoteUrlInput(e.target.value)}
-        />
-        <button className="btn ghost sm" onClick={switchToRemote} disabled={!remoteUrlInput.trim()}>
-          Switch
-        </button>
-      </div>
+      <button className="btn ghost sm" onClick={switchToRemote}>
+        Switch to Remote Mode
+      </button>
     </div>
   );
 }
@@ -87,7 +75,7 @@ export default function AppSettingsModal(props: { onClose: () => void }) {
             </button>
           </header>
           <div className="project-settings-body">
-            <ModePicker />
+            <ModeDisplay />
             <RemoteAccessSettings />
             <KeepAwakeToggle />
           </div>
