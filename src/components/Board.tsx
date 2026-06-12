@@ -1581,12 +1581,12 @@ export default function Board() {
                     disabled={isOpeningProjectTerminal}
                   >
                     <span className="topbar-title-row">
-                      <h1>{activeProject.name}</h1>
                       {isOpeningProjectTerminal ? (
                         <span className="btn-spinner" aria-hidden="true" />
                       ) : (
                         <SquareTerminal className="topbar-title-icon" aria-hidden="true" />
                       )}
+                      <h1>{activeProject.name}</h1>
                     </span>
                     <span className="path">{tildeify(activeProject.path, home)}</span>
                   </button>
