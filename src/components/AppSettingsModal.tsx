@@ -59,12 +59,6 @@ export default function AppSettingsModal(props: {
     <Portal>
       <div className="modal-overlay" onClick={props.onClose}>
         <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-          <header className="preset-modal-header">
-            <button className="btn ghost sm" onClick={props.onClose}>
-              Close
-            </button>
-          </header>
-
           <div className="app-settings-tabs">
             <button
               className={`app-settings-tab ${tab === "remote" ? "active" : ""}`}
