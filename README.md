@@ -4,7 +4,7 @@
 
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/7ac50c47-4779-4b31-b7d7-0788682123ca" width="200" />
+  <img src="https://github.com/user-attachments/assets/7ac50c47-4779-4b31-b7d7-0788682123ca" width="250" />
   <br/>
   <span><i>The app with the ugliest icon you'll ever see</i></span>
   <br/>
