@@ -1533,6 +1533,7 @@ export default function Board() {
           onSelect={selectProject}
           onRemove={removeProject}
           onAdd={addProject}
+          onOpenSettings={() => setAppSettingsOpen(true)}
           showPicker={showSidebarPicker}
           setShowPicker={setShowSidebarPicker}
           home={home}
@@ -1594,16 +1595,6 @@ export default function Board() {
                     aria-label="Project settings"
                   >
                     <Settings size={15} />
-                  </button>
-                </Tooltip>
-                <Tooltip content="App settings">
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => setAppSettingsOpen(true)}
-                    aria-label="App settings"
-                  >
-                    <Monitor size={15} />
                   </button>
                 </Tooltip>
                 <div className="topbar-spacer" />
