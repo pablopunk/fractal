@@ -27,6 +27,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/lib/client/api.js";
 import { snapSidebarWidth } from "~/lib/client/persistence.js";
+import { terminalTabIcon } from "~/lib/client/terminal-tab-icon.js";
 import type {
   AgentPreset,
   Column,
@@ -281,50 +282,54 @@ function ProjectTabList(props: {
 
   return (
     <div className="project-tabs">
-      {props.tabs.map((tab) => (
-        <Tooltip key={tab.id} content={tab.session}>
-          <button
-            type="button"
-            className={`project-tab-item ${tab.accent ? `accent-${tab.accent}` : ""} ${tab.id === props.activeTabId ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
-            onClick={() => props.onSelect(props.projectId, tab.id)}
-            draggable
-            onDragStart={(e) => {
-              setDraggingTabId(tab.id);
-              e.dataTransfer.effectAllowed = "move";
-              try {
-                e.dataTransfer.setData("text/plain", tab.id);
-              } catch {}
-            }}
-            onDragEnter={(e) => {
-              e.preventDefault();
-              if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id);
-            }}
-            onDragOver={(e) => {
-              if (draggingTabId) {
+      {props.tabs.map((tab) => {
+        const TabIcon = terminalTabIcon(tab.accent);
+        return (
+          <Tooltip key={tab.id} content={tab.session}>
+            <button
+              type="button"
+              className={`project-tab-item ${tab.accent ? `accent-${tab.accent}` : ""} ${tab.id === props.activeTabId ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
+              onClick={() => props.onSelect(props.projectId, tab.id)}
+              draggable
+              onDragStart={(e) => {
+                setDraggingTabId(tab.id);
+                e.dataTransfer.effectAllowed = "move";
+                try {
+                  e.dataTransfer.setData("text/plain", tab.id);
+                } catch {}
+              }}
+              onDragEnter={(e) => {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-              }
-            }}
-            onDragLeave={(e) => {
-              if (e.currentTarget === e.target)
-                setDragOverTabId((id) => (id === tab.id ? null : id));
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (draggingTabId && draggingTabId !== tab.id) props.onReorder(draggingTabId, tab.id);
-              setDraggingTabId(null);
-              setDragOverTabId(null);
-            }}
-            onDragEnd={() => {
-              setDraggingTabId(null);
-              setDragOverTabId(null);
-            }}
-          >
-            <SquareTerminal size={12} aria-hidden="true" />
-            <span className="name">{tab.title}</span>
-          </button>
-        </Tooltip>
-      ))}
+                if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id);
+              }}
+              onDragOver={(e) => {
+                if (draggingTabId) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                }
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget === e.target)
+                  setDragOverTabId((id) => (id === tab.id ? null : id));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (draggingTabId && draggingTabId !== tab.id)
+                  props.onReorder(draggingTabId, tab.id);
+                setDraggingTabId(null);
+                setDragOverTabId(null);
+              }}
+              onDragEnd={() => {
+                setDraggingTabId(null);
+                setDragOverTabId(null);
+              }}
+            >
+              <TabIcon size={12} aria-hidden="true" />
+              <span className="name">{tab.title}</span>
+            </button>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 }

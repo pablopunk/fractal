@@ -1,8 +1,9 @@
-import { Columns2, Rows2, Terminal as TerminalIcon, X } from "lucide-react";
+import { Columns2, Rows2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import "@xterm/xterm/css/xterm.css";
 import type { Terminal as XTermTerminal } from "@xterm/xterm";
 import type { ThemeMode } from "~/lib/client/persistence.js";
+import { terminalTabIcon } from "~/lib/client/terminal-tab-icon.js";
 import { type TerminalThemeName, terminalTheme } from "~/lib/client/terminal-themes.js";
 import {
   filePathsAsTerminalPaste,
@@ -135,68 +136,71 @@ export default function TerminalPane(props: {
       />
       <div className="terminal-tabs-bar">
         <div className="terminal-tabs">
-          {props.tabs.map((tab) => (
-            <Tooltip key={tab.id} content={tab.session}>
-              <button
-                className={`terminal-tab ${tab.accent ? `accent-${tab.accent}` : ""} ${tab.id === active.id ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
-                onClick={() => props.onSelect(tab.id)}
-                draggable
-                onDragStart={(e) => {
-                  setDraggingTabId(tab.id);
-                  e.dataTransfer.effectAllowed = "move";
-                  try {
-                    e.dataTransfer.setData("text/plain", tab.id);
-                  } catch {}
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id);
-                }}
-                onDragOver={(e) => {
-                  if (draggingTabId) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                  }
-                }}
-                onDragLeave={(e) => {
-                  if (e.currentTarget === e.target)
-                    setDragOverTabId((id) => (id === tab.id ? null : id));
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (draggingTabId && draggingTabId !== tab.id)
-                    props.onReorder(draggingTabId, tab.id);
-                  setDraggingTabId(null);
-                  setDragOverTabId(null);
-                }}
-                onDragEnd={() => {
-                  setDraggingTabId(null);
-                  setDragOverTabId(null);
-                }}
-              >
-                <TerminalIcon size={13} />
-                <span>{tab.title}</span>
-                <span
-                  className="terminal-tab-close"
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    props.onClose(tab.id);
+          {props.tabs.map((tab) => {
+            const TabIcon = terminalTabIcon(tab.accent);
+            return (
+              <Tooltip key={tab.id} content={tab.session}>
+                <button
+                  className={`terminal-tab ${tab.accent ? `accent-${tab.accent}` : ""} ${tab.id === active.id ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
+                  onClick={() => props.onSelect(tab.id)}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggingTabId(tab.id);
+                    e.dataTransfer.effectAllowed = "move";
+                    try {
+                      e.dataTransfer.setData("text/plain", tab.id);
+                    } catch {}
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.stopPropagation();
-                      props.onClose(tab.id);
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    if (draggingTabId && draggingTabId !== tab.id) setDragOverTabId(tab.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (draggingTabId) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
                     }
                   }}
-                  aria-label={`Close ${tab.title}`}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget === e.target)
+                      setDragOverTabId((id) => (id === tab.id ? null : id));
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggingTabId && draggingTabId !== tab.id)
+                      props.onReorder(draggingTabId, tab.id);
+                    setDraggingTabId(null);
+                    setDragOverTabId(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingTabId(null);
+                    setDragOverTabId(null);
+                  }}
                 >
-                  <X size={12} />
-                </span>
-              </button>
-            </Tooltip>
-          ))}
+                  <TabIcon size={13} />
+                  <span>{tab.title}</span>
+                  <span
+                    className="terminal-tab-close"
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      props.onClose(tab.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        props.onClose(tab.id);
+                      }
+                    }}
+                    aria-label={`Close ${tab.title}`}
+                  >
+                    <X size={12} />
+                  </span>
+                </button>
+              </Tooltip>
+            );
+          })}
         </div>
         <Tooltip
           content={

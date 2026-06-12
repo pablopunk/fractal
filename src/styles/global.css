@@ -1981,20 +1981,12 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   text-align: left;
 }
 .terminal-tab > svg { flex: none; }
-.terminal-tab.accent-in-place,
-.terminal-tab.accent-in-place:hover,
-.terminal-tab.accent-in-place.active,
-.project-tab-item.accent-in-place,
-.project-tab-item.accent-in-place:hover,
-.project-tab-item.accent-in-place.active {
+.terminal-tab.accent-in-place > svg,
+.project-tab-item.accent-in-place > svg {
   color: var(--run-in-place-soft);
 }
-.terminal-tab.accent-worktree,
-.terminal-tab.accent-worktree:hover,
-.terminal-tab.accent-worktree.active,
-.project-tab-item.accent-worktree,
-.project-tab-item.accent-worktree:hover,
-.project-tab-item.accent-worktree.active {
+.terminal-tab.accent-worktree > svg,
+.project-tab-item.accent-worktree > svg {
   color: var(--run-in-worktree-soft);
 }
 .terminal-tab-close {
