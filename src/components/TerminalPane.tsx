@@ -17,6 +17,7 @@ type TerminalTab = {
   session: string;
   title: string;
   cwd?: string;
+  accent?: "in-place" | "worktree";
 };
 
 type ElectronGlobals = typeof window & {
@@ -137,7 +138,7 @@ export default function TerminalPane(props: {
           {props.tabs.map((tab) => (
             <Tooltip key={tab.id} content={tab.session}>
               <button
-                className={`terminal-tab ${tab.id === active.id ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
+                className={`terminal-tab ${tab.accent ? `accent-${tab.accent}` : ""} ${tab.id === active.id ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
                 onClick={() => props.onSelect(tab.id)}
                 draggable
                 onDragStart={(e) => {

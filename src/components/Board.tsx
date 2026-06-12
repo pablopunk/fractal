@@ -73,6 +73,7 @@ import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/termi
 import type {
   AppSettings,
   Column,
+  DecoratedTerminalTab,
   GithubIssue,
   LinearIssue,
   ModelProfile,
@@ -440,21 +441,31 @@ export default function Board() {
     if (!activeProject) return [];
     return terminalTabs.filter((tab) => tabBelongsToProject(tab, activeProject));
   }, [activeProject, terminalTabs, tabBelongsToProject]);
-  const terminalPaneTabs = useMemo(() => {
-    return filteredTerminalTabs.map((tab) => {
-      const prompt = prompts.find((p) => p.id === tab.promptId);
-      const label = prompt?.summary?.trim() || prompt?.text?.trim();
-      return label ? { ...tab, title: truncate(label, 80) } : tab;
-    });
-  }, [filteredTerminalTabs, prompts]);
+  const decorateTerminalTab = (tab: TerminalTab): DecoratedTerminalTab => {
+    const prompt = prompts.find((p) => p.id === tab.promptId);
+    const label = prompt?.summary?.trim() || prompt?.text?.trim();
+    const accent =
+      prompt?.column === "RUN_IN_PLACE"
+        ? "in-place"
+        : prompt?.column === "RUN_IN_WORKTREE"
+          ? "worktree"
+          : undefined;
+    return { ...tab, title: label ? truncate(label, 80) : tab.title, accent };
+  };
+  const terminalPaneTabs = useMemo(
+    () => filteredTerminalTabs.map(decorateTerminalTab),
+    [filteredTerminalTabs, decorateTerminalTab],
+  );
   const tabsByProject = useMemo(() => {
-    const map: Record<string, TerminalTab[]> = {};
+    const map: Record<string, DecoratedTerminalTab[]> = {};
     for (const project of projects) {
-      const tabs = terminalTabs.filter((tab) => tabBelongsToProject(tab, project));
+      const tabs = terminalTabs
+        .filter((tab) => tabBelongsToProject(tab, project))
+        .map(decorateTerminalTab);
       if (tabs.length > 0) map[project.id] = tabs;
     }
     return map;
-  }, [projects, terminalTabs, tabBelongsToProject]);
+  }, [projects, terminalTabs, tabBelongsToProject, decorateTerminalTab]);
   const currentUiState = useMemo<UiState>(() => {
     const cached = loadUiStateCache();
     return normalizeUiState({

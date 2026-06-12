@@ -30,11 +30,11 @@ import { snapSidebarWidth } from "~/lib/client/persistence.js";
 import type {
   AgentPreset,
   Column,
+  DecoratedTerminalTab,
   ModelProfile,
   PiModel,
   Project,
   Prompt,
-  TerminalTab,
 } from "~/lib/client/types.js";
 import { Card } from "./Card.js";
 import { SortableIssueCard } from "./IssueCard.js";
@@ -59,7 +59,7 @@ export function Sidebar(props: {
   collapsed: boolean;
   showShortcuts: boolean;
   onReorder: (ids: string[]) => void | Promise<void>;
-  tabsByProject: Record<string, TerminalTab[]>;
+  tabsByProject: Record<string, DecoratedTerminalTab[]>;
   activeTabId: string | null;
   onSelectTab: (projectId: string, tabId: string) => void;
   onReorderTabs: (fromId: string, toId: string) => void;
@@ -204,7 +204,7 @@ function SortableProjectItem(props: {
   showShortcuts: boolean;
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
-  tabs: TerminalTab[];
+  tabs: DecoratedTerminalTab[];
   activeTabId: string | null;
   onSelectTab: (projectId: string, tabId: string) => void;
   onReorderTabs: (fromId: string, toId: string) => void;
@@ -271,7 +271,7 @@ function SortableProjectItem(props: {
 
 function ProjectTabList(props: {
   projectId: string;
-  tabs: TerminalTab[];
+  tabs: DecoratedTerminalTab[];
   activeTabId: string | null;
   onSelect: (projectId: string, tabId: string) => void;
   onReorder: (fromId: string, toId: string) => void;
@@ -285,7 +285,7 @@ function ProjectTabList(props: {
         <Tooltip key={tab.id} content={tab.session}>
           <button
             type="button"
-            className={`project-tab-item ${tab.id === props.activeTabId ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
+            className={`project-tab-item ${tab.accent ? `accent-${tab.accent}` : ""} ${tab.id === props.activeTabId ? "active" : ""} ${draggingTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggingTabId && draggingTabId !== tab.id ? "drag-over" : ""}`}
             onClick={() => props.onSelect(props.projectId, tab.id)}
             draggable
             onDragStart={(e) => {
@@ -512,6 +512,12 @@ export function ColumnView(props: {
   const itemIds = [...issueIds, ...promptIds];
   const totalCount = props.itemCount ?? props.prompts.length;
   const isIssueCol = props.id === "GITHUB" || props.id === "LINEAR";
+  const columnAccentClass =
+    props.id === "RUN_IN_PLACE"
+      ? "column-run-in-place"
+      : props.id === "RUN_IN_WORKTREE"
+        ? "column-run-in-worktree"
+        : "";
   const dragIndex = props.activeId ? itemIds.indexOf(props.activeId) : -1;
   const overIndex = props.overId ? itemIds.indexOf(props.overId) : -1;
   const isOverColumn = props.overId === props.id || itemIds.includes(props.overId ?? "");
@@ -523,7 +529,7 @@ export function ColumnView(props: {
     return (
       <div
         ref={setNodeRef}
-        className={`column column-compact ${isOverColumn ? "drop-active" : ""}`}
+        className={`column column-compact ${columnAccentClass} ${isOverColumn ? "drop-active" : ""}`}
       >
         <Tooltip content={props.title}>
           <div className="column-compact-head" aria-label={`${props.title} column`}>
@@ -572,7 +578,7 @@ export function ColumnView(props: {
     const inner = (
       <div
         ref={setNodeRef}
-        className={`column column-collapsed ${!canExpand ? "column-collapsed-frozen" : ""} ${isOverColumn ? "drop-active" : ""}`}
+        className={`column column-collapsed ${columnAccentClass} ${!canExpand ? "column-collapsed-frozen" : ""} ${isOverColumn ? "drop-active" : ""}`}
         onClick={props.onToggleCollapse}
       >
         <div className="column-collapsed-inner">
@@ -587,7 +593,10 @@ export function ColumnView(props: {
   }
 
   return (
-    <div ref={setNodeRef} className={`column ${isOverColumn ? "drop-active" : ""}`}>
+    <div
+      ref={setNodeRef}
+      className={`column ${columnAccentClass} ${isOverColumn ? "drop-active" : ""}`}
+    >
       <div className="column-head" style={{ cursor: "pointer" }} onClick={props.onToggleCollapse}>
         <Icon className="column-icon" />
         <span className="column-title">{props.title}</span>
