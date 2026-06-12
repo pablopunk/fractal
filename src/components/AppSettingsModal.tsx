@@ -187,8 +187,10 @@ export default function AppSettingsModal(props: {
 function ModeDisplay() {
   const [mode, setMode] = useState<"host" | "remote" | null>(null);
   const [remoteUrl, setRemoteUrl] = useState("");
+  const [switching, setSwitching] = useState(false);
+  const [remoteInput, setRemoteInput] = useState("");
+  const [error, setError] = useState("");
   const electron = (window as ElectronGlobals).electron;
-  const hasElectron = Boolean(electron?.setMode);
 
   useEffect(() => {
     if (!electron?.getConfig) return;
@@ -198,30 +200,37 @@ function ModeDisplay() {
     });
   }, []);
 
-  function switchToRemote() {
-    const url = window.prompt("Enter the HTTPS URL of your Fractal host:", "https://");
-    if (!url || !/^https:\/\//.test(url.trim())) return;
-    if (!window.confirm("This will restart Fractal in remote mode. Continue?")) return;
-    const api = (window as ElectronGlobals).electron;
-    if (!api?.setMode) { console.error("[fractal] setMode not available on electron bridge"); return; }
-    void api.setMode("remote", url.trim()).catch((e) => console.error("[fractal] setMode failed", e));
+  function doSwitch(newMode: "host" | "remote", url = "") {
+    if (!electron?.setMode) return;
+    setSwitching(true);
+    setError("");
+    void electron.setMode(newMode, url).catch((e) => {
+      console.error("[fractal] setMode failed", e);
+      setError("Failed to switch mode");
+      setSwitching(false);
+    });
   }
 
-  function switchToHost() {
-    if (!window.confirm("This will restart Fractal in host mode. Continue?")) return;
-    const api = (window as ElectronGlobals).electron;
-    if (!api?.setMode) { console.error("[fractal] setMode not available on electron bridge"); return; }
-    void api.setMode("host", "").catch((e) => console.error("[fractal] setMode failed", e));
+  function handleSwitchToRemote() {
+    const trimmed = remoteInput.trim();
+    if (!trimmed || !/^https:\/\//.test(trimmed)) {
+      setError("Enter a valid HTTPS URL");
+      return;
+    }
+    doSwitch("remote", trimmed);
   }
+
+  if (!electron?.setMode) return null;
 
   if (mode === "remote") {
     return (
       <div className="remote-access-section">
         <label className="project-settings-label">Mode</label>
         <p className="project-settings-hint">Connected to {remoteUrl || "remote host"}</p>
-        <button className="btn ghost sm" onClick={switchToHost}>
-          Switch to Host Mode
+        <button className="btn ghost sm" onClick={() => doSwitch("host")} disabled={switching}>
+          {switching ? "Switching…" : "Switch to Host Mode"}
         </button>
+        {error && <p className="project-settings-hint" style={{ color: "var(--danger)" }}>{error}</p>}
       </div>
     );
   }
@@ -229,12 +238,21 @@ function ModeDisplay() {
   return (
     <div className="remote-access-section">
       <label className="project-settings-label">Mode</label>
-      <p className="project-settings-hint">
-        Running as host. All data and agents run on this machine.
-      </p>
-      <button className="btn ghost sm" onClick={switchToRemote}>
-        Switch to Remote Mode
-      </button>
+      <p className="project-settings-hint">Running as host. All data and agents run on this machine.</p>
+      <div className="project-settings-row">
+        <input
+          className="input"
+          placeholder="https://laptop.tail1234.ts.net"
+          value={remoteInput}
+          onChange={(e) => { setRemoteInput(e.target.value); setError(""); }}
+          onKeyDown={(e) => e.key === "Enter" && handleSwitchToRemote()}
+          disabled={switching}
+        />
+        <button className="btn primary sm" onClick={handleSwitchToRemote} disabled={switching || !remoteInput.trim()}>
+          {switching ? "…" : "Switch"}
+        </button>
+      </div>
+      {error && <p className="project-settings-hint" style={{ color: "var(--danger)", marginTop: 6 }}>{error}</p>}
     </div>
   );
 }
