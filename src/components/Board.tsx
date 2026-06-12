@@ -1429,6 +1429,19 @@ export default function Board() {
                   </button>
                 </Tooltip>
                 <div className="topbar-spacer" />
+                <PresetSettings
+                  presets={settings.agentPresets}
+                  defaultPresetId={settings.defaultPresetId}
+                  helperPresetId={settings.helperPresetId}
+                  onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
+                  onSetHelper={(id) => void saveSettings({ helperPresetId: id })}
+                  piModels={models}
+                  claudeModels={claudeModels}
+                  opencodeModels={opencodeModels}
+                  onChange={(agentPresets) => void saveSettings({ agentPresets })}
+                  open={presetSettingsOpen}
+                  onOpenChange={setPresetSettingsOpen}
+                />
                 <Tooltip content="Settings">
                   <button
                     type="button"
@@ -1783,15 +1796,6 @@ export default function Board() {
               {appSettingsOpen && (
                 <AppSettingsModal
                   onClose={() => setAppSettingsOpen(false)}
-                  presets={settings.agentPresets}
-                  defaultPresetId={settings.defaultPresetId}
-                  helperPresetId={settings.helperPresetId}
-                  models={models}
-                  claudeModels={claudeModels}
-                  opencodeModels={opencodeModels}
-                  onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
-                  onSetHelper={(id) => void saveSettings({ helperPresetId: id })}
-                  onPresetsChange={(agentPresets) => void saveSettings({ agentPresets })}
                   theme={theme}
                   terminalThemeName={terminalThemeName}
                   boardLayout={boardLayout}

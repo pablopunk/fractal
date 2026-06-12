@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { Monitor, Moon, Palette, Radio, SlidersHorizontal, Sun } from "lucide-react";
-import type { AgentPreset, PiModel } from "~/lib/client/types.js";
+import { Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
 import type { BoardLayout, GlassSettings, TerminalThemeName, ThemeMode } from "~/lib/client/persistence.js";
 import { terminalThemePreview } from "~/lib/client/terminal-themes.js";
 import { KeepAwakeToggle } from "./KeepAwakeToggle.js";
 import Portal from "./Portal.js";
 import RemoteAccessSettings from "./RemoteAccessSettings.js";
-import { PresetSettings } from "./BoardParts.js";
 
 const THEME_OPTIONS: ThemeMode[] = ["system", "dark", "light"];
 const BOARD_LAYOUT_OPTIONS: BoardLayout[] = ["auto", "rows", "compact"];
@@ -17,7 +15,7 @@ const TERMINAL_THEME_OPTIONS = [
   { id: "solarized" as TerminalThemeName, label: "Solarized" },
 ];
 
-type Tab = "remote" | "presets" | "appearance";
+type Tab = "remote" | "appearance";
 
 type ElectronGlobals = typeof window & {
   electron?: {
@@ -34,15 +32,6 @@ function ThemeIcon(props: { theme: ThemeMode }) {
 
 export default function AppSettingsModal(props: {
   onClose: () => void;
-  presets: AgentPreset[];
-  defaultPresetId: string;
-  helperPresetId: string;
-  models: PiModel[];
-  claudeModels: PiModel[];
-  opencodeModels: PiModel[];
-  onSetDefault: (id: string) => void;
-  onSetHelper: (id: string) => void;
-  onPresetsChange: (presets: AgentPreset[]) => void;
   theme: ThemeMode;
   terminalThemeName: TerminalThemeName;
   boardLayout: BoardLayout;
@@ -53,7 +42,6 @@ export default function AppSettingsModal(props: {
   onBoardLayoutChange: (layout: BoardLayout) => void;
 }) {
   const [tab, setTab] = useState<Tab>("remote");
-  const [presetSettingsOpen, setPresetSettingsOpen] = useState(false);
 
   return (
     <Portal>
@@ -66,13 +54,6 @@ export default function AppSettingsModal(props: {
             >
               <Radio size={14} />
               Remote
-            </button>
-            <button
-              className={`app-settings-tab ${tab === "presets" ? "active" : ""}`}
-              onClick={() => setTab("presets")}
-            >
-              <SlidersHorizontal size={14} />
-              Presets
             </button>
             <button
               className={`app-settings-tab ${tab === "appearance" ? "active" : ""}`}
@@ -88,35 +69,6 @@ export default function AppSettingsModal(props: {
               <ModeDisplay />
               <RemoteAccessSettings />
               <KeepAwakeToggle />
-            </div>
-          )}
-
-          {tab === "presets" && (
-            <div className="project-settings-body">
-              <div className="project-settings-section">
-                <label className="project-settings-label">Agent presets</label>
-                <p className="project-settings-hint">
-                  Configure default and helper presets for new prompts.
-                </p>
-                <PresetSettings
-                  presets={props.presets}
-                  defaultPresetId={props.defaultPresetId}
-                  helperPresetId={props.helperPresetId}
-                  onSetDefault={props.onSetDefault}
-                  onSetHelper={props.onSetHelper}
-                  piModels={props.models}
-                  claudeModels={props.claudeModels}
-                  opencodeModels={props.opencodeModels}
-                  onChange={props.onPresetsChange}
-                  open={presetSettingsOpen}
-                  onOpenChange={setPresetSettingsOpen}
-                />
-                <div style={{ marginTop: 12 }}>
-                  <button className="btn ghost sm" onClick={() => setPresetSettingsOpen(true)}>
-                    + Create preset
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
