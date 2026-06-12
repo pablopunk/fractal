@@ -1,5 +1,6 @@
 import Portal from "./Portal.js";
 import RemoteAccessSettings from "./RemoteAccessSettings.js";
+import { KeepAwakeToggle } from "./KeepAwakeToggle.js";
 
 export default function AppSettingsModal(props: { onClose: () => void }) {
   return (
@@ -14,6 +15,7 @@ export default function AppSettingsModal(props: { onClose: () => void }) {
           </header>
           <div className="project-settings-body">
             <RemoteAccessSettings />
+            <KeepAwakeToggle />
           </div>
           <footer className="project-settings-footer">
             <button className="btn primary sm" onClick={props.onClose}>

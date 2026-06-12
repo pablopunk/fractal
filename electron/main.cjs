@@ -3,11 +3,13 @@
  */
 const { app, BrowserWindow, shell, Menu, dialog, ipcMain } = require("electron");
 const { autoUpdater } = require("electron-updater");
+const { spawn } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { homedir } = require("node:os");
 const { createWriteStream, mkdirSync } = require("node:fs");
+const { readConfig, writeConfig } = require("./remote-config.cjs");
 
 const fractalLogDir = path.join(homedir(), ".fractal");
 mkdirSync(fractalLogDir, { recursive: true });
@@ -334,6 +336,13 @@ async function startDevProxy(astroDevPort) {
 }
 
 async function createWindow() {
+  const config = readConfig();
+
+  if (config.mode === "remote") {
+    createRemoteWindow(config.remoteUrl);
+    return;
+  }
+
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   let port;
   if (rendererUrl) {
@@ -381,6 +390,46 @@ async function createWindow() {
     }
   });
   await mainWindow.loadURL(`http://127.0.0.1:${port}`);
+}
+
+function createRemoteWindow(remoteUrl) {
+  const targetUrl = remoteUrl || "about:blank";
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    minWidth: 880,
+    minHeight: 560,
+    backgroundColor: "#00000000",
+    transparent: true,
+    vibrancy: process.platform === "darwin" ? "under-window" : undefined,
+    visualEffectState: process.platform === "darwin" ? "active" : undefined,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload.cjs"),
+    },
+  });
+  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.on("closed", () => {
+    if (mainWindow?.isDestroyed()) {
+      mainWindow = null;
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const allowedPrefix = remoteUrl.replace(/\/$/, "");
+    if (url !== allowedPrefix && !url.startsWith(`${allowedPrefix}/`)) {
+      event.preventDefault();
+      void shell.openExternal(url);
+    }
+  });
+  void mainWindow.loadURL(targetUrl);
 }
 
 function closeMainServer() {
@@ -463,9 +512,58 @@ ipcMain.handle("open-external", (_event, url) => {
   return true;
 });
 
+ipcMain.handle("set-mode", (_event, mode, remoteUrl) => {
+  if (mode !== "host" && mode !== "remote") return readConfig();
+  return writeConfig({ mode, remoteUrl });
+});
+
+ipcMain.handle("get-config", () => {
+  return readConfig();
+});
+
+let keepAwakeProcess = null;
+
+function startKeepAwake() {
+  if (keepAwakeProcess) return;
+  if (process.platform !== "darwin") return;
+  try {
+    keepAwakeProcess = spawn("caffeinate", ["-i", "-s"], {
+      stdio: "ignore",
+      detached: false,
+    });
+    keepAwakeProcess.unref?.();
+    console.log("[fractal-keepawake] started caffeinate -is");
+  } catch (error) {
+    console.error("[fractal-keepawake] failed to start caffeinate:", error);
+  }
+}
+
+function stopKeepAwake() {
+  if (!keepAwakeProcess) return;
+  try {
+    keepAwakeProcess.kill();
+  } catch {}
+  keepAwakeProcess = null;
+  console.log("[fractal-keepawake] stopped caffeinate");
+}
+
+ipcMain.handle("set-keep-awake", (_event, enabled) => {
+  writeConfig({ keepAwakeEnabled: enabled });
+  if (enabled) {
+    startKeepAwake();
+  } else {
+    stopKeepAwake();
+  }
+  return readConfig();
+});
+
 app.whenReady().then(() => {
   buildMenu();
   configureAutoUpdater();
+
+  const config = readConfig();
+  if (config.keepAwakeEnabled) startKeepAwake();
+
   void createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
@@ -474,6 +572,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   clearUpdateTimers();
+  stopKeepAwake();
   closeMainServer();
 });
 
