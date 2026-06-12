@@ -518,7 +518,6 @@ a { color: inherit; }
   align-items: center;
   gap: 7px;
   min-width: 0;
-  flex-shrink: 0;
 }
 .topbar-title-icon {
   width: 15px;
@@ -535,6 +534,9 @@ a { color: inherit; }
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .topbar-title .path {
   font-family: var(--font-mono);
@@ -543,7 +545,7 @@ a { color: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex-shrink: 1;
+  flex-shrink: 2;
 }
 .topbar-spacer { flex: 1; }
 .theme-toggle {
