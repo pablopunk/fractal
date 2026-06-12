@@ -451,18 +451,14 @@ function TerminalView({
       host.addEventListener("mousedown", onShiftMouseDown, { capture: true });
       fit.fit();
 
-      const params = new URLSearchParams({ session: tab.session });
-      if (tab.cwd) params.set("cwd", tab.cwd);
-      const storedToken = (() => {
-        try {
-          return localStorage.getItem("fractal:remoteToken");
-        } catch {
-          return null;
-        }
-      })();
-      if (storedToken) params.set("token", storedToken);
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       function buildTerminalWsUrl() {
+        const params = new URLSearchParams({ session: tab.session });
+        if (tab.cwd) params.set("cwd", tab.cwd);
+        try {
+          const freshToken = localStorage.getItem("fractal:remoteToken");
+          if (freshToken) params.set("token", freshToken);
+        } catch {}
         return `${protocol}//${window.location.host}/api/terminal/ws?${params.toString()}`;
       }
       ws = new WebSocket(buildTerminalWsUrl());

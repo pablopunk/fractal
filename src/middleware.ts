@@ -25,9 +25,14 @@ export async function onRequest(context: APIContext, next: MiddlewareNext): Prom
 
   const settings = getSettings();
 
-  if (!settings.remoteAccessEnabled) return next();
-
   if (isLocalhost(context.request)) return next();
+
+  if (!settings.remoteAccessEnabled) {
+    return new Response(JSON.stringify({ error: "Remote access is not enabled" }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
+  }
 
   const token = extractToken(context.request);
   if (!token || token !== settings.remoteAccessToken) {

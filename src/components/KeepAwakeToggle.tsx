@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type ElectronGlobals = typeof window & {
   electron?: {
@@ -24,12 +24,22 @@ export function KeepAwakeToggle() {
       .finally(() => setLoading(false));
   }, []);
 
+  const isToggling = useRef(false);
+
   async function toggle() {
+    if (isToggling.current) return;
+    isToggling.current = true;
+    setLoading(true);
     const electron = (window as ElectronGlobals).electron;
-    const next = !enabled;
-    if (electron?.setKeepAwake) {
-      const cfg = await electron.setKeepAwake(next);
-      setEnabled(cfg.keepAwakeEnabled);
+    try {
+      const next = !enabled;
+      if (electron?.setKeepAwake) {
+        const cfg = await electron.setKeepAwake(next);
+        setEnabled(cfg.keepAwakeEnabled);
+      }
+    } finally {
+      setLoading(false);
+      isToggling.current = false;
     }
   }
 

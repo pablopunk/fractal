@@ -10,8 +10,11 @@ function useReconnectBanner() {
     let cancelled = false;
 
     async function check() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
-        const res = await fetch("/api/health", { signal: AbortSignal.timeout(5000) });
+        const res = await fetch("/api/health", { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (cancelled) return;
         if (res.ok) {
           setUnreachable(false);
@@ -20,7 +23,9 @@ function useReconnectBanner() {
           timer = setTimeout(check, 15000);
           return;
         }
-      } catch {}
+      } catch {
+        clearTimeout(timeoutId);
+      }
       if (cancelled) return;
       setUnreachable(true);
       retryDelayRef.current = Math.min(retryDelayRef.current * 2, 30000);

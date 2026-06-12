@@ -56,10 +56,14 @@ export default function RemoteAccessSettings() {
     }
     let cancelled = false;
     void (async () => {
-      const QRCode = (await import("qrcode")).default;
-      const url = `https://${tailscale.dnsName}/connect#token=${encodeURIComponent(token)}`;
-      const svg = await QRCode.toString(url, { type: "svg", width: 200, margin: 2 });
-      if (!cancelled) setQrSvg(svg);
+      try {
+        const QRCode = (await import("qrcode")).default;
+        const url = `https://${tailscale.dnsName}/connect#token=${encodeURIComponent(token)}`;
+        const svg = await QRCode.toString(url, { type: "svg", width: 200, margin: 2 });
+        if (!cancelled) setQrSvg(svg);
+      } catch {
+        if (!cancelled) setQrSvg(null);
+      }
     })();
     return () => {
       cancelled = true;
@@ -70,8 +74,14 @@ export default function RemoteAccessSettings() {
     if (qrRef.current) qrRef.current.innerHTML = qrSvg ?? "";
   }, [qrSvg]);
 
+  const isToggling = useRef(false);
+
   async function toggleEnabled() {
-    const next = !enabled;
+    if (isToggling.current) return;
+    isToggling.current = true;
+    const wasEnabled = enabled;
+    const next = !wasEnabled;
+    setEnabled(next);
     try {
       const data = await api<{
         settings: { remoteAccessEnabled: boolean; remoteAccessToken: string };
@@ -86,7 +96,9 @@ export default function RemoteAccessSettings() {
       }
       if (next) fetchTailscale();
     } catch {
-      setEnabled(enabled);
+      setEnabled(wasEnabled);
+    } finally {
+      isToggling.current = false;
     }
   }
 

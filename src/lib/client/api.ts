@@ -21,7 +21,12 @@ export async function api<T = unknown>(url: string, init?: RequestInit): Promise
   const headers: Record<string, string> = { "content-type": "application/json" };
   const token = remoteToken();
   if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(url, { headers, ...init });
+  if (init?.headers) {
+    for (const [key, value] of Object.entries(init.headers)) {
+      headers[key.toLowerCase()] = String(value);
+    }
+  }
+  const res = await fetch(url, { ...init, headers });
   const text = await res.text();
   const json = text ? JSON.parse(text) : {};
   if (!res.ok) {

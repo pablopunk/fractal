@@ -90,7 +90,8 @@
       err.classList.add('hidden');
       return;
     }
-    const ok = /^https:\/\/.+/.test(val);
+    let ok = false;
+    try { ok = new URL(val).protocol === 'https:'; } catch {}
     btn.disabled = !ok;
     if (ok) err.classList.add('hidden');
     else err.classList.remove('hidden');
