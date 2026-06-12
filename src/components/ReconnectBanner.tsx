@@ -23,8 +23,8 @@ function useReconnectBanner() {
       } catch {}
       if (cancelled) return;
       setUnreachable(true);
-      setRetrySeconds(Math.round(retryDelayRef.current / 1000));
       retryDelayRef.current = Math.min(retryDelayRef.current * 2, 30000);
+      setRetrySeconds(Math.round(retryDelayRef.current / 1000));
       timer = setTimeout(check, retryDelayRef.current);
     }
 

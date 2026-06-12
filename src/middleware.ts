@@ -3,8 +3,6 @@ import { getSettings } from "~/lib/server/store.js";
 
 const LOCALHOST_IPS = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 
-const PUBLIC_PATHS = new Set(["/api/health", "/connect"]);
-
 function extractToken(request: Request): string | null {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
@@ -14,13 +12,12 @@ function extractToken(request: Request): string | null {
 }
 
 function isLocalhost(request: Request): boolean {
-  const remoteAddr =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? new URL(request.url).hostname;
-  return LOCALHOST_IPS.has(remoteAddr) || remoteAddr === "127.0.0.1" || remoteAddr === "localhost";
+  const hostname = new URL(request.url).hostname;
+  return LOCALHOST_IPS.has(hostname) || hostname === "localhost";
 }
 
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/api/health");
+  return pathname === "/api/health" || pathname === "/connect";
 }
 
 export async function onRequest(context: APIContext, next: MiddlewareNext): Promise<Response> {

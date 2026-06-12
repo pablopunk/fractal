@@ -47,6 +47,7 @@
       const params = new URLSearchParams(hash);
       const token = params.get("token");
       const status = document.getElementById("status");
+      if (!status) return;
 
       if (token) {
         try {

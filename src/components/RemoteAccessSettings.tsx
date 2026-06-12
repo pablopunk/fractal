@@ -19,16 +19,30 @@ export default function RemoteAccessSettings() {
   const qrRef = useRef<HTMLDivElement | null>(null);
 
   const fetchSettings = useCallback(async () => {
-    const data = await api<{
-      settings: { remoteAccessEnabled: boolean; remoteAccessToken: string };
-    }>("/api/settings");
-    setEnabled(data.settings.remoteAccessEnabled);
-    setToken(data.settings.remoteAccessToken);
+    try {
+      const data = await api<{
+        settings: { remoteAccessEnabled: boolean; remoteAccessToken: string };
+      }>("/api/settings");
+      setEnabled(data.settings.remoteAccessEnabled);
+      setToken(data.settings.remoteAccessToken);
+    } catch {
+      // defaults are fine
+    }
   }, []);
 
   const fetchTailscale = useCallback(async () => {
-    const data = await api<TailscaleStatus>("/api/tailscale/status");
-    setTailscale(data);
+    try {
+      const data = await api<TailscaleStatus>("/api/tailscale/status");
+      setTailscale(data);
+    } catch {
+      setTailscale({
+        installed: false,
+        hostname: null,
+        dnsName: null,
+        tailnetName: null,
+        online: false,
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -58,17 +72,31 @@ export default function RemoteAccessSettings() {
 
   async function toggleEnabled() {
     const next = !enabled;
-    const data = await api<{
-      settings: { remoteAccessEnabled: boolean; remoteAccessToken: string };
-    }>("/api/settings", { method: "PATCH", body: JSON.stringify({ remoteAccessEnabled: next }) });
-    setEnabled(data.settings.remoteAccessEnabled);
-    setToken(data.settings.remoteAccessToken);
-    if (next) fetchTailscale();
+    try {
+      const data = await api<{
+        settings: { remoteAccessEnabled: boolean; remoteAccessToken: string };
+      }>("/api/settings", { method: "PATCH", body: JSON.stringify({ remoteAccessEnabled: next }) });
+      setEnabled(data.settings.remoteAccessEnabled);
+      setToken(data.settings.remoteAccessToken);
+      if (next && !data.settings.remoteAccessToken) {
+        const tokenData = await api<{ token: string }>("/api/settings/remote-token", {
+          method: "POST",
+        });
+        setToken(tokenData.token);
+      }
+      if (next) fetchTailscale();
+    } catch {
+      setEnabled(enabled);
+    }
   }
 
   async function regenerateToken() {
-    const data = await api<{ token: string }>("/api/settings/remote-token", { method: "POST" });
-    setToken(data.token);
+    try {
+      const data = await api<{ token: string }>("/api/settings/remote-token", { method: "POST" });
+      setToken(data.token);
+    } catch {
+      // keep existing token on failure
+    }
   }
 
   const connectUrl =

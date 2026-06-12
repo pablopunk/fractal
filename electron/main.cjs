@@ -34,6 +34,8 @@ let mainWindow = null;
 let mainServer = null;
 let serverCleanup = null;
 let serverStartPromise = null;
+let remoteAccessEnabled = false;
+let remoteAccessToken = "";
 let updateCheckInFlight = false;
 let updateDownloadInFlight = false;
 let updateStartupTimer = null;
@@ -213,6 +215,34 @@ function configureAutoUpdater() {
   updatePollTimer.unref?.();
 }
 
+function loadRemoteAccessSettings() {
+  try {
+    const Database = require("better-sqlite3");
+    const dbPath = path.join(homedir(), ".fractal", "fractal.db");
+    const db = new Database(dbPath, { readonly: true });
+    const rows = db
+      .prepare(
+        "SELECT key, value FROM settings WHERE key IN ('remoteAccessEnabled', 'remoteAccessToken')",
+      )
+      .all();
+    db.close();
+    for (const row of rows) {
+      if (row.key === "remoteAccessEnabled") remoteAccessEnabled = row.value === "true";
+      if (row.key === "remoteAccessToken") remoteAccessToken = row.value;
+    }
+  } catch {
+    remoteAccessEnabled = false;
+    remoteAccessToken = "";
+  }
+}
+
+function verifyTerminalToken(req) {
+  if (!remoteAccessEnabled) return true;
+  const url = new URL(req.url, "http://127.0.0.1");
+  const token = url.searchParams.get("token");
+  return token && token === remoteAccessToken;
+}
+
 async function startUnifiedServer() {
   if (serverStartPromise) return serverStartPromise;
   serverStartPromise = (async () => {
@@ -238,6 +268,11 @@ async function startUnifiedServer() {
     const { cleanup: closeTerminal, handleUpgrade } = attachTerminalWSServer();
 
     server.on("upgrade", (req, socket, head) => {
+      if (!verifyTerminalToken(req)) {
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+        return;
+      }
       handleUpgrade(req, socket, head);
     });
 
@@ -248,6 +283,8 @@ async function startUnifiedServer() {
         resolve();
       });
     });
+
+    loadRemoteAccessSettings();
 
     const port = server.address().port;
     mainServer = server;
@@ -292,6 +329,11 @@ async function startDevProxy(astroDevPort) {
     server.on("upgrade", (req, socket, head) => {
       const url = new URL(req.url, astroOrigin);
       if (url.pathname === "/api/terminal/ws") {
+        if (!verifyTerminalToken(req)) {
+          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+          socket.destroy();
+          return;
+        }
         handleUpgrade(req, socket, head);
         return;
       }
@@ -393,7 +435,10 @@ async function createWindow() {
 }
 
 function createRemoteWindow(remoteUrl) {
-  const targetUrl = remoteUrl || "about:blank";
+  if (!remoteUrl || !/^https?:\/\//.test(remoteUrl)) {
+    remoteUrl = "about:blank";
+  }
+  const targetUrl = remoteUrl;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -514,7 +559,8 @@ ipcMain.handle("open-external", (_event, url) => {
 
 ipcMain.handle("set-mode", (_event, mode, remoteUrl) => {
   if (mode !== "host" && mode !== "remote") return readConfig();
-  return writeConfig({ mode, remoteUrl });
+  const safeUrl = typeof remoteUrl === "string" && /^https?:\/\//.test(remoteUrl) ? remoteUrl : "";
+  return writeConfig({ mode, remoteUrl: safeUrl });
 });
 
 ipcMain.handle("get-config", () => {

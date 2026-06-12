@@ -453,10 +453,19 @@ function TerminalView({
 
       const params = new URLSearchParams({ session: tab.session });
       if (tab.cwd) params.set("cwd", tab.cwd);
+      const storedToken = (() => {
+        try {
+          return localStorage.getItem("fractal:remoteToken");
+        } catch {
+          return null;
+        }
+      })();
+      if (storedToken) params.set("token", storedToken);
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      ws = new WebSocket(
-        `${protocol}//${window.location.host}/api/terminal/ws?${params.toString()}`,
-      );
+      function buildTerminalWsUrl() {
+        return `${protocol}//${window.location.host}/api/terminal/ws?${params.toString()}`;
+      }
+      ws = new WebSocket(buildTerminalWsUrl());
       sendResize = () => {
         fit.fit();
         if (ws?.readyState === WebSocket.OPEN)
@@ -496,9 +505,7 @@ function TerminalView({
         if (reconnectTimer) clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(() => {
           if (disposed) return;
-          ws = new WebSocket(
-            `${protocol}//${window.location.host}/api/terminal/ws?${params.toString()}`,
-          );
+          ws = new WebSocket(buildTerminalWsUrl());
           ws.addEventListener("open", () => {
             reconnectDelay = 1000;
             if (sendResize) sendResize();
