@@ -2770,3 +2770,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   background: var(--accent);
   border-radius: 1px;
 }
+
+.app-settings-tabs + .project-settings-body {
+  padding-top: 12px;
+}
