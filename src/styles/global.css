@@ -34,6 +34,10 @@
   --accent-soft: rgba(255, 106, 61, 0.12);
   --success: #34d399;
   --danger: #f87171;
+  --run-in-place-color: #38bdf8;
+  --run-in-worktree-color: #a78bfa;
+  --run-in-place-soft: color-mix(in oklab, var(--run-in-place-color) 55%, var(--text-muted));
+  --run-in-worktree-soft: color-mix(in oklab, var(--run-in-worktree-color) 55%, var(--text-muted));
   --project-icon-saturation: 85%;
   --project-icon-lightness: 68%;
   --project-icon-glow: rgba(255, 255, 255, 0.2);
@@ -103,6 +107,8 @@
     --text-faint: #98989f;
     --accent: #ea580c;
     --accent-soft: rgba(234, 88, 12, 0.1);
+    --run-in-place-color: #0284c7;
+    --run-in-worktree-color: #7c3aed;
     --project-icon-saturation: 90%;
     --project-icon-lightness: 42%;
     --project-icon-glow: rgba(0, 0, 0, 0.16);
@@ -125,6 +131,8 @@ html[data-theme="light"] {
   --text-faint: #98989f;
   --accent: #ea580c;
   --accent-soft: rgba(234, 88, 12, 0.1);
+  --run-in-place-color: #0284c7;
+  --run-in-worktree-color: #7c3aed;
   --project-icon-saturation: 90%;
   --project-icon-lightness: 42%;
   --project-icon-glow: rgba(0, 0, 0, 0.16);
@@ -146,6 +154,8 @@ html[data-theme="dark"] {
   --text-faint: #909099;
   --accent: #ff6a3d;
   --accent-soft: rgba(255, 106, 61, 0.12);
+  --run-in-place-color: #38bdf8;
+  --run-in-worktree-color: #a78bfa;
   --project-icon-saturation: 85%;
   --project-icon-lightness: 68%;
   --project-icon-glow: rgba(255, 255, 255, 0.2);
@@ -388,10 +398,50 @@ a { color: inherit; }
 .project-item:hover .remove { opacity: 1; }
 .project-item .remove:hover { background: var(--surface-3); color: var(--danger); }
 
+.project-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.project-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 2px;
+}
+.project-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 23px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+}
+.project-tab-item:hover { background: var(--surface-2); color: var(--text); }
+.project-tab-item.active { background: var(--surface-2); color: var(--text); }
+.project-tab-item.dragging { opacity: 0.4; }
+.project-tab-item.drag-over { box-shadow: inset 0 2px 0 0 var(--state-active-border); }
+.project-tab-item > svg { flex: none; }
+.project-tab-item .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar.collapsed .sidebar-head,
 .sidebar.collapsed .sidebar-section,
 .sidebar.collapsed .project-item .name,
-.sidebar.collapsed .project-item .remove {
+.sidebar.collapsed .project-item .remove,
+.sidebar.collapsed .project-tabs {
   display: none;
 }
 .sidebar.collapsed .project-list {
@@ -936,6 +986,21 @@ a { color: inherit; }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.column-run-in-place { --column-accent: var(--run-in-place-soft); }
+.column-run-in-worktree { --column-accent: var(--run-in-worktree-soft); }
+.column-run-in-place .column-icon,
+.column-run-in-worktree .column-icon,
+.column-run-in-place .column-title,
+.column-run-in-worktree .column-title,
+.column-run-in-place .column-collapsed-title,
+.column-run-in-worktree .column-collapsed-title,
+.column-run-in-place:hover .column-icon,
+.column-run-in-worktree:hover .column-icon,
+.column-run-in-place .column-head:hover .column-icon,
+.column-run-in-worktree .column-head:hover .column-icon {
+  color: var(--column-accent);
 }
 .board-compact {
   flex-direction: column;
@@ -1916,6 +1981,14 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   text-align: left;
 }
 .terminal-tab > svg { flex: none; }
+.terminal-tab.accent-in-place > svg,
+.project-tab-item.accent-in-place > svg {
+  color: var(--run-in-place-soft);
+}
+.terminal-tab.accent-worktree > svg,
+.project-tab-item.accent-worktree > svg {
+  color: var(--run-in-worktree-soft);
+}
 .terminal-tab-close {
   display: inline-flex;
   align-items: center;

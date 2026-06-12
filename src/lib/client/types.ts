@@ -78,6 +78,8 @@ export type TerminalTab = {
   title: string;
   cwd?: string;
 };
+export type TerminalTabAccent = "in-place" | "worktree";
+export type DecoratedTerminalTab = TerminalTab & { accent?: TerminalTabAccent };
 export type GithubIssue = {
   number: number;
   title: string;
