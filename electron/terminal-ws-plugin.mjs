@@ -9,7 +9,7 @@ export function terminalWsPlugin() {
     name: "fractal-terminal-ws",
     configureServer(server) {
       server.httpServer?.once("listening", () => {
-        const mod = require("../../electron/terminal-server.cjs");
+        const mod = require("./terminal-server.cjs");
         wss = mod.attachTerminalWSServer();
         server.httpServer?.on("upgrade", (req, socket, head) => {
           const url = new URL(req.url || "/", "http://127.0.0.1");
