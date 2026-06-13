@@ -13,6 +13,7 @@ export type AppSettings = {
   defaultPresetId: string;
   helperPresetId: string;
   lastProjectId: string;
+  globalAgentPresetId: string;
 };
 
 export type UiColumn = Column | "GITHUB" | "LINEAR" | "ARCHIVED";
@@ -47,6 +48,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultPresetId: "pi",
   helperPresetId: "",
   lastProjectId: "",
+  globalAgentPresetId: "pi",
 };
 
 const DEFAULT_COLLAPSED = {
@@ -219,6 +221,7 @@ export function getSettings(): AppSettings {
       hasStoredHelperPresetId = true;
     }
     if (row.key === "lastProjectId") out.lastProjectId = row.value;
+    if (row.key === "globalAgentPresetId") out.globalAgentPresetId = row.value;
   }
   for (const preset of DEFAULT_AGENT_PRESETS) {
     if (!out.agentPresets.some((p) => p.id === preset.id)) out.agentPresets.push(preset);

@@ -479,6 +479,65 @@ a { color: inherit; }
   justify-content: center;
 }
 
+/* ---------- Agent sidebar ---------- */
+
+.sidebar-agent-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: none;
+}
+.sidebar-agent-btn:hover { background: var(--surface-2); color: var(--text); }
+.sidebar-agent-btn.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.agent-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
+.project-icon.agent-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.sidebar.collapsed .agent-sidebar-entry {
+  padding: 0 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.sidebar.collapsed .agent-sidebar-entry .project-item,
+.sidebar.collapsed .agent-sidebar-entry .project-tabs {
+  display: none;
+}
+
+.agent-sidebar-entry {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
 /* ---------- Main ---------- */
 
 .main {

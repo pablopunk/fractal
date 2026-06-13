@@ -12,6 +12,7 @@ type Props = {
   tabs: TerminalTab[];
   home: string;
   commandRecents: CommandRecent[];
+  isAgentView: boolean;
   onSelectProject: (project: Project) => void;
   onOpenPromptTerminal: (prompt: Prompt) => void;
   onRunPrompt: (prompt: Prompt, target: "RUN_IN_PLACE" | "RUN_IN_WORKTREE") => void;
@@ -75,7 +76,12 @@ export default function CommandMenu(props: Props) {
       <Command.List className="cmdk-list">
         <Command.Empty className="cmdk-empty">No results found.</Command.Empty>
         {runPrompt ? (
-          <RunPromptChoices prompt={runPrompt} run={run} onRunPrompt={props.onRunPrompt} />
+          <RunPromptChoices
+            prompt={runPrompt}
+            run={run}
+            onRunPrompt={props.onRunPrompt}
+            isAgentView={props.isAgentView}
+          />
         ) : (
           <MenuItems
             {...props}
@@ -289,6 +295,7 @@ function RunPromptChoices(props: {
   prompt: Prompt;
   run: (action: () => void) => void;
   onRunPrompt: Props["onRunPrompt"];
+  isAgentView: boolean;
 }) {
   const title = promptTitle(props.prompt);
   return (
@@ -300,13 +307,15 @@ function RunPromptChoices(props: {
         value="run in place"
         onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_PLACE"))}
       />
-      <ActionItem
-        icon={FolderKanban}
-        title="Run in worktree"
-        subtitle={title}
-        value="run in worktree"
-        onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_WORKTREE"))}
-      />
+      {!props.isAgentView && (
+        <ActionItem
+          icon={FolderKanban}
+          title="Run in worktree"
+          subtitle={title}
+          value="run in worktree"
+          onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_WORKTREE"))}
+        />
+      )}
     </>
   );
 }

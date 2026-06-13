@@ -47,10 +47,57 @@ import ProjectPicker from "./ProjectPicker.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
 
+function AgentSidebarEntry(props: {
+  active: boolean;
+  onClick: () => void;
+  tabs: DecoratedTerminalTab[];
+  activeTabId: string | null;
+  onSelectTab: (projectId: string, tabId: string) => void;
+  collapsed: boolean;
+}) {
+  if (props.collapsed) {
+    return (
+      <button
+        type="button"
+        className={`btn block icon-only sidebar-agent-btn ${props.active ? "active" : ""}`}
+        onClick={props.onClick}
+        aria-label="Fractal Agent"
+        title="Fractal Agent"
+      >
+        <span className="agent-dot" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="agent-sidebar-entry">
+      <button
+        type="button"
+        className={`project-item ${props.active ? "active" : ""}`}
+        onClick={props.onClick}
+      >
+        <span className="project-icon agent-icon" aria-hidden="true" />
+        <span className="project-name">Fractal Agent</span>
+      </button>
+      {props.tabs.length > 0 && (
+        <ProjectTabList
+          projectId="__agent__"
+          tabs={props.tabs}
+          activeTabId={props.activeTabId}
+          onSelect={props.onSelectTab}
+          onReorder={() => {}} // agent tabs are not reorderable in v1
+        />
+      )}
+    </div>
+  );
+}
+
 export function Sidebar(props: {
   projects: Project[];
   activeId: string | null;
+  activeView: { kind: "project"; id: string } | { kind: "agent" };
   onSelect: (id: string) => void;
+  onSelectAgent: () => void;
   onRemove: (id: string) => void;
   onAdd: (path: string) => void;
   showPicker: boolean;
@@ -64,6 +111,7 @@ export function Sidebar(props: {
   activeTabId: string | null;
   onSelectTab: (projectId: string, tabId: string) => void;
   onReorderTabs: (fromId: string, toId: string) => void;
+  agentTabs: DecoratedTerminalTab[];
 }) {
   const projectSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -90,6 +138,14 @@ export function Sidebar(props: {
         <span className="brand-dot" />
         <span className="sidebar-brand">Fractal</span>
       </div>
+      <AgentSidebarEntry
+        active={props.activeView.kind === "agent"}
+        onClick={props.onSelectAgent}
+        tabs={props.agentTabs}
+        activeTabId={props.activeTabId}
+        onSelectTab={props.onSelectTab}
+        collapsed={props.collapsed}
+      />
       <div className="sidebar-section">Projects</div>
       <div className="project-list">
         {props.projects.length === 0 && (
@@ -819,8 +875,10 @@ export function PresetSettings(props: {
   presets: AgentPreset[];
   defaultPresetId: string;
   helperPresetId: string;
+  globalAgentPresetId: string;
   onSetDefault: (id: string) => void;
   onSetHelper: (id: string) => void;
+  onSetGlobalAgent: (id: string) => void;
   piModels: PiModel[];
   claudeModels: PiModel[];
   opencodeModels: PiModel[];
@@ -1023,6 +1081,16 @@ export function PresetSettings(props: {
                         }}
                       />
                       <span>Use for Fractal AI helpers</span>
+                    </label>
+                    <label className="preset-modal-default">
+                      <input
+                        type="checkbox"
+                        checked={selected.id === props.globalAgentPresetId}
+                        onChange={(e) => {
+                          if (e.target.checked) props.onSetGlobalAgent(selected.id);
+                        }}
+                      />
+                      <span>Use for Fractal global agent</span>
                     </label>
                     <div className="preset-modal-form-actions">
                       {props.presets.length > 1 && (
