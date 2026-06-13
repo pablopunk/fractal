@@ -2953,10 +2953,20 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
     z-index: 50;
     width: min(280px, 85vw);
     transform: translateX(-100%);
-    transition: transform 200ms ease;
+    visibility: hidden;
+    pointer-events: none;
+    user-select: none;
+    transition: transform 200ms ease, visibility 0s linear 200ms;
     box-shadow: var(--material-modal-shadow);
   }
-  .sidebar.open { display: flex !important; transform: translateX(0); }
+  .sidebar.open {
+    display: flex !important;
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+    user-select: auto;
+    transition: transform 200ms ease;
+  }
   .sidebar-resize-handle { display: none; }
   .sidebar.collapsed:not(.open) { display: none; }
 

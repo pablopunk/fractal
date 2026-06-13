@@ -215,7 +215,10 @@ export function Sidebar(props: {
               </button>
             </div>
           ))}
-        <AgentSidebarEntry active={props.activeView.kind === "agent"} onClick={props.onSelectAgent} />
+        <AgentSidebarEntry
+          active={props.activeView.kind === "agent"}
+          onClick={props.onSelectAgent}
+        />
         <div
           className="sidebar-resize-handle"
           onPointerDown={startResize}
