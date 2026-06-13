@@ -1363,7 +1363,6 @@ export default function Board() {
           onSelect={selectProject}
           onRemove={removeProject}
           onAdd={addProject}
-          onOpenSettings={() => setAppSettingsOpen(true)}
           showPicker={showSidebarPicker}
           setShowPicker={setShowSidebarPicker}
           home={home}

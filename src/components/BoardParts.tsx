@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Monitor,
   Plus,
   RefreshCw,
   SquareTerminal,
@@ -54,7 +53,6 @@ export function Sidebar(props: {
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
   onAdd: (path: string) => void;
-  onOpenSettings: () => void;
   showPicker: boolean;
   setShowPicker: (v: boolean) => void;
   home: string;
@@ -145,14 +143,6 @@ export function Sidebar(props: {
             >
               <Plus size={16} aria-hidden="true" />
             </button>
-            <button
-              className="btn block icon-only"
-              onClick={props.onOpenSettings}
-              aria-label="App settings"
-              title="App settings"
-            >
-              <Monitor size={14} aria-hidden="true" />
-            </button>
             {props.showPicker && (
               <Portal>
                 <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
@@ -196,10 +186,6 @@ export function Sidebar(props: {
           <>
             <button className="btn block" onClick={() => props.setShowPicker(true)}>
               + Add project
-            </button>
-            <button className="btn block" style={{ marginTop: 4 }} onClick={props.onOpenSettings}>
-              <Monitor size={14} aria-hidden="true" style={{ marginRight: 6 }} />
-              Settings
             </button>
           </>
         )}
