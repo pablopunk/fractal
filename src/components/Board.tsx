@@ -1440,16 +1440,15 @@ export default function Board() {
                   open={presetSettingsOpen}
                   onOpenChange={setPresetSettingsOpen}
                 />
-                <Tooltip content="Settings">
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => setAppSettingsOpen(true)}
-                    aria-label="App settings"
-                  >
-                    <Settings size={15} />
-                  </button>
-                </Tooltip>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setAppSettingsOpen(true)}
+                  aria-label="App settings"
+                  title="App settings"
+                >
+                  <Settings size={15} />
+                </button>
               </div>
 
               <DndContext
