@@ -3,6 +3,8 @@ import { ExecError, exec } from "./exec.js";
 const TMUX_MISSING_MESSAGE =
   "tmux is required to run agents and open terminals. Please install tmux and restart Fractal.";
 
+export { isMissingTmuxError, TMUX_MISSING_MESSAGE };
+
 function isMissingTmuxError(error: unknown): boolean {
   return error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT";
 }
@@ -87,4 +89,49 @@ export async function sendKeys(name: string, command: string): Promise<void> {
 
 export async function spawnCommand(sessionName: string, command: string): Promise<void> {
   await sendKeys(sessionName, command);
+}
+
+export async function capturePane(
+  session: string,
+  target?: string,
+  lines?: number,
+): Promise<string> {
+  try {
+    const paneTarget = target ? `${session}.${target}` : session;
+    const args = ["capture-pane", "-t", paneTarget, "-p"];
+    if (lines) {
+      args.push("-S", `-${lines}`);
+      args.push("-E", "-");
+    }
+    const { stdout } = await exec("tmux", args);
+    return stdout;
+  } catch (e) {
+    if (e instanceof ExecError) throw new Error(`session not found: ${session}`);
+    rethrowMissingTmux(e);
+  }
+}
+
+export async function listPanes(
+  session: string,
+): Promise<Array<{ index: number; title: string; active: boolean; currentPath: string }>> {
+  try {
+    const { stdout } = await exec("tmux", [
+      "list-panes",
+      "-t",
+      session,
+      "-F",
+      "#{pane_index}\t#{pane_title}\t#{pane_active}\t#{pane_current_path}",
+    ]);
+    return stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [index, title, active, currentPath] = line.split("\t");
+        return { index: Number(index), title, active: active === "1", currentPath };
+      });
+  } catch (e) {
+    if (e instanceof ExecError) throw new Error(`session not found: ${session}`);
+    rethrowMissingTmux(e);
+  }
 }

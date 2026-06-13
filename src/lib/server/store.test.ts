@@ -39,6 +39,12 @@ describe("store", () => {
     expect(settings.agentPresets.map((p) => p.id).sort()).toEqual(["claude", "opencode", "pi"]);
     // Empty DB: helperPresetId auto-resolves to first pi preset
     expect(settings.helperPresetId).toBe("pi");
+    expect(settings.globalAgentPresetId).toBe("pi");
+  });
+
+  it("persists and reads back an explicit Fractal Agent preset", () => {
+    store.updateSettings({ globalAgentPresetId: "claude" });
+    expect(store.getSettings().globalAgentPresetId).toBe("claude");
   });
 
   it("persists and reads back an explicit helperPresetId", () => {

@@ -55,6 +55,7 @@ export type AppSettings = {
   defaultPresetId: string;
   helperPresetId: string;
   lastProjectId: string;
+  globalAgentPresetId: string;
 };
 export type PiModel = {
   id: string;

@@ -123,6 +123,11 @@ function getProjectIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("project");
 }
 
+function isAgentViewFromUrl(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("view") === "agent";
+}
+
 function getInitialProjectId(): string | null {
   return getProjectIdFromUrl() ?? (loadLastProjectId() || null);
 }
@@ -161,13 +166,18 @@ function retitledTerminalTab(
   return title === tab.title ? tab : { ...tab, title };
 }
 
+export type ActiveView = { kind: "project"; id: string } | { kind: "agent" };
+
 export default function Board() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [home, setHome] = useState<string>("");
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(() =>
-    getInitialProjectId(),
-  );
+  const [activeView, setActiveView] = useState<ActiveView>(() => {
+    if (isAgentViewFromUrl()) return { kind: "agent" };
+    const id = getInitialProjectId();
+    return id ? { kind: "project", id } : { kind: "agent" };
+  });
+  const activeProjectId = activeView.kind === "project" ? activeView.id : null;
   const [composer, setComposer] = useState("");
   const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
   const [composerPresetId, setComposerPresetId] = useState("");
@@ -182,6 +192,7 @@ export default function Board() {
     defaultPresetId: "pi",
     helperPresetId: "",
     lastProjectId: "",
+    globalAgentPresetId: "pi",
   });
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
@@ -224,6 +235,7 @@ export default function Board() {
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(() => new Set());
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
+  const [isOpeningAgentTerminal, setIsOpeningAgentTerminal] = useState(false);
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
   const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [githubIssues, setGithubIssues] = useState<GithubIssue[]>([]);
@@ -289,6 +301,10 @@ export default function Board() {
     () => filteredTerminalTabs.map(decorateTerminalTab),
     [filteredTerminalTabs, decorateTerminalTab],
   );
+  const agentTabs = useMemo(
+    () => terminalTabs.filter((tab) => tab.projectId === "__agent__").map(decorateTerminalTab),
+    [terminalTabs, decorateTerminalTab],
+  );
   const tabsByProject = useMemo(() => {
     const map: Record<string, DecoratedTerminalTab[]> = {};
     for (const project of projects) {
@@ -348,7 +364,7 @@ export default function Board() {
   }
 
   function selectProject(id: string) {
-    setActiveProjectId(id);
+    setActiveView({ kind: "project", id });
     rememberCommandRecent("project", id);
   }
 
@@ -359,7 +375,11 @@ export default function Board() {
   };
 
   const selectProjectTab = (projectId: string, tabId: string) => {
-    if (projectId !== activeProjectId) selectProject(projectId);
+    if (projectId === "__agent__") {
+      if (activeView.kind !== "agent") setActiveView({ kind: "agent" });
+    } else if (activeView.kind !== "project" || projectId !== activeView.id) {
+      selectProject(projectId);
+    }
     activateTerminal(tabId);
   };
 
@@ -383,8 +403,15 @@ export default function Board() {
     setGlassSettings(normalized.glassSettings);
     setCommandRecents(normalized.commandRecents);
     setBoardLayout(normalized.boardLayout);
-    if (!getProjectIdFromUrl() && normalized.lastProjectId)
-      setActiveProjectId(normalized.lastProjectId);
+    if (isAgentViewFromUrl()) {
+      setActiveView({ kind: "agent" });
+    } else if (!getProjectIdFromUrl() && normalized.lastProjectId) {
+      setActiveView(
+        normalized.lastProjectId
+          ? { kind: "project", id: normalized.lastProjectId }
+          : { kind: "agent" },
+      );
+    }
   }
 
   const resizeSidebar = (width: number) => {
@@ -440,21 +467,33 @@ export default function Board() {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    saveLastProjectId(activeProjectId);
-    if (activeProjectId) {
+    saveLastProjectId(activeView.kind === "project" ? activeView.id : null);
+    if (activeView.kind === "agent") {
+      url.searchParams.set("view", "agent");
+      url.searchParams.delete("project");
+    } else if (activeProjectId) {
       url.searchParams.set("project", activeProjectId);
+      url.searchParams.delete("view");
       void api("/api/settings", {
         method: "PATCH",
         body: JSON.stringify({ lastProjectId: activeProjectId }),
       }).catch(() => {});
     } else {
       url.searchParams.delete("project");
+      url.searchParams.delete("view");
     }
     window.history.replaceState({}, "", url.toString());
-  }, [activeProjectId]);
+  }, [activeProjectId, activeView]);
 
   useEffect(() => {
-    const onPopState = () => setActiveProjectId(getProjectIdFromUrl());
+    const onPopState = () => {
+      if (isAgentViewFromUrl()) {
+        setActiveView({ kind: "agent" });
+        return;
+      }
+      const id = getProjectIdFromUrl();
+      setActiveView(id ? { kind: "project", id } : { kind: "agent" });
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -579,6 +618,13 @@ export default function Board() {
   }, [activeProject, activeTerminalId, filteredTerminalTabs, lastTerminalByProject]);
 
   useEffect(() => {
+    if (activeView.kind !== "agent") return;
+    if (activeTerminalId && agentTabs.some((tab) => tab.id === activeTerminalId)) return;
+    if (activeTerminalId !== (agentTabs[0]?.id ?? null))
+      setActiveTerminalId(agentTabs[0]?.id ?? null);
+  }, [activeView, activeTerminalId, agentTabs]);
+
+  useEffect(() => {
     const updateProjectShortcuts = (event: KeyboardEvent | MouseEvent | FocusEvent) => {
       setShowProjectShortcuts(event instanceof KeyboardEvent ? event.metaKey : false);
     };
@@ -612,7 +658,11 @@ export default function Board() {
       if (e.metaKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "t") {
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (activeProject) void openProjectTerminal(activeProject);
+        if (activeView.kind === "agent") {
+          void openAgentTerminal();
+        } else if (activeProject) {
+          void openProjectTerminal(activeProject);
+        }
         return;
       }
 
@@ -748,6 +798,7 @@ export default function Board() {
         defaultPresetId: "pi",
         helperPresetId: "",
         lastProjectId: "",
+        globalAgentPresetId: "pi",
       };
       setSettings(nextSettings);
       setComposerPresetId((cur) => {
@@ -757,15 +808,27 @@ export default function Board() {
         return nextSettings.agentPresets[0]?.id ?? "pi";
       });
       setHome(data.home ?? "");
-      setActiveProjectId((cur) => {
+      setActiveView((cur) => {
         const hasProject = (id: string | null | undefined) =>
           !!id && data.projects.some((p) => p.id === id);
         const urlId = getProjectIdFromUrl();
-        if (hasProject(urlId)) return urlId ?? null;
-        if (hasProject(cur)) return cur;
-        if (hasProject(serverUiState?.lastProjectId)) return serverUiState?.lastProjectId ?? null;
-        if (hasProject(nextSettings.lastProjectId)) return nextSettings.lastProjectId;
-        return data.projects[0]?.id ?? null;
+        const curId = cur.kind === "project" ? cur.id : null;
+
+        // URL takes priority
+        if (isAgentViewFromUrl()) return { kind: "agent" as const };
+        if (hasProject(urlId) && urlId) return { kind: "project" as const, id: urlId };
+
+        // Preserve current view if still valid
+        if (cur.kind === "agent") return { kind: "agent" as const };
+        if (hasProject(curId) && curId) return { kind: "project" as const, id: curId };
+
+        if (serverUiState?.lastProjectId && hasProject(serverUiState.lastProjectId))
+          return { kind: "project" as const, id: serverUiState.lastProjectId };
+        if (hasProject(nextSettings.lastProjectId))
+          return { kind: "project" as const, id: nextSettings.lastProjectId };
+        return data.projects[0]?.id
+          ? { kind: "project" as const, id: data.projects[0].id }
+          : { kind: "agent" as const };
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -832,6 +895,46 @@ export default function Board() {
     }
   }
 
+  function selectAgent() {
+    setActiveView({ kind: "agent" });
+    if (agentTabs.length === 0) {
+      void openAgentTerminal();
+      return;
+    }
+    if (!activeTerminalId || !agentTabs.some((tab) => tab.id === activeTerminalId)) {
+      activateTerminal(agentTabs[0].id);
+    }
+  }
+
+  async function openAgentTerminal() {
+    if (isOpeningAgentTerminal) return;
+    setIsOpeningAgentTerminal(true);
+    try {
+      const { session, title } = await api<{ session: string; title: string }>(
+        "/api/agent/terminal",
+        { method: "POST" },
+      );
+      const existing = terminalTabs.find((tab) => tab.id === session);
+      if (existing) {
+        activateTerminal(existing.id);
+        return;
+      }
+      const tab: TerminalTab = {
+        id: session,
+        promptId: "",
+        projectId: "__agent__",
+        session,
+        title,
+      };
+      setTerminalTabs((tabs) => (tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]));
+      activateTerminal(tab.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsOpeningAgentTerminal(false);
+    }
+  }
+
   async function removeProject(id: string) {
     if (!confirm("Remove this project from Fractal?")) return;
     try {
@@ -840,7 +943,8 @@ export default function Board() {
         const removedIndex = prev.findIndex((x) => x.id === id);
         const next = prev.filter((x) => x.id !== id);
         if (activeProjectId === id) {
-          setActiveProjectId(next[removedIndex]?.id ?? next[removedIndex - 1]?.id ?? null);
+          const nextId = next[removedIndex]?.id ?? next[removedIndex - 1]?.id;
+          setActiveView(nextId ? { kind: "project", id: nextId } : { kind: "agent" });
         }
         return next;
       });
@@ -1346,6 +1450,7 @@ export default function Board() {
         tabs={filteredTerminalTabs}
         home={home}
         commandRecents={commandRecents}
+        isAgentView={activeView.kind === "agent"}
         onSelectProject={(project) => selectProject(project.id)}
         onOpenPromptTerminal={openTerminal}
         onRunPrompt={(prompt, target) => void launch(prompt.id, target)}
@@ -1360,7 +1465,9 @@ export default function Board() {
         <Sidebar
           projects={projects}
           activeId={activeProjectId}
+          activeView={activeView}
           onSelect={selectProject}
+          onSelectAgent={selectAgent}
           onRemove={removeProject}
           onAdd={addProject}
           showPicker={showSidebarPicker}
@@ -1386,7 +1493,73 @@ export default function Board() {
           }}
         />
         <main className="main">
-          {!activeProject ? (
+          {activeView.kind === "agent" ? (
+            <>
+              <div className="topbar">
+                <div className="topbar-title">
+                  <span className="topbar-title-row">
+                    <SquareTerminal className="topbar-title-icon" aria-hidden="true" />
+                    <h1>Fractal Agent</h1>
+                  </span>
+                </div>
+                <div className="topbar-spacer" />
+                <PresetSettings
+                  presets={settings.agentPresets}
+                  defaultPresetId={settings.defaultPresetId}
+                  helperPresetId={settings.helperPresetId}
+                  globalAgentPresetId={settings.globalAgentPresetId}
+                  onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
+                  onSetHelper={(id) => void saveSettings({ helperPresetId: id })}
+                  onSetGlobalAgent={(id) => void saveSettings({ globalAgentPresetId: id })}
+                  piModels={models}
+                  claudeModels={claudeModels}
+                  opencodeModels={opencodeModels}
+                  onChange={(agentPresets) => void saveSettings({ agentPresets })}
+                  open={presetSettingsOpen}
+                  onOpenChange={setPresetSettingsOpen}
+                />
+                <Tooltip content="Settings">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => setAppSettingsOpen(true)}
+                    aria-label="App settings"
+                  >
+                    <Settings size={15} />
+                  </button>
+                </Tooltip>
+              </div>
+              <div
+                className={`workspace workspace-${agentTabs.length > 0 ? terminalPosition : "right"}`}
+              >
+                <div className="board board-snug agent-board-spacer" aria-hidden="true" />
+                {agentTabs.length > 0 && (
+                  <TerminalPane
+                    tabs={agentTabs}
+                    activeId={activeTerminalId}
+                    position={terminalPosition}
+                    size={terminalPosition === "right" ? terminalWidth : terminalHeight}
+                    snug={true}
+                    onResize={
+                      terminalPosition === "right" ? resizeTerminalWidth : resizeTerminalHeight
+                    }
+                    onTogglePosition={() =>
+                      setPersistentTerminalPosition((position) =>
+                        position === "right" ? "bottom" : "right",
+                      )
+                    }
+                    onSelect={activateTerminal}
+                    onClose={closeTerminal}
+                    onReorder={reorderTerminal}
+                    focusKey={terminalFocusKey}
+                    theme={theme}
+                    terminalThemeName={terminalThemeName}
+                    glassEnabled={glassSettings.enabled}
+                  />
+                )}
+              </div>
+            </>
+          ) : !activeProject ? (
             <div className="empty-wrapper">
               <EmptyState projects={projects} onAdd={addProject} />
             </div>
@@ -1431,8 +1604,10 @@ export default function Board() {
                   presets={settings.agentPresets}
                   defaultPresetId={settings.defaultPresetId}
                   helperPresetId={settings.helperPresetId}
+                  globalAgentPresetId={settings.globalAgentPresetId}
                   onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
                   onSetHelper={(id) => void saveSettings({ helperPresetId: id })}
+                  onSetGlobalAgent={(id) => void saveSettings({ globalAgentPresetId: id })}
                   piModels={models}
                   claudeModels={claudeModels}
                   opencodeModels={opencodeModels}
