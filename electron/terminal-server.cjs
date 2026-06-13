@@ -7,6 +7,8 @@ const pty = require("node-pty");
 
 function buildTerminalEnv() {
   const env = { ...process.env };
+  delete env.TMUX;
+  delete env.TMUX_PANE;
   // LaunchServices (Finder launch) doesn't load shell init, so LANG/LC_* may be
   // unset or "C" — that makes tmux/zsh/etc transliterate Unicode glyphs to ASCII
   // (underscores). Force a UTF-8 locale so Nerd Font / Powerline / box-drawing
