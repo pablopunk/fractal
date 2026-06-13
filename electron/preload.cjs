@@ -1,11 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
-const terminalArg = process.argv.find((arg) => arg.startsWith("--fractal-terminal-port="));
-const terminalPort = terminalArg ? Number(terminalArg.split("=")[1]) : null;
-
 contextBridge.exposeInMainWorld("electron", {
   platform: process.platform,
-  terminalPort: Number.isFinite(terminalPort) ? terminalPort : null,
   getPathForFile(file) {
     try {
       return webUtils.getPathForFile(file);
@@ -15,5 +11,14 @@ contextBridge.exposeInMainWorld("electron", {
   },
   openExternal(url) {
     return ipcRenderer.invoke("open-external", url);
+  },
+  setKeepAwake(enabled) {
+    return ipcRenderer.invoke("set-keep-awake", enabled);
+  },
+  getConfig() {
+    return ipcRenderer.invoke("get-config");
+  },
+  setMode(mode, remoteUrl) {
+    return ipcRenderer.invoke("set-mode", mode, remoteUrl);
   },
 });

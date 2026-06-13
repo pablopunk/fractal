@@ -18,13 +18,9 @@ import {
   FolderRoot,
   GitBranch,
   Hash,
-  Monitor,
-  Moon,
-  Palette,
   Play,
   Settings,
   SquareTerminal,
-  Sun,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -69,7 +65,7 @@ import {
   type UiState,
 } from "~/lib/client/persistence.js";
 import { terminalTabTitle } from "~/lib/client/terminal-tab-title.js";
-import { TERMINAL_THEME_OPTIONS, terminalThemePreview } from "~/lib/client/terminal-themes.js";
+
 import type {
   AppSettings,
   Column,
@@ -82,6 +78,7 @@ import type {
   Prompt,
   TerminalTab,
 } from "~/lib/client/types.js";
+import AppSettingsModal from "./AppSettingsModal.js";
 import {
   ColumnView,
   Composer,
@@ -97,6 +94,7 @@ import { type BoardIssue, issueFromGithub, issueFromLinear } from "./IssueCard.j
 import Portal from "./Portal.js";
 import PresetPicker from "./PresetPicker.js";
 import ProjectSettingsModal from "./ProjectSettingsModal.js";
+import ReconnectBanner from "./ReconnectBanner.js";
 import TerminalPane from "./TerminalPane.js";
 import Tooltip, { TooltipProvider } from "./Tooltip.js";
 
@@ -112,174 +110,8 @@ const BASE_COLUMNS: {
   { id: "RUN_IN_WORKTREE", title: "Run in worktree", icon: FolderKanban },
   { id: "ARCHIVED", title: "DONE", icon: Check },
 ];
-const THEME_OPTIONS: ThemeMode[] = ["system", "light", "dark"];
-const BOARD_LAYOUT_OPTIONS: BoardLayout[] = ["auto", "rows", "compact"];
 const BOARD_ROWS_MAX_WIDTH = 960;
 const BOARD_COMPACT_MAX_WIDTH = 240;
-
-function ThemeIcon(props: { theme: ThemeMode }) {
-  if (props.theme === "light") return <Sun size={14} />;
-  if (props.theme === "dark") return <Moon size={14} />;
-  return <Monitor size={14} />;
-}
-
-function ThemeSettingsPicker(props: {
-  theme: ThemeMode;
-  terminalThemeName: TerminalThemeName;
-  boardLayout: BoardLayout;
-  onThemeChange: (theme: ThemeMode) => void;
-  glass: GlassSettings;
-  onGlassChange: (settings: GlassSettings) => void;
-  onTerminalThemeChange: (theme: TerminalThemeName) => void;
-  onBoardLayoutChange: (layout: BoardLayout) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  return (
-    <>
-      <Tooltip content="Themes">
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={() => setOpen((value) => !value)}
-          aria-label="Themes"
-        >
-          <Palette size={14} />
-        </button>
-      </Tooltip>
-      {open && (
-        <Portal>
-          <div className="modal-overlay theme-modal-overlay" onClick={() => setOpen(false)}>
-            <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="theme-modal-header">
-                <h2>Appearance</h2>
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  aria-label="Close themes"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="theme-popup-section">
-                <div className="theme-popup-label">App theme</div>
-                <div className="theme-segmented" role="radiogroup" aria-label="App theme">
-                  {THEME_OPTIONS.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      className={props.theme === option ? "active" : ""}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => props.onThemeChange(option)}
-                    >
-                      <ThemeIcon theme={option} />
-                      <span>{option}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="theme-popup-section">
-                <div className="theme-popup-label">Board layout</div>
-                <div className="theme-segmented" role="radiogroup" aria-label="Board layout">
-                  {BOARD_LAYOUT_OPTIONS.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      className={props.boardLayout === option ? "active" : ""}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => props.onBoardLayoutChange(option)}
-                    >
-                      <span>{option}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="theme-popup-section">
-                <div className="theme-popup-label">Glass</div>
-                <label className="theme-check-row">
-                  <input
-                    type="checkbox"
-                    checked={props.glass.enabled}
-                    onChange={(e) =>
-                      props.onGlassChange({ ...props.glass, enabled: e.currentTarget.checked })
-                    }
-                  />
-                  <span>Opacity + blur</span>
-                </label>
-                <label className="theme-range-row">
-                  <span>Opacity</span>
-                  <input
-                    type="range"
-                    min="0.45"
-                    max="1"
-                    step="0.01"
-                    value={props.glass.opacity}
-                    onChange={(e) =>
-                      props.onGlassChange({
-                        ...props.glass,
-                        opacity: Number(e.currentTarget.value),
-                      })
-                    }
-                  />
-                </label>
-                <label className="theme-range-row">
-                  <span>Blur</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="40"
-                    step="1"
-                    value={props.glass.blur}
-                    onChange={(e) =>
-                      props.onGlassChange({ ...props.glass, blur: Number(e.currentTarget.value) })
-                    }
-                  />
-                </label>
-              </div>
-              <div className="theme-popup-section">
-                <div className="theme-popup-label">Terminal theme</div>
-                <div className="model-picker-items theme-picker-items">
-                  {TERMINAL_THEME_OPTIONS.map((option) => {
-                    const preview = terminalThemePreview(props.theme, option.id);
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={`picker-item theme-picker-item ${props.terminalThemeName === option.id ? "active" : ""}`}
-                        style={
-                          {
-                            "--theme-preview-bg": preview.background,
-                            "--theme-preview-fg": preview.foreground,
-                            "--theme-preview-accent": preview.accent,
-                          } as React.CSSProperties
-                        }
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => props.onTerminalThemeChange(option.id)}
-                      >
-                        <span className="theme-swatch" />
-                        <span className="picker-name">{option.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Portal>
-      )}
-    </>
-  );
-}
 
 const columnAwareCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
@@ -393,6 +225,7 @@ export default function Board() {
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(() => new Set());
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [githubIssues, setGithubIssues] = useState<GithubIssue[]>([]);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const [loadingIssues, setLoadingIssues] = useState(false);
@@ -1071,31 +904,22 @@ export default function Board() {
 
   async function deletePrompt(id: string, force = false) {
     try {
-      const res = await fetch(`/api/prompts/${id}`, {
+      await api(`/api/prompts/${id}`, {
         method: "DELETE",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ force }),
       });
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        hasUncommitted?: boolean;
-        changes?: string[];
-      };
-
-      if (!res.ok) {
-        // If 409 Conflict, show confirmation dialog
-        if (res.status === 409 && json.hasUncommitted) {
-          setPendingDeletePromptId(id);
-          setPendingDeleteChanges(json.changes ?? []);
-          return;
-        }
-        throw new Error(json.error ?? `HTTP ${res.status}`);
-      }
-
       setPrompts((p) => p.filter((x) => x.id !== id));
       setPendingDeletePromptId(null);
       setPendingDeleteChanges(null);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const json = e.body as { hasUncommitted?: boolean; changes?: string[] };
+        if (json.hasUncommitted) {
+          setPendingDeletePromptId(id);
+          setPendingDeleteChanges(json.changes ?? []);
+          return;
+        }
+      }
       toast.error(e instanceof Error ? e.message : String(e));
     }
   }
@@ -1539,6 +1363,7 @@ export default function Board() {
           onSelect={selectProject}
           onRemove={removeProject}
           onAdd={addProject}
+          onOpenSettings={() => setAppSettingsOpen(true)}
           showPicker={showSidebarPicker}
           setShowPicker={setShowSidebarPicker}
           home={home}
@@ -1568,6 +1393,7 @@ export default function Board() {
             </div>
           ) : (
             <>
+              <ReconnectBanner />
               <div className="topbar">
                 <Tooltip
                   content={
@@ -1615,16 +1441,16 @@ export default function Board() {
                   open={presetSettingsOpen}
                   onOpenChange={setPresetSettingsOpen}
                 />
-                <ThemeSettingsPicker
-                  theme={theme}
-                  terminalThemeName={terminalThemeName}
-                  boardLayout={boardLayout}
-                  onThemeChange={setTheme}
-                  glass={glassSettings}
-                  onGlassChange={setGlassSettings}
-                  onTerminalThemeChange={setTerminalThemeName}
-                  onBoardLayoutChange={setBoardLayout}
-                />
+                <Tooltip content="Settings">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => setAppSettingsOpen(true)}
+                    aria-label="App settings"
+                  >
+                    <Settings size={15} />
+                  </button>
+                </Tooltip>
               </div>
 
               <DndContext
@@ -1964,6 +1790,20 @@ export default function Board() {
                     </div>
                   </div>
                 </Portal>
+              )}
+
+              {appSettingsOpen && (
+                <AppSettingsModal
+                  onClose={() => setAppSettingsOpen(false)}
+                  theme={theme}
+                  terminalThemeName={terminalThemeName}
+                  boardLayout={boardLayout}
+                  onThemeChange={setTheme}
+                  glass={glassSettings}
+                  onGlassChange={setGlassSettings}
+                  onTerminalThemeChange={setTerminalThemeName}
+                  onBoardLayoutChange={setBoardLayout}
+                />
               )}
 
               {projectSettingsOpen && activeProject && (
