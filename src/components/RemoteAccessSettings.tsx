@@ -161,7 +161,7 @@ export default function RemoteAccessSettings() {
       </p>
 
       <label className="project-settings-toggle">
-        <input type="checkbox" checked={enabled} onChange={toggleEnabled} />
+        <input type="checkbox" className="fractal-checkbox" checked={enabled} onChange={toggleEnabled} />
         <span>Enable remote access</span>
       </label>
 

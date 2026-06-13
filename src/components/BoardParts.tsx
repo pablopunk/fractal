@@ -1016,6 +1016,7 @@ export function PresetSettings(props: {
                     <label className="preset-modal-default">
                       <input
                         type="checkbox"
+                        className="fractal-checkbox"
                         checked={selected.id === props.defaultPresetId}
                         onChange={(e) => {
                           if (e.target.checked) props.onSetDefault(selected.id);
@@ -1026,6 +1027,7 @@ export function PresetSettings(props: {
                     <label className="preset-modal-default">
                       <input
                         type="checkbox"
+                        className="fractal-checkbox"
                         checked={selected.id === props.helperPresetId}
                         onChange={(e) => {
                           if (e.target.checked) props.onSetHelper(selected.id);
