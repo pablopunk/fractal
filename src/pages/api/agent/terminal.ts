@@ -19,12 +19,7 @@ const AGENTS_MD_PATH = join(AGENT_CWD, "AGENTS.md");
 const CLAUDE_MD_PATH = join(AGENT_CWD, "CLAUDE.md");
 const AGENT_SKILLS_DIR = join(AGENT_CWD, ".agents", "skills");
 const SELF_IMPROVING_SKILL_NAME = "self-improving-agent";
-const SELF_IMPROVING_SKILL_SOURCE = join(
-  homedir(),
-  ".agents",
-  "skills",
-  SELF_IMPROVING_SKILL_NAME,
-);
+const SELF_IMPROVING_SKILL_SOURCE = join(homedir(), ".agents", "skills", SELF_IMPROVING_SKILL_NAME);
 const SELF_IMPROVING_SKILL_DEST = join(AGENT_SKILLS_DIR, SELF_IMPROVING_SKILL_NAME);
 const SESSION_PREFIX = "fractal-agent-";
 
@@ -37,7 +32,6 @@ const MANAGED_END = "<!-- FRACTAL-MANAGED-END -->";
  * source exists on this machine — it never falsely claims a path exists.
  */
 function selfImprovementSection(): string {
-  const sourceExists = existsSync(SELF_IMPROVING_SKILL_SOURCE);
   const destExists = existsSync(SELF_IMPROVING_SKILL_DEST);
   const skillPath = ".agents/skills/self-improving-agent/SKILL.md";
 
@@ -111,7 +105,7 @@ You can:
 * Change settings and presets.
 * Run health/maintenance tasks.
 
-Do **not** guess — **read** state first, then **act** through the API.
+**Read state first. Then act through the API. Do not guess.
 
 ## Fractal Concepts
 
@@ -196,6 +190,18 @@ Response shape:
 **GET /api/ui-state** — saved UI preferences.
 Response: \`{ uiState: { sidebarWidth, theme, terminalPosition, ... } }\`.
 
+**PATCH /api/ui-state** — persist UI preferences.
+\`\`\`bash
+curl -sX PATCH http://127.0.0.1:$PORT/api/ui-state \\
+  -H 'Content-Type: application/json' \\
+  -d '{"theme":"dark","terminalPosition":"bottom"}'
+\`\`\`
+Response: \`{ uiState: { ... } }\`. Settable fields include
+\`sidebarWidth\`, \`theme\` (\`system\`|\`light\`|\`dark\`),
+\`terminalPosition\` (\`right\`|\`bottom\`), \`terminalWidth\`,
+\`terminalHeight\`, \`boardLayout\` (\`auto\`|\`rows\`|\`compact\`),
+\`glassSettings\`, and others.
+
 ### Projects
 
 **GET /api/projects**
@@ -214,16 +220,27 @@ Response: \`{ project: { id, name, path, ... } }\`
 
 **PATCH /api/projects/:id**
 
-Update project fields.
+Update project fields. Supports \`application/json\` and
+\`multipart/form-data\` (for icon uploads).
+
+**JSON update:**
 \`\`\`bash
 curl -sX PATCH http://127.0.0.1:$PORT/api/projects/<id> \\
   -H 'Content-Type: application/json' \\
   -d '{"name":"New Name","defaultPresetId":"claude"}'
 \`\`\`
-Response: \`{ project: { ... } }\`
+Response (both variants): \`{ project: { ... } }\`
 
-Accepted fields: \`name\`, \`defaultPresetId\` (null to clear),
-\`githubRepo\`, \`showGithubIssues\`, \`showLinearIssues\`.
+Accepted JSON fields: \`name\`, \`defaultPresetId\` (null to clear),
+\`githubRepo\` (null to clear), \`showGithubIssues\` (boolean),
+\`showLinearIssues\` (boolean), \`detectGithub\` (boolean —
+auto-detects the GitHub repo from the project's git remote).
+
+**Icon upload:**
+\`\`\`bash
+curl -sX PATCH http://127.0.0.1:$PORT/api/projects/<id> \\
+  -F 'icon=@/path/to/icon.png'
+\`\`\`
 
 **DELETE /api/projects/:id**
 
@@ -305,9 +322,16 @@ tmuxSession: "...", worktreePath: "...", ... } }\`
 
 **POST /api/prompts/:id/archive**
 
-Mark a prompt as done (sets \`isArchived: true\`). Cleans up its
-tmux session. For worktree prompts, can also create a PR, merge to
-default branch, or discard.
+Mark a prompt as done (sets \`isArchived: true\`) and kill its tmux
+session. For prompts launched in a **worktree**, additional rules apply:
+
+* If the worktree has **uncommitted changes**, plain archiving is
+  blocked with a 409. You must choose an explicit \`action\`:
+  \`"create-pr"\`, \`"merge-main"\`, or \`"discard"\`.
+* If the branch has **no PR and is not merged** into the default
+  branch, plain archiving is also blocked (409).
+* Prompts launched **in-place** (no worktree) can be archived
+  directly with no action.
 
 \`\`\`bash
 # Simple archive (tmux session killed, prompt marked done)
@@ -454,7 +478,7 @@ SESSION=$(echo "$RUNNING" | jq -r '.tmuxSession')
 # Read the last 200 lines
 curl -sX POST http://127.0.0.1:$PORT/api/agent/tmux/capture \\
   -H 'Content-Type: application/json' \\
-  -d "{\"session\":\"$SESSION\",\"lines\":200}" | jq -r '.content'
+  -d "{"session":"$SESSION","lines":200}" | jq -r '.content'
 \`\`\`
 
 ### 3. Clean up stale work
@@ -541,10 +565,9 @@ ${MANAGED_END}
  *
  * Strategy:
  * - If valid managed markers are found, replace only the managed section.
- * - If the file starts with a known old default, safe-rewrite it.
- * - If the file is arbitrary markerless content, leave it unchanged
- *   (do NOT append a managed block).
- * - Broken markers (partial or misordered) fail closed: no change.
+ * - If the file has no managed markers, arbitrary markerless content, or
+ *   partial/broken markers, leave it unchanged (do NOT append a managed
+ *   block or attempt rewrite).
  *
  * Returns true if the file was written.
  */
