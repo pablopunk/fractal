@@ -28,24 +28,56 @@ const SELF_IMPROVING_SKILL_SOURCE = join(
 const SELF_IMPROVING_SKILL_DEST = join(AGENT_SKILLS_DIR, SELF_IMPROVING_SKILL_NAME);
 const SESSION_PREFIX = "fractal-agent-";
 
-const SELF_IMPROVEMENT_SECTION = `## Self-improvement
-
-The self-improving-agent skill is available in this workspace at:
-
-  .agents/skills/self-improving-agent/SKILL.md
-
-Use it as the source of truth for self-improvement. After every task:
-
-1. Review what happened and whether any reusable lesson emerged.
-2. Capture facts, corrections, failed assumptions, and reusable patterns as memory or proposal artifacts under the local self-improving-agent skill.
-3. Promote changes into AGENTS.md, skills, docs, or runtime behavior only when the skill's promotion policy allows it, or when the user explicitly asks.
-4. Prefer concise, durable rules over long transcripts.
-`;
-
 const MANAGED_START = "<!-- FRACTAL-MANAGED-START -->";
 const MANAGED_END = "<!-- FRACTAL-MANAGED-END -->";
 
-const DEFAULT_AGENTS_MD = `${MANAGED_START}
+/**
+ * Returns a truthful self-improvement section for the generated manual.
+ * Wording differs depending on whether the self-improving-agent skill
+ * source exists on this machine — it never falsely claims a path exists.
+ */
+function selfImprovementSection(): string {
+  const sourceExists = existsSync(SELF_IMPROVING_SKILL_SOURCE);
+  const destExists = existsSync(SELF_IMPROVING_SKILL_DEST);
+  const skillPath = ".agents/skills/self-improving-agent/SKILL.md";
+
+  if (destExists) {
+    return [
+      "## Self-improvement",
+      "",
+      "The self-improving-agent skill is stored in this workspace at:",
+      "",
+      `  ${skillPath}`,
+      "",
+      "Use it as the source of truth for self-improvement. After every task:",
+      "",
+      "1. Review what happened and whether any reusable lesson emerged.",
+      "2. Capture facts, corrections, failed assumptions, and reusable patterns",
+      "   as memory or proposal artifacts under the local self-improving-agent",
+      "   skill.",
+      "3. Promote changes into AGENTS.md, skills, docs, or runtime behaviour only",
+      "   when the skill's promotion policy allows it, or when the user explicitly",
+      "   asks.",
+      "4. Prefer concise, durable rules over long transcripts.",
+    ].join("\n");
+  }
+
+  return [
+    "## Self-improvement",
+    "",
+    "The self-improving-agent skill is not yet seeded into this workspace.",
+    "Install it at `~/.agents/skills/self-improving-agent/` and Fractal will",
+    `automatically copy it into ${skillPath} on the next agent launch.`,
+    "",
+    "After that, use it as the source of truth for self-improvement.",
+    "Refer to the skill's promotion policy before committing durable changes",
+    "to AGENTS.md or other repo artefacts.",
+  ].join("\n");
+}
+
+function defaultAgentsMd(): string {
+  const selfImprove = selfImprovementSection();
+  return `${MANAGED_START}
 # Fractal Agent — Operating Manual
 
 ## What is Fractal?
@@ -54,7 +86,7 @@ Fractal is a desktop application for managing AI coding agents across
 multiple projects. It provides:
 
 * A **kanban board** to track prompts (tasks) through columns:
-  Prompts → Run in place → Run in worktree → DONE.
+  Prompts → Run in place → Run in worktree → Done.
 * **Tmux terminals** attached to running agents so you can watch
   and interact with them live.
 * A **settings system** for agent presets (which binary, which
@@ -95,13 +127,13 @@ A prompt is a task card. It has:
 * **text** — the task description (may include @mentions for files).
 * **column** — where it lives on the board:
   \`PROMPTS\` (backlog), \`RUN_IN_PLACE\` (agent in project dir),
-  \`RUN_IN_WORKTREE\` (agent in isolated git worktree), \`ARCHIVED\`
-  (done).
+  \`RUN_IN_WORKTREE\` (agent in isolated git worktree).
+* **isArchived** — boolean; when \`true\`, the prompt appears in the
+  Done column (a virtual column, not a real \`column\` value).
 * **presetId** — which agent preset to use when launching.
 * **modelProfile** — \`smart\` or \`fast\`.
 * **tmuxSession** — the tmux session name while the agent is running.
 * **branch / worktreePath** — git worktree info (worktree mode only).
-* **isArchived** — whether the prompt is marked as done.
 * **error** — last error message from launch, if any.
 
 ### Agent Presets
@@ -120,7 +152,10 @@ Prompts move through columns:
 | \`PROMPTS\`          | Backlog / not yet launched             |
 | \`RUN_IN_PLACE\`     | Agent launched in the project directory|
 | \`RUN_IN_WORKTREE\`  | Agent launched in a git worktree       |
-| \`ARCHIVED\`         | Done / archived                        |
+
+Archived (done) prompts are marked with \`isArchived: true\` and
+shown in a virtual "DONE" column — they stay in their last real
+column (\`RUN_IN_PLACE\` or \`RUN_IN_WORKTREE\`) after archiving.
 
 ## HTTP API
 
@@ -140,14 +175,26 @@ Response shape:
 {
   "home": "/home/user",
   "projects": [ { "id": "...", "name": "...", "path": "...", ... } ],
-  "prompts": [ { "id": "...", "text": "...", "column": "...", "isRunning": true, ... } ],
-  "settings": { "defaultPresetId": "...", "agentPresets": [...], ... },
+  "prompts": [
+    {
+      "id": "...", "text": "...", "column": "PROMPTS",
+      "isArchived": false, "isRunning": false, ...
+    }
+  ],
+  "settings": {
+    "defaultPresetId": "...", "agentPresets": [...],
+    "globalAgentPresetId": "...", ...
+  },
+  "uiState": {
+    "sidebarWidth": 204, "theme": "dark",
+    "terminalPosition": "right", ...
+  },
   "terminalSessions": ["session-a", "session-b"]
 }
 \`\`\`
 
-**GET /api/ui-state** — saved UI preferences (sidebar width, theme,
-terminal position, etc).
+**GET /api/ui-state** — saved UI preferences.
+Response: \`{ uiState: { sidebarWidth, theme, terminalPosition, ... } }\`.
 
 ### Projects
 
@@ -164,8 +211,6 @@ curl -sX POST http://127.0.0.1:$PORT/api/projects \\
   -d '{"path":"/absolute/path/to/repo","name":"My Repo"}'
 \`\`\`
 Response: \`{ project: { id, name, path, ... } }\`
-
-**GET /api/projects/:id** — (used by UI; same as list-item shape)
 
 **PATCH /api/projects/:id**
 
@@ -204,9 +249,9 @@ curl -sX POST http://127.0.0.1:$PORT/api/projects/<id>/prompts \\
   -H 'Content-Type: application/json' \\
   -d '{"text":"Fix the login timeout bug","presetId":"pi","modelProfile":"smart"}'
 \`\`\`
-Required: \`text\` (non-empty string). Optional: \`imagePaths\`
-(array), \`presetId\`, \`modelProfile\` (\`smart\` | \`fast\`),
-\`issueRef\`.
+At least one of \`text\` (string) or \`imagePaths\` (string array)
+is required. Optional: \`presetId\`, \`modelProfile\` (\`smart\` |
+\`fast\`), \`issueRef\`.
 
 Response: \`{ prompt: { id, text, column: "PROMPTS", ... } }\`
 
@@ -218,8 +263,9 @@ curl -sX PATCH http://127.0.0.1:$PORT/api/prompts/<prompt-id> \\
   -H 'Content-Type: application/json' \\
   -d '{"column":"RUN_IN_PLACE","text":"updated description"}'
 \`\`\`
-Accepted fields: \`text\`, \`column\`, \`presetId\`, \`modelProfile\`,
-\`issueRef\` (null to unlink).
+Accepted fields: \`text\`, \`column\` (\`PROMPTS\`, \`RUN_IN_PLACE\`,
+\`RUN_IN_WORKTREE\`), \`presetId\`, \`modelProfile\`, \`issueRef\`
+(null to unlink).
 
 **DELETE /api/prompts/:id**
 
@@ -259,11 +305,12 @@ tmuxSession: "...", worktreePath: "...", ... } }\`
 
 **POST /api/prompts/:id/archive**
 
-Mark a prompt as done. Cleans up its tmux session. For worktree
-prompts, can also create a PR, merge to default branch, or discard.
+Mark a prompt as done (sets \`isArchived: true\`). Cleans up its
+tmux session. For worktree prompts, can also create a PR, merge to
+default branch, or discard.
 
 \`\`\`bash
-# Simple archive (tmux session killed, prompt moved to ARCHIVED)
+# Simple archive (tmux session killed, prompt marked done)
 curl -sX POST http://127.0.0.1:$PORT/api/prompts/<id>/archive
 
 # Archive with a PR
@@ -282,8 +329,8 @@ curl -sX POST http://127.0.0.1:$PORT/api/prompts/<id>/archive \\
   -d '{"action":"discard"}'
 \`\`\`
 
-**DELETE /api/prompts/:id/archive** — unarchive (move back to
-PROMPTS).
+**DELETE /api/prompts/:id/archive** — unarchive (sets
+\`isArchived: false\`, prompt re-appears on its board column).
 
 ### Prompt Summary
 
@@ -348,9 +395,11 @@ curl -sX POST http://127.0.0.1:$PORT/api/agent/tmux/list-panes \\
 
 ### Other Endpoints
 
+* **GET /api/health** — returns app metadata: \`{ name: "Fractal",
+  version: "0.9.1" }\`.
+* **POST /api/health-check** — cleanup orphans and stale DONE
+  prompts. Returns counts and details of what was cleaned.
 * **GET /api/models** — available agent models (pi, claude, opencode).
-* **GET /api/health** / **POST /api/health-check** — cleanup orphans
-  and stale DONE prompts.
 * **GET /api/tailscale/status** — Tailscale connection status.
 * **POST /api/tailscale/serve** — enable/disable Tailscale Funnel.
   Body: \`{ enable: true }\` or \`{ enable: false }\`.
@@ -481,61 +530,55 @@ Your CWD is the persistent Fractal agent workspace. Key files:
 * \`.agents/skills/self-improving-agent/\` — the self-improving
   skill (see below).
 
-${SELF_IMPROVEMENT_SECTION}
+${selfImprove}
 ${MANAGED_END}
 `;
+}
 
 /**
- * Update an existing AGENTS.md by replacing the Fractal-managed
- * section, or append the entire default content if no managed
- * markers are found and the file appears to be a Fractal default.
- * If the user has heavily customised the file (no markers),
- * append the managed block at the end instead of replacing.
+ * Update an existing AGENTS.md in-place without destroying user
+ * customisations.
+ *
+ * Strategy:
+ * - If valid managed markers are found, replace only the managed section.
+ * - If the file starts with a known old default, safe-rewrite it.
+ * - If the file is arbitrary markerless content, leave it unchanged
+ *   (do NOT append a managed block).
+ * - Broken markers (partial or misordered) fail closed: no change.
  *
  * Returns true if the file was written.
  */
-function updateAgentsMdIfNeeded(): void {
-  if (!existsSync(AGENTS_MD_PATH)) return;
+function updateAgentsMdIfNeeded(): boolean {
+  if (!existsSync(AGENTS_MD_PATH)) return false;
   try {
     const current = readFileSync(AGENTS_MD_PATH, "utf8");
     const startIdx = current.indexOf(MANAGED_START);
     const endIdx = current.indexOf(MANAGED_END);
 
+    // Both markers present and in correct order → replace managed section
     if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
-      // Managed markers found → replace managed section
       const before = current.slice(0, startIdx);
       const after = current.slice(endIdx + MANAGED_END.length);
-      const updated = before + DEFAULT_AGENTS_MD + after;
+      const updated = before + defaultAgentsMd() + after;
       if (updated !== current) {
         writeFileSync(AGENTS_MD_PATH, updated, "utf8");
       }
-      return;
+      return true;
     }
 
-    // No managed markers. Check if the file matches a known old default.
-    const trimmed = current.trim();
-    const oldDefaults = [
-      `# Fractal Global Agent
-
-You are the Fractal global agent. You run in a tmux session managed by
-the Fractal desktop app. Your CWD is ~/.fractal/agent.`,
-    ];
-    for (const prefix of oldDefaults) {
-      if (trimmed.startsWith(prefix)) {
-        // File starts with an old default → safe to rewrite
-        writeFileSync(AGENTS_MD_PATH, DEFAULT_AGENTS_MD, "utf8");
-        return;
-      }
+    // Any partial markers → fail closed (do not touch the file)
+    if (startIdx !== -1 || endIdx !== -1) {
+      return false;
     }
 
-    // Otherwise, the user has custom content. Append managed block.
-    writeFileSync(
-      AGENTS_MD_PATH,
-      current + "\n\n" + DEFAULT_AGENTS_MD,
-      "utf8",
-    );
+    // No managed markers — leave the file unchanged.
+    // Old-default or custom files without markers are untouched to
+    // avoid overwriting user edits. The user can delete the file to
+    // get a fresh managed copy on the next agent launch.
+    return false;
   } catch {
     // Best effort; ignore read/write errors
+    return false;
   }
 }
 
@@ -559,7 +602,7 @@ function ensureAgentFiles(): void {
   seedSkillIfMissing();
 
   if (!existsSync(AGENTS_MD_PATH)) {
-    writeFileSync(AGENTS_MD_PATH, DEFAULT_AGENTS_MD, "utf8");
+    writeFileSync(AGENTS_MD_PATH, defaultAgentsMd(), "utf8");
   } else {
     updateAgentsMdIfNeeded();
   }
