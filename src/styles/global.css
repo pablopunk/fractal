@@ -2297,6 +2297,22 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
 .preset-modal-list-item-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .preset-modal-list-name { font-weight: 500; font-size: 13px; }
 .preset-modal-list-binary { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.preset-modal-list-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+.preset-modal-list-roles span {
+  width: fit-content;
+  padding: 1px 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
 .preset-modal-form { display: flex; flex-direction: column; gap: 12px; padding: 18px; overflow-y: auto; }
 .preset-modal-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
 .preset-modal-compact-field { width: min(360px, 100%); }

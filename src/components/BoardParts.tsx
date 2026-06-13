@@ -48,10 +48,7 @@ import ProjectPicker from "./ProjectPicker.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
 
-function AgentSidebarEntry(props: {
-  active: boolean;
-  onClick: () => void;
-}) {
+function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
   return (
     <div className="agent-sidebar-entry">
       <button
@@ -210,10 +207,7 @@ export function Sidebar(props: {
             </button>
           </div>
         ))}
-      <AgentSidebarEntry
-        active={props.activeView.kind === "agent"}
-        onClick={props.onSelectAgent}
-      />
+      <AgentSidebarEntry active={props.activeView.kind === "agent"} onClick={props.onSelectAgent} />
       <div
         className="sidebar-resize-handle"
         onPointerDown={startResize}
@@ -789,11 +783,15 @@ function SortablePresetItem({
   preset,
   active,
   isDefault,
+  isHelper,
+  isFractalAgent,
   onSelect,
 }: {
   preset: AgentPreset;
   active: boolean;
   isDefault: boolean;
+  isHelper: boolean;
+  isFractalAgent: boolean;
   onSelect: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -814,13 +812,17 @@ function SortablePresetItem({
       {...listeners}
     >
       <div className="preset-modal-list-item-header">
-        <span className="preset-modal-list-name">
-          {preset.name}
-          {isDefault ? " ★" : ""}
-        </span>
+        <span className="preset-modal-list-name">{preset.name}</span>
         <PresetIcon preset={preset} size={14} />
       </div>
       <span className="preset-modal-list-binary">{preset.binary}</span>
+      {(isDefault || isHelper || isFractalAgent) && (
+        <span className="preset-modal-list-roles">
+          {isDefault && <span>Default</span>}
+          {isHelper && <span>Helpers</span>}
+          {isFractalAgent && <span>Agent</span>}
+        </span>
+      )}
     </button>
   );
 }
@@ -953,6 +955,8 @@ export function PresetSettings(props: {
                           preset={preset}
                           active={preset.id === selected?.id}
                           isDefault={preset.id === props.defaultPresetId}
+                          isHelper={preset.id === props.helperPresetId}
+                          isFractalAgent={preset.id === props.globalAgentPresetId}
                           onSelect={() => setSelectedId(preset.id)}
                         />
                       ))}
@@ -1064,12 +1068,13 @@ export function PresetSettings(props: {
                     <label className="preset-modal-default">
                       <input
                         type="checkbox"
+                        className="fractal-checkbox"
                         checked={selected.id === props.globalAgentPresetId}
                         onChange={(e) => {
                           if (e.target.checked) props.onSetGlobalAgent(selected.id);
                         }}
                       />
-                      <span>Use for Fractal global agent</span>
+                      <span>Use for Fractal Agent</span>
                     </label>
                     <div className="preset-modal-form-actions">
                       {props.presets.length > 1 && (

@@ -85,9 +85,11 @@ export const POST: APIRoute = async () => {
     await ensureSession(session, AGENT_CWD);
 
     const settings = getSettings();
-    const presetId = settings.globalAgentPresetId || "pi";
-    const preset = settings.agentPresets.find((p) => p.id === presetId) ?? settings.agentPresets[0];
-    if (!preset) throw new Error("No agent preset configured");
+    const preset =
+      settings.agentPresets.find((p) => p.id === settings.globalAgentPresetId) ??
+      settings.agentPresets.find((p) => p.id === settings.defaultPresetId) ??
+      settings.agentPresets[0];
+    if (!preset) throw new Error("No Fractal Agent preset configured");
 
     // Spawn the agent CLI with the prompt template or default prompt
     const agentPrompt =
@@ -100,7 +102,7 @@ export const POST: APIRoute = async () => {
   } catch (e) {
     const msg =
       e instanceof Error && (e as NodeJS.ErrnoException).code === "ENOENT"
-        ? `agent binary not found: ${getSettings().globalAgentPresetId || "pi"}`
+        ? "Fractal Agent binary not found for the selected preset"
         : e instanceof Error
           ? e.message
           : String(e);

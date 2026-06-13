@@ -238,6 +238,11 @@ export function getSettings(): AppSettings {
   if (!hasStoredHelperPresetId) out.helperPresetId = defaultHelperPresetId(out.agentPresets);
   if (out.helperPresetId && !out.agentPresets.some((p) => p.id === out.helperPresetId))
     out.helperPresetId = "";
+  if (out.globalAgentPresetId && !out.agentPresets.some((p) => p.id === out.globalAgentPresetId)) {
+    out.globalAgentPresetId = out.agentPresets.some((p) => p.id === out.defaultPresetId)
+      ? out.defaultPresetId
+      : (out.agentPresets[0]?.id ?? "");
+  }
   return out;
 }
 
