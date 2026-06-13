@@ -42,7 +42,7 @@
   <div class="url" id="url"></div>
 </div>
 <script>
-  document.getElementById("url").textContent = location.href;
+  document.getElementById("url").textContent = new URLSearchParams(location.search).get("url") || location.href;
   function switchBack() {
     var api = window.electron;
     if (api && api.setMode) {

@@ -18,7 +18,6 @@ import {
   FolderRoot,
   GitBranch,
   Hash,
-  Monitor,
   Play,
   Settings,
   SquareTerminal,

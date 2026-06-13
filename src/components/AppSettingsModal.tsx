@@ -226,7 +226,9 @@ function ModeDisplay() {
       return;
     }
     const url = new URL(trimmed);
-    url.search = "";
+    const hashToken = new URLSearchParams(url.hash.slice(1)).get("token");
+    url.hash = "";
+    if (hashToken) url.searchParams.set("token", hashToken);
     doSwitch("remote", url.toString().replace(/\/$/, ""));
   }
 

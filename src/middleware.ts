@@ -17,7 +17,11 @@ function isLocalhost(request: Request): boolean {
 }
 
 function isApiPath(pathname: string): boolean {
-  return pathname.startsWith("/api/") && pathname !== "/api/health";
+  return (
+    pathname.startsWith("/api/") &&
+    pathname !== "/api/health" &&
+    pathname !== "/api/project-favicon"
+  );
 }
 
 export async function onRequest(context: APIContext, next: MiddlewareNext): Promise<Response> {

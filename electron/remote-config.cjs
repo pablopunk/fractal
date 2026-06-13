@@ -27,21 +27,19 @@ function writeConfig(partial) {
   mkdirSync(configDir, { recursive: true });
   const current = readConfig();
   const next = Object.assign({}, current, partial);
+  if (next.remoteUrl) {
+    try {
+      const url = new URL(next.remoteUrl);
+      url.hash = "";
+      next.remoteUrl = url.toString().replace(/\/$/, "");
+    } catch {}
+  }
   writeFileSync(configPath, JSON.stringify(next, null, 2), "utf8");
   return next;
 }
 
-module.exports = { readConfig, writeConfig, defaultConfig, hasSavedConfig, getMode };
+module.exports = { readConfig, writeConfig, defaultConfig, hasSavedConfig };
 
 function hasSavedConfig() {
   return existsSync(configPath);
-}
-
-function getMode() {
-  const config = readConfig();
-  return {
-    mode: config.mode,
-    remoteUrl: config.mode === "remote" ? config.remoteUrl : "",
-    keepAwakeEnabled: config.keepAwakeEnabled,
-  };
 }

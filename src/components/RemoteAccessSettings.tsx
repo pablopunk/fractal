@@ -94,23 +94,33 @@ export default function RemoteAccessSettings() {
         });
         setToken(tokenData.token);
       }
-      if (next) {
-        fetchTailscale();
-        void api("/api/tailscale/serve", {
+    } catch {
+      setEnabled(wasEnabled);
+      isToggling.current = false;
+      return;
+    }
+
+    if (next) {
+      void fetchTailscale();
+      try {
+        await api("/api/tailscale/serve", {
           method: "POST",
           body: JSON.stringify({ enable: true }),
         });
-      } else {
-        void api("/api/tailscale/serve", {
+      } catch {
+        console.error("[fractal] failed to enable tailscale serve");
+      }
+    } else {
+      try {
+        await api("/api/tailscale/serve", {
           method: "POST",
           body: JSON.stringify({ enable: false }),
         });
+      } catch {
+        console.error("[fractal] failed to disable tailscale serve");
       }
-    } catch {
-      setEnabled(wasEnabled);
-    } finally {
-      isToggling.current = false;
     }
+    isToggling.current = false;
   }
 
   async function regenerateToken() {

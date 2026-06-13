@@ -244,7 +244,7 @@ function readRemoteAccessSettings() {
 function verifyTerminalToken(req, socket) {
   if (isLocalConnection(socket)) return true;
   const settings = readRemoteAccessSettings();
-  if (!settings.enabled) return true;
+  if (!settings.enabled) return false;
   const url = new URL(req.url, "http://127.0.0.1");
   const token = url.searchParams.get("token");
   return Boolean(token && token === settings.token);
@@ -292,6 +292,7 @@ async function startUnifiedServer() {
     });
 
     const port = server.address().port;
+    process.env.PORT = String(port);
     mainServer = server;
     serverCleanup = closeTerminal;
     console.log(`[fractal-server] listening on http://127.0.0.1:${port}`);
@@ -341,14 +342,14 @@ async function createWindow() {
     }
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {
     const allowedPrefix = `http://127.0.0.1:${port}`;
     if (url !== allowedPrefix && !url.startsWith(`${allowedPrefix}/`)) {
       event.preventDefault();
-      void shell.openExternal(url);
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     }
   });
   await mainWindow.loadURL(`http://127.0.0.1:${port}`);
@@ -385,18 +386,26 @@ function createRemoteWindow(remoteUrl) {
   });
   mainWindow.webContents.on("did-fail-load", (_event, _code, _desc, url) => {
     if (url === targetUrl || url.startsWith(targetUrl)) {
-      mainWindow.loadFile(path.join(__dirname, "remote-error.html"));
+      const errorUrl = new URL(pathToFileURL(path.join(__dirname, "remote-error.html")).href);
+      errorUrl.searchParams.set("url", url);
+      void mainWindow.loadURL(errorUrl.href);
     }
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
-  const origin = new URL(targetUrl).origin;
+  const allowedOrigin = new URL(targetUrl).origin;
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith(origin)) {
+    let destOrigin;
+    try {
+      destOrigin = new URL(url).origin;
+    } catch {
+      destOrigin = "";
+    }
+    if (destOrigin !== allowedOrigin) {
       event.preventDefault();
-      void shell.openExternal(url);
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     }
   });
   void mainWindow.loadURL(targetUrl);
@@ -512,7 +521,7 @@ function showStartupWindow() {
       startupWindow = null;
     }
   });
-  void startupWindow.loadFile(path.join(__dirname, "remote-error.html"));
+  void startupWindow.loadFile(path.join(__dirname, "mode-picker.html"));
 }
 
 function dismissStartupWindow() {

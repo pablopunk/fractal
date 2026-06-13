@@ -21,6 +21,6 @@ export const POST: APIRoute = async ({ request }) => {
     });
     return Response.json({ ok: true });
   } catch {
-    return Response.json({ ok: false, error: "Tailscale serve command failed" });
+    return Response.json({ error: "Tailscale serve command failed" }, { status: 500 });
   }
 };

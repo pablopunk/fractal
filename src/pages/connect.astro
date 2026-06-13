@@ -43,9 +43,8 @@
   </div>
   <script>
     (function () {
-      const hash = window.location.hash.slice(1);
-      const params = new URLSearchParams(hash);
-      const token = params.get("token");
+      const token = new URLSearchParams(window.location.search).get("token")
+        || new URLSearchParams(window.location.hash.slice(1)).get("token");
       const status = document.getElementById("status");
       if (!status) return;
 
