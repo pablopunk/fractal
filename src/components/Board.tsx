@@ -18,7 +18,9 @@ import {
   FolderRoot,
   GitBranch,
   Hash,
+  Menu,
   Play,
+  Search,
   Settings,
   SquareTerminal,
 } from "lucide-react";
@@ -252,6 +254,11 @@ export default function Board() {
   const [autoBoardRows, setAutoBoardRows] = useState(false);
   const [autoBoardCompact, setAutoBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
+  );
   const shouldHydrateUiStateFromServer = useRef(!hasLocalUiState());
   const didReceiveState = useRef(false);
   const lastFetchedState = useRef<string | null>(null);
@@ -269,8 +276,9 @@ export default function Board() {
       return true;
     });
   }, [activeProject?.githubRepo, activeProject?.showLinearIssues]);
-  const boardRows = boardLayout === "rows" || (boardLayout === "auto" && autoBoardRows);
-  const boardCompact = boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact);
+  const boardRows = isMobile || boardLayout === "rows" || (boardLayout === "auto" && autoBoardRows);
+  const boardCompact =
+    !isMobile && (boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact));
   const boardSnug = useMemo(
     () => boardCompact || COLUMNS.every((col) => collapsed[col.id]),
     [boardCompact, collapsed, COLUMNS],
@@ -365,6 +373,7 @@ export default function Board() {
 
   function selectProject(id: string) {
     setActiveView({ kind: "project", id });
+    setSidebarOpen(false);
     rememberCommandRecent("project", id);
   }
 
@@ -381,6 +390,7 @@ export default function Board() {
       selectProject(projectId);
     }
     activateTerminal(tabId);
+    setSidebarOpen(false);
   };
 
   function applyUiState(uiState: UiState) {
@@ -502,6 +512,13 @@ export default function Board() {
     const platform = (window as typeof window & { electron?: { platform?: string } }).electron
       ?.platform;
     if (platform === "darwin") document.documentElement.classList.add("macos");
+  }, []);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
   }, []);
 
   useEffect(() => {
@@ -1438,6 +1455,17 @@ export default function Board() {
     ? (boardIssues.find((item) => item.id === activeDragId)?.issue ?? null)
     : null;
   const sidebarCollapsed = isSidebarCollapsed(sidebarWidth);
+  const effectiveTerminalPosition = isMobile ? "bottom" : terminalPosition;
+  const effectiveTerminalSize = isMobile
+    ? terminalHeight
+    : terminalPosition === "right"
+      ? terminalWidth
+      : terminalHeight;
+  const resizeEffectiveTerminal = isMobile
+    ? resizeTerminalHeight
+    : terminalPosition === "right"
+      ? resizeTerminalWidth
+      : resizeTerminalHeight;
 
   return (
     <TooltipProvider>
@@ -1451,6 +1479,8 @@ export default function Board() {
         home={home}
         commandRecents={commandRecents}
         isAgentView={activeView.kind === "agent"}
+        forceOpen={commandMenuOpen}
+        onForceOpenChange={setCommandMenuOpen}
         onSelectProject={(project) => selectProject(project.id)}
         onOpenPromptTerminal={openTerminal}
         onRunPrompt={(prompt, target) => void launch(prompt.id, target)}
@@ -1476,6 +1506,8 @@ export default function Board() {
           onResize={resizeSidebar}
           collapsed={sidebarCollapsed}
           showShortcuts={showProjectShortcuts && !sidebarCollapsed}
+          mobileOpen={isMobile ? sidebarOpen : undefined}
+          onMobileClose={() => setSidebarOpen(false)}
           tabsByProject={tabsByProject}
           activeTabId={activeTerminalId}
           onSelectTab={selectProjectTab}
@@ -1567,6 +1599,26 @@ export default function Board() {
             <>
               <ReconnectBanner />
               <div className="topbar">
+                {isMobile && (
+                  <button
+                    type="button"
+                    className="hamburger-btn"
+                    onClick={() => setSidebarOpen((o) => !o)}
+                    aria-label="Toggle menu"
+                  >
+                    <Menu size={18} />
+                  </button>
+                )}
+                {isMobile && (
+                  <button
+                    type="button"
+                    className="hamburger-btn"
+                    onClick={() => setCommandMenuOpen(true)}
+                    aria-label="Search"
+                  >
+                    <Search size={18} />
+                  </button>
+                )}
                 <Tooltip
                   content={
                     isOpeningProjectTerminal ? "Opening project terminal…" : "Open project terminal"
@@ -1635,7 +1687,7 @@ export default function Board() {
                 onDragEnd={onDragEnd}
               >
                 <div
-                  className={`workspace workspace-${filteredTerminalTabs.length > 0 ? terminalPosition : "right"}`}
+                  className={`workspace workspace-${filteredTerminalTabs.length > 0 ? effectiveTerminalPosition : "right"}`}
                 >
                   <div
                     ref={setBoardElement}
@@ -1726,12 +1778,10 @@ export default function Board() {
                     <TerminalPane
                       tabs={terminalPaneTabs}
                       activeId={activeTerminalId}
-                      position={terminalPosition}
-                      size={terminalPosition === "right" ? terminalWidth : terminalHeight}
-                      snug={boardSnug && terminalPosition === "right"}
-                      onResize={
-                        terminalPosition === "right" ? resizeTerminalWidth : resizeTerminalHeight
-                      }
+                      position={effectiveTerminalPosition}
+                      size={effectiveTerminalSize}
+                      snug={!isMobile && boardSnug && terminalPosition === "right"}
+                      onResize={resizeEffectiveTerminal}
                       onTogglePosition={() =>
                         setPersistentTerminalPosition((position) =>
                           position === "right" ? "bottom" : "right",

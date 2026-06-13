@@ -81,6 +81,8 @@ export function Sidebar(props: {
   onResize: (width: number) => void;
   collapsed: boolean;
   showShortcuts: boolean;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
   onReorder: (ids: string[]) => void | Promise<void>;
   tabsByProject: Record<string, DecoratedTerminalTab[]>;
   activeTabId: string | null;
@@ -107,113 +109,123 @@ export function Sidebar(props: {
   }
 
   return (
-    <aside className={`sidebar ${props.collapsed ? "collapsed" : ""}`}>
-      <div className="sidebar-head">
-        <span className="brand-dot" />
-        <span className="sidebar-brand">Fractal</span>
-      </div>
-      <div className="sidebar-section">Projects</div>
-      <div className="project-list">
-        {props.projects.length === 0 && (
-          <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-faint)" }}>
-            No projects yet.
-          </div>
-        )}
-        <DndContext
-          sensors={projectSensors}
-          collisionDetection={closestCorners}
-          onDragEnd={(e) => {
-            const { active, over } = e;
-            if (!over || active.id === over.id) return;
-            const oldIndex = props.projects.findIndex((p) => p.id === active.id);
-            const newIndex = props.projects.findIndex((p) => p.id === over.id);
-            if (oldIndex === -1 || newIndex === -1) return;
-            void props.onReorder(arrayMove(props.projects, oldIndex, newIndex).map((p) => p.id));
-          }}
-        >
-          <SortableContext
-            items={props.projects.map((p) => p.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {props.projects.map((p, index) => (
-              <SortableProjectItem
-                key={p.id}
-                project={p}
-                index={index}
-                active={p.id === props.activeId}
-                home={props.home}
-                showShortcuts={props.showShortcuts}
-                onSelect={props.onSelect}
-                onRemove={props.onRemove}
-                tabs={props.tabsByProject[p.id] ?? []}
-                activeTabId={props.activeTabId}
-                onSelectTab={props.onSelectTab}
-                onReorderTabs={props.onReorderTabs}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-        {!props.showPicker && (
-          <button
-            type="button"
-            className="project-item add-project-item"
-            onClick={() => props.setShowPicker(true)}
-            aria-label="Add project"
-            title="Add project"
-          >
-            <span className="add-project-icon" aria-hidden="true">
-              <Plus size={16} />
-            </span>
-            <span className="name">Add project</span>
-          </button>
-        )}
-      </div>
-      {props.showPicker &&
-        (props.collapsed ? (
-          <Portal>
-            <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
-              <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
-                <ProjectPicker
-                  recentProjects={props.projects}
-                  onSelect={props.onAdd}
-                  autoFocus
-                  placeholder="search projects or paste a path…"
-                />
-                <button
-                  className="btn ghost block sm"
-                  style={{ marginTop: 6 }}
-                  onClick={() => props.setShowPicker(false)}
-                >
-                  Cancel
-                </button>
-              </div>
+    <>
+      {props.mobileOpen && (
+        <div className="sidebar-backdrop" onClick={props.onMobileClose} aria-hidden="true" />
+      )}
+      <aside
+        className={`sidebar ${props.collapsed ? "collapsed" : ""} ${props.mobileOpen ? "open" : ""}`}
+      >
+        <div className="sidebar-head">
+          <span className="brand-dot" />
+          <span className="sidebar-brand">Fractal</span>
+        </div>
+        <div className="sidebar-section">Projects</div>
+        <div className="project-list">
+          {props.projects.length === 0 && (
+            <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-faint)" }}>
+              No projects yet.
             </div>
-          </Portal>
-        ) : (
-          <div className="sidebar-foot">
-            <ProjectPicker
-              recentProjects={props.projects}
-              onSelect={props.onAdd}
-              autoFocus
-              openUpward
-              placeholder="search projects or paste a path…"
-            />
-            <button
-              className="btn ghost block sm"
-              style={{ marginTop: 6 }}
-              onClick={() => props.setShowPicker(false)}
+          )}
+          <DndContext
+            sensors={projectSensors}
+            collisionDetection={closestCorners}
+            onDragEnd={(e) => {
+              const { active, over } = e;
+              if (!over || active.id === over.id) return;
+              const oldIndex = props.projects.findIndex((p) => p.id === active.id);
+              const newIndex = props.projects.findIndex((p) => p.id === over.id);
+              if (oldIndex === -1 || newIndex === -1) return;
+              void props.onReorder(arrayMove(props.projects, oldIndex, newIndex).map((p) => p.id));
+            }}
+          >
+            <SortableContext
+              items={props.projects.map((p) => p.id)}
+              strategy={verticalListSortingStrategy}
             >
-              Cancel
+              {props.projects.map((p, index) => (
+                <SortableProjectItem
+                  key={p.id}
+                  project={p}
+                  index={index}
+                  active={p.id === props.activeId}
+                  home={props.home}
+                  showShortcuts={props.showShortcuts}
+                  onSelect={props.onSelect}
+                  onRemove={props.onRemove}
+                  tabs={props.tabsByProject[p.id] ?? []}
+                  activeTabId={props.activeTabId}
+                  onSelectTab={props.onSelectTab}
+                  onReorderTabs={props.onReorderTabs}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          {!props.showPicker && (
+            <button
+              type="button"
+              className="project-item add-project-item"
+              onClick={() => props.setShowPicker(true)}
+              aria-label="Add project"
+              title="Add project"
+            >
+              <span className="add-project-icon" aria-hidden="true">
+                <Plus size={16} />
+              </span>
+              <span className="name">Add project</span>
             </button>
-          </div>
-        ))}
-      <AgentSidebarEntry active={props.activeView.kind === "agent"} onClick={props.onSelectAgent} />
-      <div
-        className="sidebar-resize-handle"
-        onPointerDown={startResize}
-        title="Resize projects drawer"
-      />
-    </aside>
+          )}
+        </div>
+        {props.showPicker &&
+          (props.collapsed ? (
+            <Portal>
+              <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
+                <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
+                  <ProjectPicker
+                    recentProjects={props.projects}
+                    onSelect={props.onAdd}
+                    autoFocus
+                    placeholder="search projects or paste a path…"
+                  />
+                  <button
+                    className="btn ghost block sm"
+                    style={{ marginTop: 6 }}
+                    onClick={() => props.setShowPicker(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </Portal>
+          ) : (
+            <div className="sidebar-foot">
+              <ProjectPicker
+                recentProjects={props.projects}
+                onSelect={props.onAdd}
+                autoFocus
+                openUpward
+                placeholder="search projects or paste a path…"
+              />
+              <button
+                className="btn ghost block sm"
+                style={{ marginTop: 6 }}
+                onClick={() => props.setShowPicker(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ))}
+        <AgentSidebarEntry
+          active={props.activeView.kind === "agent"}
+          onClick={props.onSelectAgent}
+        />
+        <div
+          className="sidebar-resize-handle"
+          onPointerDown={startResize}
+          title="Resize projects drawer"
+        />
+      </aside>
+    </>
   );
 }
 
