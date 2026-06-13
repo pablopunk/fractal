@@ -14,6 +14,9 @@ export type AppSettings = {
   helperPresetId: string;
   lastProjectId: string;
   globalAgentPresetId: string;
+  remoteAccessEnabled: boolean;
+  remoteAccessToken: string;
+  keepAwakeEnabled: boolean;
 };
 
 export type UiColumn = Column | "GITHUB" | "LINEAR" | "ARCHIVED";
@@ -49,6 +52,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   helperPresetId: "",
   lastProjectId: "",
   globalAgentPresetId: "pi",
+  remoteAccessEnabled: false,
+  remoteAccessToken: "",
+  keepAwakeEnabled: false,
 };
 
 const DEFAULT_COLLAPSED = {
@@ -220,8 +226,11 @@ export function getSettings(): AppSettings {
       out.helperPresetId = row.value;
       hasStoredHelperPresetId = true;
     }
-    if (row.key === "lastProjectId") out.lastProjectId = row.value;
     if (row.key === "globalAgentPresetId") out.globalAgentPresetId = row.value;
+    if (row.key === "remoteAccessToken") out.remoteAccessToken = row.value;
+    if (row.key === "remoteAccessEnabled") out.remoteAccessEnabled = row.value === "true";
+    if (row.key === "keepAwakeEnabled") out.keepAwakeEnabled = row.value === "true";
+    if (row.key === "lastProjectId") out.lastProjectId = row.value;
   }
   for (const preset of DEFAULT_AGENT_PRESETS) {
     if (!out.agentPresets.some((p) => p.id === preset.id)) out.agentPresets.push(preset);

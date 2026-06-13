@@ -1,4 +1,3 @@
-const http = require("node:http");
 const os = require("node:os");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -8,6 +7,8 @@ const pty = require("node-pty");
 
 function buildTerminalEnv() {
   const env = { ...process.env };
+  delete env.TMUX;
+  delete env.TMUX_PANE;
   // LaunchServices (Finder launch) doesn't load shell init, so LANG/LC_* may be
   // unset or "C" — that makes tmux/zsh/etc transliterate Unicode glyphs to ASCII
   // (underscores). Force a UTF-8 locale so Nerd Font / Powerline / box-drawing
@@ -94,16 +95,12 @@ function ensureNodePtySpawnHelperExecutable() {
   }
 }
 
-function createTerminalServer() {
+function attachTerminalWSServer() {
   ensureNodePtySpawnHelperExecutable();
-  const server = http.createServer((_, res) => {
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true }));
-  });
-  const wss = new WebSocketServer({ server, path: "/terminal" });
+  const wss = new WebSocketServer({ noServer: true, path: "/api/terminal/ws" });
   const connectionCleanups = new Set();
 
-  server.closeTerminalConnections = () => {
+  function closeAllConnections() {
     for (const cleanup of Array.from(connectionCleanups)) cleanup();
     for (const client of wss.clients) {
       try {
@@ -113,7 +110,7 @@ function createTerminalServer() {
     try {
       wss.close();
     } catch {}
-  };
+  }
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
@@ -225,7 +222,13 @@ function createTerminalServer() {
     ws.on("close", cleanupConnection);
   });
 
-  return server;
+  function handleUpgrade(req, socket, head) {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  }
+
+  return { cleanup: closeAllConnections, handleUpgrade };
 }
 
-module.exports = { createTerminalServer };
+module.exports = { attachTerminalWSServer };

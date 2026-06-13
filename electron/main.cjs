@@ -3,11 +3,13 @@
  */
 const { app, BrowserWindow, shell, Menu, dialog, ipcMain } = require("electron");
 const { autoUpdater } = require("electron-updater");
+const { spawn } = require("node:child_process");
+const http = require("node:http");
 const path = require("node:path");
-const net = require("node:net");
 const { pathToFileURL } = require("node:url");
 const { homedir } = require("node:os");
 const { createWriteStream, mkdirSync } = require("node:fs");
+const { readConfig, writeConfig, hasSavedConfig } = require("./remote-config.cjs");
 
 const fractalLogDir = path.join(homedir(), ".fractal");
 mkdirSync(fractalLogDir, { recursive: true });
@@ -29,9 +31,9 @@ console.error = (...args) => {
 };
 
 let mainWindow = null;
-let serverPromise = null;
-let terminalServer = null;
-let terminalServerPromise = null;
+let mainServer = null;
+let serverCleanup = null;
+let serverStartPromise = null;
 let updateCheckInFlight = false;
 let updateDownloadInFlight = false;
 let updateStartupTimer = null;
@@ -211,68 +213,110 @@ function configureAutoUpdater() {
   updatePollTimer.unref?.();
 }
 
-async function findFreePort() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.unref();
-    srv.on("error", reject);
-    srv.listen(0, "127.0.0.1", () => {
-      const port = srv.address().port;
-      srv.close(() => resolve(port));
-    });
-  });
+function isLocalConnection(socket) {
+  const addr = socket.remoteAddress;
+  return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1";
 }
 
-async function startTerminalServer() {
-  if (terminalServerPromise) return terminalServerPromise;
-  ensureUserPath();
-  terminalServerPromise = (async () => {
-    const port = await findFreePort();
-    const { createTerminalServer } = require("./terminal-server.cjs");
-    const server = createTerminalServer();
-    terminalServer = server;
-    await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(port, "127.0.0.1", () => {
-        server.off("error", reject);
-        resolve();
-      });
-    });
-    console.log(`[fractal-terminal] server listening on 127.0.0.1:${port}`);
-    return port;
-  })();
-  return terminalServerPromise;
+function readRemoteAccessSettings() {
+  try {
+    const Database = require("better-sqlite3");
+    const dbPath = path.join(homedir(), ".fractal", "fractal.db");
+    const db = new Database(dbPath, { readonly: true });
+    const rows = db
+      .prepare(
+        "SELECT key, value FROM settings WHERE key IN ('remoteAccessEnabled', 'remoteAccessToken')",
+      )
+      .all();
+    db.close();
+    let enabled = false;
+    let token = "";
+    for (const row of rows) {
+      if (row.key === "remoteAccessEnabled") enabled = row.value === "true";
+      if (row.key === "remoteAccessToken") token = row.value;
+    }
+    return { enabled, token };
+  } catch {
+    return { enabled: true, token: "" };
+  }
 }
 
-async function startAstroServer() {
-  if (serverPromise) return serverPromise;
-  ensureUserPath();
-  serverPromise = (async () => {
-    const port = await findFreePort();
+function verifyTerminalToken(req, socket) {
+  if (isLocalConnection(socket)) return true;
+  const settings = readRemoteAccessSettings();
+  if (!settings.enabled) return false;
+  const url = new URL(req.url, "http://127.0.0.1");
+  const token = url.searchParams.get("token");
+  return Boolean(token && token === settings.token);
+}
+
+async function startUnifiedServer() {
+  if (serverStartPromise) return serverStartPromise;
+  serverStartPromise = (async () => {
+    ensureUserPath();
     const fractalHome = path.join(homedir(), ".fractal");
-    process.env.HOST = "127.0.0.1";
-    process.env.PORT = String(port);
     process.env.FRACTAL_HOME = fractalHome;
     process.env.FRACTAL_DB_PATH = path.join(fractalHome, "fractal.db");
     process.env.FRACTAL_BOOT = "1";
     console.log(`[fractal-boot] setting FRACTAL_HOME=${fractalHome}`);
     console.log(`[fractal-boot] setting FRACTAL_DB_PATH=${path.join(fractalHome, "fractal.db")}`);
 
-    // Astro Node standalone entry. When the app is asar'd, dist/ is inside
-    // the asar (read-only) — that's fine, the server only reads from there.
     const entry = path.join(__dirname, "..", "dist", "server", "entry.mjs");
     console.log(`[fractal-boot] importing server entry: ${entry}`);
-    await import(pathToFileURL(entry).href);
-    console.log(`[fractal-boot] server started successfully`);
-    return port;
+    process.env.ASTRO_NODE_AUTOSTART = "disabled";
+    const mod = await import(pathToFileURL(entry).href);
+    const handler = mod.handler;
+    if (typeof handler !== "function") {
+      throw new Error("Astro standalone entry did not export a handler function");
+    }
+
+    const server = http.createServer(handler);
+    const { attachTerminalWSServer } = require("./terminal-server.cjs");
+    const { cleanup: closeTerminal, handleUpgrade } = attachTerminalWSServer();
+
+    server.on("upgrade", (req, socket, head) => {
+      if (!verifyTerminalToken(req, socket)) {
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+      handleUpgrade(req, socket, head);
+    });
+
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+
+    const port = server.address().port;
+    process.env.PORT = String(port);
+    mainServer = server;
+    serverCleanup = closeTerminal;
+    console.log(`[fractal-server] listening on http://127.0.0.1:${port}`);
+    return { port, server, cleanup: closeTerminal };
   })();
-  return serverPromise;
+  return serverStartPromise;
 }
 
 async function createWindow() {
+  const config = readConfig();
+
+  if (config.mode === "remote") {
+    createRemoteWindow(config.remoteUrl);
+    return;
+  }
+
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  const terminalPort = await startTerminalServer();
-  const port = rendererUrl ? null : await startAstroServer();
+  let port;
+  if (!rendererUrl) {
+    const result = await startUnifiedServer();
+    port = result.port;
+  } else {
+    port = parseInt(new URL(rendererUrl).port, 10) || 7666;
+  }
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -289,7 +333,6 @@ async function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.cjs"),
-      additionalArguments: [`--fractal-terminal-port=${terminalPort}`],
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
@@ -299,33 +342,93 @@ async function createWindow() {
     }
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    const allowedPrefix = rendererUrl || `http://127.0.0.1:${port}`;
+    const allowedPrefix = `http://127.0.0.1:${port}`;
     if (url !== allowedPrefix && !url.startsWith(`${allowedPrefix}/`)) {
       event.preventDefault();
-      void shell.openExternal(url);
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     }
   });
-  await mainWindow.loadURL(rendererUrl || `http://127.0.0.1:${port}`);
+  await mainWindow.loadURL(`http://127.0.0.1:${port}`);
 }
 
-function closeTerminalServer() {
-  const server = terminalServer;
-  terminalServer = null;
-  terminalServerPromise = null;
-  if (!server) return;
-  try {
-    server.closeTerminalConnections?.();
-  } catch (error) {
-    console.error("[fractal-terminal] failed to close terminal connections", error);
+function createRemoteWindow(remoteUrl) {
+  if (!remoteUrl || !/^https?:\/\//.test(remoteUrl)) {
+    remoteUrl = "about:blank";
   }
-  try {
-    server.close();
-  } catch (error) {
-    console.error("[fractal-terminal] failed to close terminal server", error);
+  const targetUrl = remoteUrl;
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    minWidth: 880,
+    minHeight: 560,
+    backgroundColor: "#00000000",
+    transparent: true,
+    vibrancy: process.platform === "darwin" ? "under-window" : undefined,
+    visualEffectState: process.platform === "darwin" ? "active" : undefined,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload.cjs"),
+    },
+  });
+  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.on("closed", () => {
+    if (mainWindow?.isDestroyed()) {
+      mainWindow = null;
+    }
+  });
+  mainWindow.webContents.on("did-fail-load", (_event, _code, _desc, url) => {
+    if (url === targetUrl || url.startsWith(targetUrl)) {
+      const errorUrl = new URL(pathToFileURL(path.join(__dirname, "remote-error.html")).href);
+      errorUrl.searchParams.set("url", url);
+      void mainWindow.loadURL(errorUrl.href);
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  const allowedOrigin = new URL(targetUrl).origin;
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    let destOrigin;
+    try {
+      destOrigin = new URL(url).origin;
+    } catch {
+      destOrigin = "";
+    }
+    if (destOrigin !== allowedOrigin) {
+      event.preventDefault();
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+    }
+  });
+  void mainWindow.loadURL(targetUrl);
+}
+
+function closeMainServer() {
+  const server = mainServer;
+  mainServer = null;
+  const cleanup = serverCleanup;
+  serverCleanup = null;
+  if (cleanup) {
+    try {
+      cleanup();
+    } catch (error) {
+      console.error("[fractal-server] failed to close terminal connections", error);
+    }
+  }
+  if (server) {
+    try {
+      server.close();
+    } catch (error) {
+      console.error("[fractal-server] failed to close server", error);
+    }
   }
 }
 
@@ -388,18 +491,145 @@ ipcMain.handle("open-external", (_event, url) => {
   return true;
 });
 
+let startupWindow = null;
+
+function showStartupWindow() {
+  if (startupWindow) {
+    startupWindow.focus();
+    return;
+  }
+  startupWindow = new BrowserWindow({
+    width: 420,
+    height: 480,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    backgroundColor: "#0a0a0a",
+    titleBarStyle: "default",
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload-startup.cjs"),
+    },
+  });
+  startupWindow.once("ready-to-show", () => startupWindow?.show());
+  startupWindow.on("closed", () => {
+    if (startupWindow?.isDestroyed()) {
+      startupWindow = null;
+    }
+  });
+  void startupWindow.loadFile(path.join(__dirname, "mode-picker.html"));
+}
+
+function dismissStartupWindow() {
+  if (!startupWindow || startupWindow.isDestroyed()) return;
+  startupWindow.close();
+  startupWindow = null;
+}
+
+ipcMain.on("select-mode", (_event, payload) => {
+  if (!payload || typeof payload !== "object") return;
+  const mode = payload.mode;
+  if (mode !== "host" && mode !== "remote") return;
+  const remoteUrl =
+    mode === "remote" &&
+    typeof payload.remoteUrl === "string" &&
+    /^https:\/\//.test(payload.remoteUrl)
+      ? payload.remoteUrl
+      : "";
+  if (mode === "remote" && !remoteUrl) return;
+  writeConfig({ mode, remoteUrl });
+  dismissStartupWindow();
+  void createWindow();
+});
+
+ipcMain.handle("set-mode", (_event, mode, remoteUrl) => {
+  if (mode !== "host" && mode !== "remote") return readConfig();
+  const safeUrl =
+    mode === "remote" && typeof remoteUrl === "string" && /^https:\/\//.test(remoteUrl)
+      ? remoteUrl
+      : "";
+  if (mode === "remote" && !safeUrl) return readConfig();
+  writeConfig({ mode, remoteUrl: safeUrl });
+  const config = readConfig();
+  setImmediate(() => {
+    app.relaunch();
+    app.quit();
+  });
+  return config;
+});
+
+ipcMain.handle("get-config", () => {
+  return readConfig();
+});
+
+let keepAwakeProcess = null;
+
+function startKeepAwake() {
+  if (keepAwakeProcess) return;
+  if (process.platform !== "darwin") return;
+  try {
+    keepAwakeProcess = spawn("caffeinate", ["-i", "-s"], {
+      stdio: "ignore",
+      detached: false,
+    });
+    keepAwakeProcess.unref?.();
+    console.log("[fractal-keepawake] started caffeinate -is");
+  } catch (error) {
+    console.error("[fractal-keepawake] failed to start caffeinate:", error);
+  }
+}
+
+function stopKeepAwake() {
+  if (!keepAwakeProcess) return;
+  try {
+    keepAwakeProcess.kill();
+  } catch {}
+  keepAwakeProcess = null;
+  console.log("[fractal-keepawake] stopped caffeinate");
+}
+
+ipcMain.handle("set-keep-awake", (_event, enabled) => {
+  writeConfig({ keepAwakeEnabled: enabled });
+  if (enabled) {
+    startKeepAwake();
+  } else {
+    stopKeepAwake();
+  }
+  return readConfig();
+});
+
 app.whenReady().then(() => {
   buildMenu();
   configureAutoUpdater();
-  void createWindow();
+
+  const config = readConfig();
+  if (config.keepAwakeEnabled) startKeepAwake();
+
+  if (hasSavedConfig()) {
+    void createWindow();
+  } else {
+    showStartupWindow();
+  }
+
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (hasSavedConfig()) {
+        void createWindow();
+      } else {
+        showStartupWindow();
+      }
+    }
   });
 });
 
 app.on("before-quit", () => {
   clearUpdateTimers();
-  closeTerminalServer();
+  stopKeepAwake();
+  closeMainServer();
 });
 
 app.on("window-all-closed", () => {

@@ -9,8 +9,24 @@ export class ApiError extends Error {
   }
 }
 
+export function remoteToken(): string | null {
+  try {
+    return localStorage.getItem("fractal:remoteToken");
+  } catch {
+    return null;
+  }
+}
+
 export async function api<T = unknown>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const token = remoteToken();
+  if (token) headers.authorization = `Bearer ${token}`;
+  if (init?.headers) {
+    for (const [key, value] of Object.entries(init.headers)) {
+      headers[key.toLowerCase()] = String(value);
+    }
+  }
+  const res = await fetch(url, { ...init, headers });
   const text = await res.text();
   const json = text ? JSON.parse(text) : {};
   if (!res.ok) {

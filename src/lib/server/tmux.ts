@@ -14,6 +14,13 @@ function rethrowMissingTmux(error: unknown): never {
   throw error;
 }
 
+function tmuxEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.TMUX;
+  delete env.TMUX_PANE;
+  return env;
+}
+
 /** tmux session names cannot contain `.` or `:`. */
 export function sanitizeSessionName(name: string): string {
   return name
@@ -24,7 +31,7 @@ export function sanitizeSessionName(name: string): string {
 
 export async function hasSession(name: string): Promise<boolean> {
   try {
-    await exec("tmux", ["has-session", "-t", name]);
+    await exec("tmux", ["has-session", "-t", name], { env: tmuxEnv() });
     return true;
   } catch (e) {
     if (e instanceof ExecError) return false;
@@ -34,7 +41,9 @@ export async function hasSession(name: string): Promise<boolean> {
 
 export async function listSessions(): Promise<string[]> {
   try {
-    const { stdout } = await exec("tmux", ["list-sessions", "-F", "#{session_name}"]);
+    const { stdout } = await exec("tmux", ["list-sessions", "-F", "#{session_name}"], {
+      env: tmuxEnv(),
+    });
     return stdout
       .split("\n")
       .map((s) => s.trim())
@@ -48,7 +57,7 @@ export async function listSessions(): Promise<string[]> {
 export async function killSession(name: string): Promise<void> {
   try {
     if (await hasSession(name)) {
-      await exec("tmux", ["kill-session", "-t", name]);
+      await exec("tmux", ["kill-session", "-t", name], { env: tmuxEnv() });
     }
   } catch (e) {
     if (e instanceof ExecError) return; // Session already gone
@@ -58,7 +67,7 @@ export async function killSession(name: string): Promise<void> {
 
 export async function newSession(name: string, cwd: string): Promise<void> {
   try {
-    await exec("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
+    await exec("tmux", ["new-session", "-d", "-s", name, "-c", cwd], { env: tmuxEnv() });
   } catch (e) {
     rethrowMissingTmux(e);
   }
@@ -70,8 +79,9 @@ export async function ensureSession(name: string, cwd: string): Promise<void> {
 
 export async function sendKeys(name: string, command: string): Promise<void> {
   try {
-    await exec("tmux", ["send-keys", "-l", "-t", name, command]);
-    await exec("tmux", ["send-keys", "-t", name, "Enter"]);
+    const env = tmuxEnv();
+    await exec("tmux", ["send-keys", "-l", "-t", name, command], { env });
+    await exec("tmux", ["send-keys", "-t", name, "Enter"], { env });
   } catch (e) {
     rethrowMissingTmux(e);
   }

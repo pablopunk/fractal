@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  Monitor,
   Plus,
   RefreshCw,
   SquareTerminal,
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "~/lib/client/api.js";
+import { api, remoteToken } from "~/lib/client/api.js";
 import { snapSidebarWidth } from "~/lib/client/persistence.js";
 import { terminalTabIcon } from "~/lib/client/terminal-tab-icon.js";
 import type {
@@ -100,6 +101,7 @@ export function Sidebar(props: {
   onSelectAgent: () => void;
   onRemove: (id: string) => void;
   onAdd: (path: string) => void;
+  onOpenSettings: () => void;
   showPicker: boolean;
   setShowPicker: (v: boolean) => void;
   home: string;
@@ -199,6 +201,14 @@ export function Sidebar(props: {
             >
               <Plus size={16} aria-hidden="true" />
             </button>
+            <button
+              className="btn block icon-only"
+              onClick={props.onOpenSettings}
+              aria-label="App settings"
+              title="App settings"
+            >
+              <Monitor size={14} aria-hidden="true" />
+            </button>
             {props.showPicker && (
               <Portal>
                 <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
@@ -239,9 +249,15 @@ export function Sidebar(props: {
             </button>
           </div>
         ) : (
-          <button className="btn block" onClick={() => props.setShowPicker(true)}>
-            + Add project
-          </button>
+          <>
+            <button className="btn block" onClick={() => props.setShowPicker(true)}>
+              + Add project
+            </button>
+            <button className="btn block" style={{ marginTop: 4 }} onClick={props.onOpenSettings}>
+              <Monitor size={14} aria-hidden="true" style={{ marginRight: 6 }} />
+              Settings
+            </button>
+          </>
         )}
       </div>
       <div
@@ -435,7 +451,14 @@ function ProjectIcon({
     try {
       const form = new FormData();
       form.set("icon", file);
-      const res = await fetch(`/api/projects/${id}`, { method: "PATCH", body: form });
+      const headers: Record<string, string> = {};
+      const token = remoteToken();
+      if (token) headers.authorization = `Bearer ${token}`;
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        headers,
+        body: form,
+      });
       if (!res.ok) throw new Error(await res.text());
       setStatus("loading");
       setVersion((v) => v + 1);
