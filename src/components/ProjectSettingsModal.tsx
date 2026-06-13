@@ -78,6 +78,7 @@ export default function ProjectSettingsModal(props: {
               <label className="project-settings-toggle">
                 <input
                   type="checkbox"
+                  className="fractal-checkbox"
                   checked={showLinearIssues}
                   onChange={(e) => setShowLinearIssues(e.target.checked)}
                 />

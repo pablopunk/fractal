@@ -115,6 +115,7 @@ export default function AppSettingsModal(props: {
                 <label className="theme-check-row">
                   <input
                     type="checkbox"
+                    className="fractal-checkbox"
                     checked={props.glass.enabled}
                     onChange={(e) =>
                       props.onGlassChange({ ...props.glass, enabled: e.currentTarget.checked })

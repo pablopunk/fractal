@@ -53,7 +53,7 @@ export function KeepAwakeToggle() {
         Prevent your Mac from sleeping while Fractal is running.
       </p>
       <label className="project-settings-toggle">
-        <input type="checkbox" checked={enabled} onChange={toggle} />
+        <input type="checkbox" className="fractal-checkbox" checked={enabled} onChange={toggle} />
         <span>Keep Mac awake</span>
       </label>
     </div>

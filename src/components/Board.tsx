@@ -1460,7 +1460,6 @@ export default function Board() {
           onSelectAgent={() => setActiveView({ kind: "agent" })}
           onRemove={removeProject}
           onAdd={addProject}
-          onOpenSettings={() => setAppSettingsOpen(true)}
           showPicker={showSidebarPicker}
           setShowPicker={setShowSidebarPicker}
           home={home}
