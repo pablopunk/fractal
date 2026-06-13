@@ -9,7 +9,7 @@ export function terminalTabTitle(
   session: string,
   project?: { name: string; path: string } | null,
 ): string {
-  const title = session.replace(/^(fractal|fx)-/, "");
+  const title = session.replace(/^fractal-/, "");
   const prefixCandidates = project
     ? [project.name, project.path.split("/").filter(Boolean).at(-1) ?? ""]
     : [];

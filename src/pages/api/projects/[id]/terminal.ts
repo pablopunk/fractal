@@ -10,7 +10,7 @@ export const POST: APIRoute = async ({ params }) => {
   if (!project) return Response.json({ error: "not found" }, { status: 404 });
 
   try {
-    const session = `fx-${sanitizeSessionName(project.name)}`;
+    const session = sanitizeSessionName(project.name);
     await ensureSession(session, project.path);
     return Response.json({ session, title: project.name });
   } catch (e) {
