@@ -51,10 +51,6 @@ import Tooltip from "./Tooltip.js";
 function AgentSidebarEntry(props: {
   active: boolean;
   onClick: () => void;
-  tabs: DecoratedTerminalTab[];
-  activeTabId: string | null;
-  onSelectTab: (projectId: string, tabId: string) => void;
-  collapsed: boolean;
 }) {
   return (
     <div className="agent-sidebar-entry">
@@ -70,15 +66,6 @@ function AgentSidebarEntry(props: {
         </span>
         <span className="name">Fractal Agent</span>
       </button>
-      {!props.collapsed && props.tabs.length > 0 && (
-        <ProjectTabList
-          projectId="__agent__"
-          tabs={props.tabs}
-          activeTabId={props.activeTabId}
-          onSelect={props.onSelectTab}
-          onReorder={() => {}}
-        />
-      )}
     </div>
   );
 }
@@ -102,7 +89,6 @@ export function Sidebar(props: {
   activeTabId: string | null;
   onSelectTab: (projectId: string, tabId: string) => void;
   onReorderTabs: (fromId: string, toId: string) => void;
-  agentTabs: DecoratedTerminalTab[];
 }) {
   const projectSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -227,10 +213,6 @@ export function Sidebar(props: {
       <AgentSidebarEntry
         active={props.activeView.kind === "agent"}
         onClick={props.onSelectAgent}
-        tabs={props.agentTabs}
-        activeTabId={props.activeTabId}
-        onSelectTab={props.onSelectTab}
-        collapsed={props.collapsed}
       />
       <div
         className="sidebar-resize-handle"

@@ -1481,7 +1481,6 @@ export default function Board() {
           activeTabId={activeTerminalId}
           onSelectTab={selectProjectTab}
           onReorderTabs={reorderTerminal}
-          agentTabs={agentTabs}
           onReorder={async (ids) => {
             const ordered = ids
               .map((id) => projects.find((p) => p.id === id))
