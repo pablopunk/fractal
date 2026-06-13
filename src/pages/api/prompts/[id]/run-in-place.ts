@@ -1,21 +1,11 @@
 import type { APIRoute } from "astro";
+import { classifyError } from "~/lib/server/api-errors.js";
 import { withPromptStatus } from "~/lib/server/prompt-status.js";
 import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/store.js";
-import { hasSession, isMissingTmuxError, TMUX_MISSING_MESSAGE } from "~/lib/server/tmux.js";
+import { hasSession } from "~/lib/server/tmux.js";
 import { launchInPlace } from "~/lib/server/worktree.js";
 
 export const prerender = false;
-
-function classifyError(e: unknown): { status: number; error: string; retryable?: boolean } {
-  if (e instanceof Error && e.message.includes("SQLITE_BUSY")) {
-    return { status: 503, error: "database is locked", retryable: true };
-  }
-  if (isMissingTmuxError(e)) {
-    return { status: 500, error: TMUX_MISSING_MESSAGE };
-  }
-  const msg = e instanceof Error ? e.message : String(e);
-  return { status: 500, error: msg };
-}
 
 export const POST: APIRoute = async ({ params }) => {
   const id = params.id;

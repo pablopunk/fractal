@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import type { APIRoute } from "astro";
+import { classifyError } from "~/lib/server/api-errors.js";
 import type { Prompt } from "~/lib/server/db/schema.js";
 import {
   createPullRequest,
@@ -12,20 +13,9 @@ import {
 } from "~/lib/server/git.js";
 import { withPromptStatus } from "~/lib/server/prompt-status.js";
 import { getProject, getPrompt, updatePrompt } from "~/lib/server/store.js";
-import { isMissingTmuxError, killSession, TMUX_MISSING_MESSAGE } from "~/lib/server/tmux.js";
+import { killSession } from "~/lib/server/tmux.js";
 
 export const prerender = false;
-
-function classifyError(e: unknown): { status: number; error: string; retryable?: boolean } {
-  if (e instanceof Error && e.message.includes("SQLITE_BUSY")) {
-    return { status: 503, error: "database is locked", retryable: true };
-  }
-  if (isMissingTmuxError(e)) {
-    return { status: 500, error: TMUX_MISSING_MESSAGE };
-  }
-  const msg = e instanceof Error ? e.message : String(e);
-  return { status: 500, error: msg };
-}
 
 async function buildWorktreeStatus(projectPath: string, branch: string, worktreePath: string) {
   const [hasUncommitted, merged, hasPr, changes] = await Promise.all([
