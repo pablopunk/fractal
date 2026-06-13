@@ -19,7 +19,6 @@ import {
   GitBranch,
   Hash,
   Play,
-  Plus,
   Settings,
   SquareTerminal,
 } from "lucide-react";
@@ -1504,19 +1503,31 @@ export default function Board() {
                   </span>
                 </div>
                 <div className="topbar-spacer" />
-                <button
-                  type="button"
-                  className="btn sm"
-                  onClick={openAgentTerminal}
-                  disabled={isOpeningAgentTerminal}
-                >
-                  {isOpeningAgentTerminal ? (
-                    <span className="btn-spinner" aria-hidden="true" />
-                  ) : (
-                    <Plus size={14} />
-                  )}
-                  <span>{isOpeningAgentTerminal ? "Opening…" : "New tab"}</span>
-                </button>
+                <PresetSettings
+                  presets={settings.agentPresets}
+                  defaultPresetId={settings.defaultPresetId}
+                  helperPresetId={settings.helperPresetId}
+                  globalAgentPresetId={settings.globalAgentPresetId}
+                  onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
+                  onSetHelper={(id) => void saveSettings({ helperPresetId: id })}
+                  onSetGlobalAgent={(id) => void saveSettings({ globalAgentPresetId: id })}
+                  piModels={models}
+                  claudeModels={claudeModels}
+                  opencodeModels={opencodeModels}
+                  onChange={(agentPresets) => void saveSettings({ agentPresets })}
+                  open={presetSettingsOpen}
+                  onOpenChange={setPresetSettingsOpen}
+                />
+                <Tooltip content="Settings">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => setAppSettingsOpen(true)}
+                    aria-label="App settings"
+                  >
+                    <Settings size={15} />
+                  </button>
+                </Tooltip>
               </div>
               <div
                 className={`workspace workspace-${agentTabs.length > 0 ? terminalPosition : "right"}`}
