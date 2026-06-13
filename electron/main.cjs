@@ -300,88 +300,6 @@ async function startUnifiedServer() {
   return serverStartPromise;
 }
 
-async function startDevProxy(astroDevPort) {
-  if (serverStartPromise) return serverStartPromise;
-  serverStartPromise = (async () => {
-    const astroOrigin = `http://127.0.0.1:${astroDevPort}`;
-
-    const server = http.createServer((clientReq, clientRes) => {
-      const proxyReq = http.request(
-        {
-          hostname: "127.0.0.1",
-          port: astroDevPort,
-          path: clientReq.url,
-          method: clientReq.method,
-          headers: clientReq.headers,
-        },
-        (proxyRes) => {
-          clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
-          proxyRes.pipe(clientRes);
-        },
-      );
-      proxyReq.on("error", () => {
-        if (!clientRes.headersSent) {
-          clientRes.writeHead(502);
-          clientRes.end("Dev proxy error");
-        }
-      });
-      clientReq.pipe(proxyReq);
-    });
-
-    const { attachTerminalWSServer } = require("./terminal-server.cjs");
-    const { cleanup: closeTerminal, handleUpgrade } = attachTerminalWSServer();
-
-    server.on("upgrade", (req, socket, head) => {
-      const url = new URL(req.url, astroOrigin);
-      if (url.pathname === "/api/terminal/ws") {
-        if (!verifyTerminalToken(req, socket)) {
-          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-          socket.destroy();
-          return;
-        }
-        handleUpgrade(req, socket, head);
-        return;
-      }
-
-      const proxyReq = http.request({
-        hostname: "127.0.0.1",
-        port: astroDevPort,
-        path: req.url,
-        method: req.method,
-        headers: req.headers,
-      });
-      proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
-        const headers = [
-          `HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}`,
-          ...Object.entries(proxyRes.headers).map(([k, v]) => `${k}: ${v}`),
-          "",
-          "",
-        ].join("\r\n");
-        socket.write(headers);
-        if (proxyHead.length) socket.write(proxyHead);
-        proxySocket.pipe(socket);
-        socket.pipe(proxySocket);
-      });
-      proxyReq.on("error", () => socket.destroy());
-      proxyReq.end(head);
-    });
-
-    const port = await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", () => {
-        server.off("error", reject);
-        resolve(server.address().port);
-      });
-    });
-
-    mainServer = server;
-    serverCleanup = closeTerminal;
-    console.log(`[fractal-dev-proxy] listening on http://127.0.0.1:${port} -> ${astroOrigin}`);
-    return { port, server, cleanup: closeTerminal };
-  })();
-  return serverStartPromise;
-}
-
 async function createWindow() {
   const config = readConfig();
 
@@ -392,14 +310,11 @@ async function createWindow() {
 
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   let port;
-  if (rendererUrl) {
-    const devUrl = new URL(rendererUrl);
-    const devPort = parseInt(devUrl.port, 10) || 7666;
-    const result = await startDevProxy(devPort);
-    port = result.port;
-  } else {
+  if (!rendererUrl) {
     const result = await startUnifiedServer();
     port = result.port;
+  } else {
+    port = parseInt(new URL(rendererUrl).port, 10) || 7666;
   }
   mainWindow = new BrowserWindow({
     width: 1280,
