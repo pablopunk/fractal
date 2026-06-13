@@ -339,6 +339,29 @@ a { color: inherit; }
 .project-icon-drop.saving { opacity: 0.7; cursor: wait; }
 .project-icon-drop input { display: none; }
 .project-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.add-project-item {
+  width: 100%;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text-faint);
+}
+.add-project-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  color: inherit;
+  flex: none;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.add-project-item:hover .add-project-icon {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .project-shortcut {
   flex: none;
   color: var(--text-faint);
@@ -482,13 +505,13 @@ a { color: inherit; }
 /* ---------- Agent sidebar ---------- */
 
 .agent-sidebar-entry {
-  padding: 0 8px 8px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 6px;
+  padding: 8px 8px 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
 }
 
 .sidebar.collapsed .agent-sidebar-entry {
-  padding: 12px 8px 4px;
+  padding: 8px;
   display: flex;
   justify-content: center;
 }
@@ -505,8 +528,46 @@ a { color: inherit; }
   gap: 0;
 }
 
-.agent-sidebar-entry .agent-icon {
-  color: var(--accent);
+.agent-item {
+  width: 100%;
+  background: transparent;
+  justify-content: center;
+  font: inherit;
+}
+.agent-item .name {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-weight: 600;
+}
+.sidebar .agent-item:hover {
+  background: var(--accent-soft) !important;
+  border-color: color-mix(in oklab, var(--accent) 30%, transparent) !important;
+}
+.sidebar .agent-item.active {
+  background: var(--accent-soft) !important;
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent) !important;
+}
+.agent-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex: none;
+  color: var(--accent-contrast, #fff);
+  background: var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.agent-item:hover .agent-badge {
+  transform: translateY(-1px);
+}
+.agent-item.active .agent-badge {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 2px var(--state-active-border),
+    0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* ---------- Main ---------- */

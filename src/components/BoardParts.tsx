@@ -20,6 +20,7 @@ import {
   Info,
   Plus,
   RefreshCw,
+  Sparkles,
   SquareTerminal,
   Trash2,
 } from "lucide-react";
@@ -59,17 +60,14 @@ function AgentSidebarEntry(props: {
     <div className="agent-sidebar-entry">
       <button
         type="button"
-        className={`project-item ${props.active ? "active" : ""}`}
+        className={`project-item agent-item ${props.active ? "active" : ""}`}
         onClick={props.onClick}
         aria-label="Fractal Agent"
         title="Fractal Agent"
       >
-        <img
-          className={`project-icon loaded agent-icon ${props.active ? "active" : ""}`}
-          src="/icon-192.png"
-          alt=""
-          aria-hidden="true"
-        />
+        <span className="agent-badge" aria-hidden="true">
+          <Sparkles size={14} strokeWidth={2.4} />
+        </span>
         <span className="name">Fractal Agent</span>
       </button>
       {!props.collapsed && props.tabs.length > 0 && (
@@ -131,14 +129,6 @@ export function Sidebar(props: {
         <span className="brand-dot" />
         <span className="sidebar-brand">Fractal</span>
       </div>
-      <AgentSidebarEntry
-        active={props.activeView.kind === "agent"}
-        onClick={props.onSelectAgent}
-        tabs={props.agentTabs}
-        activeTabId={props.activeTabId}
-        onSelectTab={props.onSelectTab}
-        collapsed={props.collapsed}
-      />
       <div className="sidebar-section">Projects</div>
       <div className="project-list">
         {props.projects.length === 0 && (
@@ -180,42 +170,44 @@ export function Sidebar(props: {
             ))}
           </SortableContext>
         </DndContext>
+        {!props.showPicker && (
+          <button
+            type="button"
+            className="project-item add-project-item"
+            onClick={() => props.setShowPicker(true)}
+            aria-label="Add project"
+            title="Add project"
+          >
+            <span className="add-project-icon" aria-hidden="true">
+              <Plus size={16} />
+            </span>
+            <span className="name">Add project</span>
+          </button>
+        )}
       </div>
-      <div className="sidebar-foot">
-        {props.collapsed ? (
-          <>
-            <button
-              className="btn block icon-only"
-              onClick={() => props.setShowPicker(true)}
-              aria-label="Add project"
-              title="Add project"
-            >
-              <Plus size={16} aria-hidden="true" />
-            </button>
-            {props.showPicker && (
-              <Portal>
-                <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
-                  <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
-                    <ProjectPicker
-                      recentProjects={props.projects}
-                      onSelect={props.onAdd}
-                      autoFocus
-                      placeholder="search projects or paste a path…"
-                    />
-                    <button
-                      className="btn ghost block sm"
-                      style={{ marginTop: 6 }}
-                      onClick={() => props.setShowPicker(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </Portal>
-            )}
-          </>
-        ) : props.showPicker ? (
-          <div>
+      {props.showPicker &&
+        (props.collapsed ? (
+          <Portal>
+            <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
+              <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
+                <ProjectPicker
+                  recentProjects={props.projects}
+                  onSelect={props.onAdd}
+                  autoFocus
+                  placeholder="search projects or paste a path…"
+                />
+                <button
+                  className="btn ghost block sm"
+                  style={{ marginTop: 6 }}
+                  onClick={() => props.setShowPicker(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </Portal>
+        ) : (
+          <div className="sidebar-foot">
             <ProjectPicker
               recentProjects={props.projects}
               onSelect={props.onAdd}
@@ -231,14 +223,15 @@ export function Sidebar(props: {
               Cancel
             </button>
           </div>
-        ) : (
-          <>
-            <button className="btn block" onClick={() => props.setShowPicker(true)}>
-              + Add project
-            </button>
-          </>
-        )}
-      </div>
+        ))}
+      <AgentSidebarEntry
+        active={props.activeView.kind === "agent"}
+        onClick={props.onSelectAgent}
+        tabs={props.agentTabs}
+        activeTabId={props.activeTabId}
+        onSelectTab={props.onSelectTab}
+        collapsed={props.collapsed}
+      />
       <div
         className="sidebar-resize-handle"
         onPointerDown={startResize}
