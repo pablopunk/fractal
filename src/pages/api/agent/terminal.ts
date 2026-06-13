@@ -105,7 +105,7 @@ You can:
 * Change settings and presets.
 * Run health/maintenance tasks.
 
-**Read state first. Then act through the API. Do not guess.
+**Read state first. Then act through the API. Do not guess.**
 
 ## Fractal Concepts
 
@@ -326,10 +326,12 @@ Mark a prompt as done (sets \`isArchived: true\`) and kill its tmux
 session. For prompts launched in a **worktree**, additional rules apply:
 
 * If the worktree has **uncommitted changes**, plain archiving is
-  blocked with a 409. You must choose an explicit \`action\`:
-  \`"create-pr"\`, \`"merge-main"\`, or \`"discard"\`.
+  blocked with a 409. \`"create-pr"\` and \`"merge-main"\` are also
+  blocked until the worktree is clean. Use \`"discard"\` only when the
+  user explicitly wants to throw away the worktree.
 * If the branch has **no PR and is not merged** into the default
-  branch, plain archiving is also blocked (409).
+  branch, plain archiving is also blocked (409). With a clean worktree,
+  use \`"create-pr"\` to open a PR or \`"merge-main"\` to merge directly.
 * Prompts launched **in-place** (no worktree) can be archived
   directly with no action.
 
@@ -337,17 +339,17 @@ session. For prompts launched in a **worktree**, additional rules apply:
 # Simple archive (tmux session killed, prompt marked done)
 curl -sX POST http://127.0.0.1:$PORT/api/prompts/<id>/archive
 
-# Archive with a PR
+# Clean worktree: create a PR, then archive
 curl -sX POST http://127.0.0.1:$PORT/api/prompts/<id>/archive \\
   -H 'Content-Type: application/json' \\
   -d '{"action":"create-pr"}'
 
-# Archive and merge to main
+# Clean worktree: merge to main, then archive
 curl -sX POST http://127.0.0.1:$PORT/api/prompts/<id>/archive \\
   -H 'Content-Type: application/json' \\
   -d '{"action":"merge-main"}'
 
-# Force-discard worktree
+# Dirty or unwanted worktree: force-discard it, then archive
 curl -sX POST http://127.0.0.1:$PORT/api/prompts/<id>/archive \\
   -H 'Content-Type: application/json' \\
   -d '{"action":"discard"}'
@@ -476,9 +478,10 @@ RUNNING=$(echo "$STATE" | jq '.prompts[] | select(.isRunning == true)')
 SESSION=$(echo "$RUNNING" | jq -r '.tmuxSession')
 
 # Read the last 200 lines
-curl -sX POST http://127.0.0.1:$PORT/api/agent/tmux/capture \\
-  -H 'Content-Type: application/json' \\
-  -d "{"session":"$SESSION","lines":200}" | jq -r '.content'
+jq -n --arg session "$SESSION" '{session:$session,lines:200}' |
+  curl -sX POST http://127.0.0.1:$PORT/api/agent/tmux/capture \\
+    -H 'Content-Type: application/json' \\
+    -d @- | jq -r '.content'
 \`\`\`
 
 ### 3. Clean up stale work
@@ -667,10 +670,7 @@ export const POST: APIRoute = async () => {
       settings.agentPresets[0];
     if (!preset) throw new Error("No Fractal Agent preset configured");
 
-    // Spawn the agent CLI with the prompt template or default prompt
-    const agentPrompt =
-      preset.promptTemplate?.trim() ||
-      "You are the Fractal global agent. Read AGENTS.md for your instructions.";
+    const agentPrompt = "You are the Fractal global agent. Read AGENTS.md for your instructions.";
     const command = renderAgentCommand(preset, agentPrompt);
     await spawnCommand(session, command);
 
