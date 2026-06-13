@@ -55,37 +55,30 @@ function AgentSidebarEntry(props: {
   onSelectTab: (projectId: string, tabId: string) => void;
   collapsed: boolean;
 }) {
-  if (props.collapsed) {
-    return (
-      <button
-        type="button"
-        className={`btn block icon-only sidebar-agent-btn ${props.active ? "active" : ""}`}
-        onClick={props.onClick}
-        aria-label="Fractal Agent"
-        title="Fractal Agent"
-      >
-        <span className="agent-dot" />
-      </button>
-    );
-  }
-
   return (
     <div className="agent-sidebar-entry">
       <button
         type="button"
         className={`project-item ${props.active ? "active" : ""}`}
         onClick={props.onClick}
+        aria-label="Fractal Agent"
+        title="Fractal Agent"
       >
-        <span className="project-icon agent-icon" aria-hidden="true" />
-        <span className="project-name">Fractal Agent</span>
+        <img
+          className={`project-icon loaded agent-icon ${props.active ? "active" : ""}`}
+          src="/icon-192.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <span className="name">Fractal Agent</span>
       </button>
-      {props.tabs.length > 0 && (
+      {!props.collapsed && props.tabs.length > 0 && (
         <ProjectTabList
           projectId="__agent__"
           tabs={props.tabs}
           activeTabId={props.activeTabId}
           onSelect={props.onSelectTab}
-          onReorder={() => {}} // agent tabs are not reorderable in v1
+          onReorder={() => {}}
         />
       )}
     </div>

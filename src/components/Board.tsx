@@ -896,6 +896,17 @@ export default function Board() {
     }
   }
 
+  function selectAgent() {
+    setActiveView({ kind: "agent" });
+    if (agentTabs.length === 0) {
+      void openAgentTerminal();
+      return;
+    }
+    if (!activeTerminalId || !agentTabs.some((tab) => tab.id === activeTerminalId)) {
+      activateTerminal(agentTabs[0].id);
+    }
+  }
+
   async function openAgentTerminal() {
     if (isOpeningAgentTerminal) return;
     setIsOpeningAgentTerminal(true);
@@ -1457,7 +1468,7 @@ export default function Board() {
           activeId={activeProjectId}
           activeView={activeView}
           onSelect={selectProject}
-          onSelectAgent={() => setActiveView({ kind: "agent" })}
+          onSelectAgent={selectAgent}
           onRemove={removeProject}
           onAdd={addProject}
           showPicker={showSidebarPicker}
