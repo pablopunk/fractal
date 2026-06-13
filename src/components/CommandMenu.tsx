@@ -12,6 +12,9 @@ type Props = {
   tabs: TerminalTab[];
   home: string;
   commandRecents: CommandRecent[];
+  isAgentView: boolean;
+  forceOpen?: boolean;
+  onForceOpenChange?: (open: boolean) => void;
   onSelectProject: (project: Project) => void;
   onOpenPromptTerminal: (prompt: Prompt) => void;
   onRunPrompt: (prompt: Prompt, target: "RUN_IN_PLACE" | "RUN_IN_WORKTREE") => void;
@@ -30,24 +33,40 @@ type ActionItemProps = {
 };
 
 export default function CommandMenu(props: Props) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [runPrompt, setRunPrompt] = useState<Prompt | null>(null);
+
+  const open = props.forceOpen !== undefined ? props.forceOpen : internalOpen;
+
+  function setOpen(value: boolean) {
+    setInternalOpen(value);
+    props.onForceOpenChange?.(value);
+  }
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setOpen((value) => !value);
+        const next = !open;
+        if (props.forceOpen !== undefined) {
+          props.onForceOpenChange?.(next);
+        } else {
+          setInternalOpen(next);
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [open, props.forceOpen, props.onForceOpenChange]);
 
   function run(action: () => void) {
     action();
     setRunPrompt(null);
-    setOpen(false);
+    if (props.forceOpen !== undefined) {
+      props.onForceOpenChange?.(false);
+    } else {
+      setInternalOpen(false);
+    }
   }
 
   function copySession(value: string) {
@@ -75,7 +94,12 @@ export default function CommandMenu(props: Props) {
       <Command.List className="cmdk-list">
         <Command.Empty className="cmdk-empty">No results found.</Command.Empty>
         {runPrompt ? (
-          <RunPromptChoices prompt={runPrompt} run={run} onRunPrompt={props.onRunPrompt} />
+          <RunPromptChoices
+            prompt={runPrompt}
+            run={run}
+            onRunPrompt={props.onRunPrompt}
+            isAgentView={props.isAgentView}
+          />
         ) : (
           <MenuItems
             {...props}
@@ -289,6 +313,7 @@ function RunPromptChoices(props: {
   prompt: Prompt;
   run: (action: () => void) => void;
   onRunPrompt: Props["onRunPrompt"];
+  isAgentView: boolean;
 }) {
   const title = promptTitle(props.prompt);
   return (
@@ -300,13 +325,15 @@ function RunPromptChoices(props: {
         value="run in place"
         onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_PLACE"))}
       />
-      <ActionItem
-        icon={FolderKanban}
-        title="Run in worktree"
-        subtitle={title}
-        value="run in worktree"
-        onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_WORKTREE"))}
-      />
+      {!props.isAgentView && (
+        <ActionItem
+          icon={FolderKanban}
+          title="Run in worktree"
+          subtitle={title}
+          value="run in worktree"
+          onSelect={() => props.run(() => props.onRunPrompt(props.prompt, "RUN_IN_WORKTREE"))}
+        />
+      )}
     </>
   );
 }

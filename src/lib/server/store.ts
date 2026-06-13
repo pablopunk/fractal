@@ -13,6 +13,7 @@ export type AppSettings = {
   defaultPresetId: string;
   helperPresetId: string;
   lastProjectId: string;
+  globalAgentPresetId: string;
   remoteAccessEnabled: boolean;
   remoteAccessToken: string;
   keepAwakeEnabled: boolean;
@@ -50,6 +51,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultPresetId: "pi",
   helperPresetId: "",
   lastProjectId: "",
+  globalAgentPresetId: "pi",
   remoteAccessEnabled: false,
   remoteAccessToken: "",
   keepAwakeEnabled: false,
@@ -224,10 +226,11 @@ export function getSettings(): AppSettings {
       out.helperPresetId = row.value;
       hasStoredHelperPresetId = true;
     }
-    if (row.key === "lastProjectId") out.lastProjectId = row.value;
+    if (row.key === "globalAgentPresetId") out.globalAgentPresetId = row.value;
     if (row.key === "remoteAccessToken") out.remoteAccessToken = row.value;
     if (row.key === "remoteAccessEnabled") out.remoteAccessEnabled = row.value === "true";
     if (row.key === "keepAwakeEnabled") out.keepAwakeEnabled = row.value === "true";
+    if (row.key === "lastProjectId") out.lastProjectId = row.value;
   }
   for (const preset of DEFAULT_AGENT_PRESETS) {
     if (!out.agentPresets.some((p) => p.id === preset.id)) out.agentPresets.push(preset);
@@ -235,6 +238,11 @@ export function getSettings(): AppSettings {
   if (!hasStoredHelperPresetId) out.helperPresetId = defaultHelperPresetId(out.agentPresets);
   if (out.helperPresetId && !out.agentPresets.some((p) => p.id === out.helperPresetId))
     out.helperPresetId = "";
+  if (out.globalAgentPresetId && !out.agentPresets.some((p) => p.id === out.globalAgentPresetId)) {
+    out.globalAgentPresetId = out.agentPresets.some((p) => p.id === out.defaultPresetId)
+      ? out.defaultPresetId
+      : (out.agentPresets[0]?.id ?? "");
+  }
   return out;
 }
 

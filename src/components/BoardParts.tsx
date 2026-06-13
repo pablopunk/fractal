@@ -20,6 +20,7 @@ import {
   Info,
   Plus,
   RefreshCw,
+  Sparkles,
   SquareTerminal,
   Trash2,
 } from "lucide-react";
@@ -47,10 +48,31 @@ import ProjectPicker from "./ProjectPicker.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
 
+function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
+  return (
+    <div className="agent-sidebar-entry">
+      <button
+        type="button"
+        className={`project-item agent-item ${props.active ? "active" : ""}`}
+        onClick={props.onClick}
+        aria-label="Fractal Agent"
+        title="Fractal Agent"
+      >
+        <span className="agent-badge" aria-hidden="true">
+          <Sparkles size={14} strokeWidth={2.4} />
+        </span>
+        <span className="name">Fractal Agent</span>
+      </button>
+    </div>
+  );
+}
+
 export function Sidebar(props: {
   projects: Project[];
   activeId: string | null;
+  activeView: { kind: "project"; id: string } | { kind: "agent" };
   onSelect: (id: string) => void;
+  onSelectAgent: () => void;
   onRemove: (id: string) => void;
   onAdd: (path: string) => void;
   showPicker: boolean;
@@ -59,6 +81,8 @@ export function Sidebar(props: {
   onResize: (width: number) => void;
   collapsed: boolean;
   showShortcuts: boolean;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
   onReorder: (ids: string[]) => void | Promise<void>;
   tabsByProject: Record<string, DecoratedTerminalTab[]>;
   activeTabId: string | null;
@@ -85,117 +109,123 @@ export function Sidebar(props: {
   }
 
   return (
-    <aside className={`sidebar ${props.collapsed ? "collapsed" : ""}`}>
-      <div className="sidebar-head">
-        <span className="brand-dot" />
-        <span className="sidebar-brand">Fractal</span>
-      </div>
-      <div className="sidebar-section">Projects</div>
-      <div className="project-list">
-        {props.projects.length === 0 && (
-          <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-faint)" }}>
-            No projects yet.
-          </div>
-        )}
-        <DndContext
-          sensors={projectSensors}
-          collisionDetection={closestCorners}
-          onDragEnd={(e) => {
-            const { active, over } = e;
-            if (!over || active.id === over.id) return;
-            const oldIndex = props.projects.findIndex((p) => p.id === active.id);
-            const newIndex = props.projects.findIndex((p) => p.id === over.id);
-            if (oldIndex === -1 || newIndex === -1) return;
-            void props.onReorder(arrayMove(props.projects, oldIndex, newIndex).map((p) => p.id));
-          }}
-        >
-          <SortableContext
-            items={props.projects.map((p) => p.id)}
-            strategy={verticalListSortingStrategy}
+    <>
+      {props.mobileOpen && (
+        <div className="sidebar-backdrop" onClick={props.onMobileClose} aria-hidden="true" />
+      )}
+      <aside
+        className={`sidebar ${props.collapsed ? "collapsed" : ""} ${props.mobileOpen ? "open" : ""}`}
+      >
+        <div className="sidebar-head">
+          <span className="brand-dot" />
+          <span className="sidebar-brand">Fractal</span>
+        </div>
+        <div className="sidebar-section">Projects</div>
+        <div className="project-list">
+          {props.projects.length === 0 && (
+            <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-faint)" }}>
+              No projects yet.
+            </div>
+          )}
+          <DndContext
+            sensors={projectSensors}
+            collisionDetection={closestCorners}
+            onDragEnd={(e) => {
+              const { active, over } = e;
+              if (!over || active.id === over.id) return;
+              const oldIndex = props.projects.findIndex((p) => p.id === active.id);
+              const newIndex = props.projects.findIndex((p) => p.id === over.id);
+              if (oldIndex === -1 || newIndex === -1) return;
+              void props.onReorder(arrayMove(props.projects, oldIndex, newIndex).map((p) => p.id));
+            }}
           >
-            {props.projects.map((p, index) => (
-              <SortableProjectItem
-                key={p.id}
-                project={p}
-                index={index}
-                active={p.id === props.activeId}
-                home={props.home}
-                showShortcuts={props.showShortcuts}
-                onSelect={props.onSelect}
-                onRemove={props.onRemove}
-                tabs={props.tabsByProject[p.id] ?? []}
-                activeTabId={props.activeTabId}
-                onSelectTab={props.onSelectTab}
-                onReorderTabs={props.onReorderTabs}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-      </div>
-      <div className="sidebar-foot">
-        {props.collapsed ? (
-          <>
+            <SortableContext
+              items={props.projects.map((p) => p.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {props.projects.map((p, index) => (
+                <SortableProjectItem
+                  key={p.id}
+                  project={p}
+                  index={index}
+                  active={p.id === props.activeId}
+                  home={props.home}
+                  showShortcuts={props.showShortcuts}
+                  onSelect={props.onSelect}
+                  onRemove={props.onRemove}
+                  tabs={props.tabsByProject[p.id] ?? []}
+                  activeTabId={props.activeTabId}
+                  onSelectTab={props.onSelectTab}
+                  onReorderTabs={props.onReorderTabs}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          {!props.showPicker && (
             <button
-              className="btn block icon-only"
+              type="button"
+              className="project-item add-project-item"
               onClick={() => props.setShowPicker(true)}
               aria-label="Add project"
               title="Add project"
             >
-              <Plus size={16} aria-hidden="true" />
+              <span className="add-project-icon" aria-hidden="true">
+                <Plus size={16} />
+              </span>
+              <span className="name">Add project</span>
             </button>
-            {props.showPicker && (
-              <Portal>
-                <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
-                  <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
-                    <ProjectPicker
-                      recentProjects={props.projects}
-                      onSelect={props.onAdd}
-                      autoFocus
-                      placeholder="search projects or paste a path…"
-                    />
-                    <button
-                      className="btn ghost block sm"
-                      style={{ marginTop: 6 }}
-                      onClick={() => props.setShowPicker(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
+          )}
+        </div>
+        {props.showPicker &&
+          (props.collapsed ? (
+            <Portal>
+              <div className="modal-overlay" onClick={() => props.setShowPicker(false)}>
+                <div className="modal project-picker-modal" onClick={(e) => e.stopPropagation()}>
+                  <ProjectPicker
+                    recentProjects={props.projects}
+                    onSelect={props.onAdd}
+                    autoFocus
+                    placeholder="search projects or paste a path…"
+                  />
+                  <button
+                    className="btn ghost block sm"
+                    style={{ marginTop: 6 }}
+                    onClick={() => props.setShowPicker(false)}
+                  >
+                    Cancel
+                  </button>
                 </div>
-              </Portal>
-            )}
-          </>
-        ) : props.showPicker ? (
-          <div>
-            <ProjectPicker
-              recentProjects={props.projects}
-              onSelect={props.onAdd}
-              autoFocus
-              openUpward
-              placeholder="search projects or paste a path…"
-            />
-            <button
-              className="btn ghost block sm"
-              style={{ marginTop: 6 }}
-              onClick={() => props.setShowPicker(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <>
-            <button className="btn block" onClick={() => props.setShowPicker(true)}>
-              + Add project
-            </button>
-          </>
-        )}
-      </div>
-      <div
-        className="sidebar-resize-handle"
-        onPointerDown={startResize}
-        title="Resize projects drawer"
-      />
-    </aside>
+              </div>
+            </Portal>
+          ) : (
+            <div className="sidebar-foot">
+              <ProjectPicker
+                recentProjects={props.projects}
+                onSelect={props.onAdd}
+                autoFocus
+                openUpward
+                placeholder="search projects or paste a path…"
+              />
+              <button
+                className="btn ghost block sm"
+                style={{ marginTop: 6 }}
+                onClick={() => props.setShowPicker(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ))}
+        <AgentSidebarEntry
+          active={props.activeView.kind === "agent"}
+          onClick={props.onSelectAgent}
+        />
+        <div
+          className="sidebar-resize-handle"
+          onPointerDown={startResize}
+          title="Resize projects drawer"
+        />
+      </aside>
+    </>
   );
 }
 
@@ -765,11 +795,15 @@ function SortablePresetItem({
   preset,
   active,
   isDefault,
+  isHelper,
+  isFractalAgent,
   onSelect,
 }: {
   preset: AgentPreset;
   active: boolean;
   isDefault: boolean;
+  isHelper: boolean;
+  isFractalAgent: boolean;
   onSelect: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -790,13 +824,17 @@ function SortablePresetItem({
       {...listeners}
     >
       <div className="preset-modal-list-item-header">
-        <span className="preset-modal-list-name">
-          {preset.name}
-          {isDefault ? " ★" : ""}
-        </span>
+        <span className="preset-modal-list-name">{preset.name}</span>
         <PresetIcon preset={preset} size={14} />
       </div>
       <span className="preset-modal-list-binary">{preset.binary}</span>
+      {(isDefault || isHelper || isFractalAgent) && (
+        <span className="preset-modal-list-roles">
+          {isDefault && <span>Default</span>}
+          {isHelper && <span>Helpers</span>}
+          {isFractalAgent && <span>Agent</span>}
+        </span>
+      )}
     </button>
   );
 }
@@ -828,8 +866,10 @@ export function PresetSettings(props: {
   presets: AgentPreset[];
   defaultPresetId: string;
   helperPresetId: string;
+  globalAgentPresetId: string;
   onSetDefault: (id: string) => void;
   onSetHelper: (id: string) => void;
+  onSetGlobalAgent: (id: string) => void;
   piModels: PiModel[];
   claudeModels: PiModel[];
   opencodeModels: PiModel[];
@@ -927,6 +967,8 @@ export function PresetSettings(props: {
                           preset={preset}
                           active={preset.id === selected?.id}
                           isDefault={preset.id === props.defaultPresetId}
+                          isHelper={preset.id === props.helperPresetId}
+                          isFractalAgent={preset.id === props.globalAgentPresetId}
                           onSelect={() => setSelectedId(preset.id)}
                         />
                       ))}
@@ -1034,6 +1076,17 @@ export function PresetSettings(props: {
                         }}
                       />
                       <span>Use for Fractal AI helpers</span>
+                    </label>
+                    <label className="preset-modal-default">
+                      <input
+                        type="checkbox"
+                        className="fractal-checkbox"
+                        checked={selected.id === props.globalAgentPresetId}
+                        onChange={(e) => {
+                          if (e.target.checked) props.onSetGlobalAgent(selected.id);
+                        }}
+                      />
+                      <span>Use for Fractal Agent</span>
                     </label>
                     <div className="preset-modal-form-actions">
                       {props.presets.length > 1 && (
