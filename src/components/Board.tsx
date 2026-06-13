@@ -19,6 +19,7 @@ import {
   GitBranch,
   Hash,
   Play,
+  Plus,
   Settings,
   SquareTerminal,
 } from "lucide-react";
@@ -78,7 +79,6 @@ import type {
   Prompt,
   TerminalTab,
 } from "~/lib/client/types.js";
-import AgentView from "./AgentView.js";
 import AppSettingsModal from "./AppSettingsModal.js";
 import {
   ColumnView,
@@ -1496,29 +1496,59 @@ export default function Board() {
         />
         <main className="main">
           {activeView.kind === "agent" ? (
-            <AgentView
-              tabs={agentTabs}
-              activeId={activeTerminalId}
-              terminalPosition={terminalPosition}
-              terminalWidth={terminalWidth}
-              terminalHeight={terminalHeight}
-              onResizeWidth={resizeTerminalWidth}
-              onResizeHeight={resizeTerminalHeight}
-              onTogglePosition={() =>
-                setPersistentTerminalPosition((position) =>
-                  position === "right" ? "bottom" : "right",
-                )
-              }
-              onSelect={activateTerminal}
-              onClose={closeTerminal}
-              onReorder={reorderTerminal}
-              focusKey={terminalFocusKey}
-              theme={theme}
-              terminalThemeName={terminalThemeName}
-              glassEnabled={glassSettings.enabled}
-              onOpenTerminal={openAgentTerminal}
-              isOpening={isOpeningAgentTerminal}
-            />
+            <>
+              <div className="topbar">
+                <div className="topbar-title">
+                  <span className="topbar-title-row">
+                    <SquareTerminal className="topbar-title-icon" aria-hidden="true" />
+                    <h1>Fractal Agent</h1>
+                  </span>
+                </div>
+                <div className="topbar-spacer" />
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={openAgentTerminal}
+                  disabled={isOpeningAgentTerminal}
+                >
+                  {isOpeningAgentTerminal ? (
+                    <span className="btn-spinner" aria-hidden="true" />
+                  ) : (
+                    <Plus size={14} />
+                  )}
+                  <span>{isOpeningAgentTerminal ? "Opening…" : "New tab"}</span>
+                </button>
+              </div>
+              <div
+                className={`workspace workspace-${agentTabs.length > 0 ? terminalPosition : "right"}`}
+              >
+                <div className="board board-snug agent-board-spacer" aria-hidden="true" />
+                {agentTabs.length > 0 && (
+                  <TerminalPane
+                    tabs={agentTabs}
+                    activeId={activeTerminalId}
+                    position={terminalPosition}
+                    size={terminalPosition === "right" ? terminalWidth : terminalHeight}
+                    snug={true}
+                    onResize={
+                      terminalPosition === "right" ? resizeTerminalWidth : resizeTerminalHeight
+                    }
+                    onTogglePosition={() =>
+                      setPersistentTerminalPosition((position) =>
+                        position === "right" ? "bottom" : "right",
+                      )
+                    }
+                    onSelect={activateTerminal}
+                    onClose={closeTerminal}
+                    onReorder={reorderTerminal}
+                    focusKey={terminalFocusKey}
+                    theme={theme}
+                    terminalThemeName={terminalThemeName}
+                    glassEnabled={glassSettings.enabled}
+                  />
+                )}
+              </div>
+            </>
           ) : !activeProject ? (
             <div className="empty-wrapper">
               <EmptyState projects={projects} onAdd={addProject} />

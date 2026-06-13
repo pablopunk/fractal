@@ -2245,6 +2245,16 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
   cursor: pointer;
 }
 .terminal-pane-toggle:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-3); }
+
+.agent-board-spacer {
+  flex: 0 0 0 !important;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
 .terminal-resizer-bottom {
   left: 0;
   right: 0;
