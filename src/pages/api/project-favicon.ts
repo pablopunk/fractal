@@ -79,26 +79,27 @@ function guessContentType(path: string): string {
 
 export const GET: APIRoute = async ({ url }) => {
   const id = url.searchParams.get("id");
-  if (id) {
-    const project = getProject(id);
-    if (project?.icon) {
-      return new Response(Buffer.from(project.icon, "base64"), {
-        status: 200,
-        headers: {
-          "Content-Type": project.iconMime || "application/octet-stream",
-          "Cache-Control": "no-store",
-        },
-      });
-    }
+  if (!id) {
+    return new Response("Missing id parameter", { status: 400 });
   }
 
-  const cwd = url.searchParams.get("cwd");
-  if (!cwd) {
-    return new Response("Missing cwd parameter", { status: 400 });
+  const project = getProject(id);
+  if (!project) {
+    return new Response("Project not found", { status: 404 });
   }
 
-  // Security: resolve to absolute and verify it's a real path
-  const projectCwd = resolve(cwd);
+  if (project.icon) {
+    return new Response(Buffer.from(project.icon, "base64"), {
+      status: 200,
+      headers: {
+        "Content-Type": project.iconMime || "application/octet-stream",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  // Use the project's stored path — never trust client-supplied cwd
+  const projectCwd = resolve(project.path);
 
   // Check well-known favicon paths
   for (const candidate of FAVICON_CANDIDATES) {

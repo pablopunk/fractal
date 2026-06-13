@@ -154,7 +154,7 @@ function retitledTerminalTab(
   projects: Project[],
   promptById: Map<string, Prompt>,
 ): TerminalTab {
-  if (!tab.session.startsWith("fractal-")) return tab;
+  if (!tab.session.startsWith("fractal-") && !tab.session.startsWith("fx-")) return tab;
   const projectId = tab.projectId ?? promptById.get(tab.promptId)?.projectId;
   const project = projects.find((p) => p.id === projectId);
   const title = terminalTabTitle(tab.session, project);
