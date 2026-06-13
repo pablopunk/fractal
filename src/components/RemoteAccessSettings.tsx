@@ -96,9 +96,15 @@ export default function RemoteAccessSettings() {
       }
       if (next) {
         fetchTailscale();
-        void api("/api/tailscale/serve", { method: "POST", body: JSON.stringify({ enable: true }) });
+        void api("/api/tailscale/serve", {
+          method: "POST",
+          body: JSON.stringify({ enable: true }),
+        });
       } else {
-        void api("/api/tailscale/serve", { method: "POST", body: JSON.stringify({ enable: false }) });
+        void api("/api/tailscale/serve", {
+          method: "POST",
+          body: JSON.stringify({ enable: false }),
+        });
       }
     } catch {
       setEnabled(wasEnabled);

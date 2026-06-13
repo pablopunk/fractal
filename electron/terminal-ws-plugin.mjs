@@ -20,7 +20,9 @@ export function terminalWsPlugin() {
       });
     },
     buildEnd() {
-      try { wss?.cleanup?.(); } catch {}
+      try {
+        wss?.cleanup?.();
+      } catch {}
     },
   };
 }

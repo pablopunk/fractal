@@ -1,6 +1,11 @@
-import { useEffect, useState } from "react";
 import { Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
-import type { BoardLayout, GlassSettings, TerminalThemeName, ThemeMode } from "~/lib/client/persistence.js";
+import { useEffect, useState } from "react";
+import type {
+  BoardLayout,
+  GlassSettings,
+  TerminalThemeName,
+  ThemeMode,
+} from "~/lib/client/persistence.js";
 import { terminalThemePreview } from "~/lib/client/terminal-themes.js";
 import { KeepAwakeToggle } from "./KeepAwakeToggle.js";
 import Portal from "./Portal.js";
@@ -126,7 +131,10 @@ export default function AppSettingsModal(props: {
                     step="0.01"
                     value={props.glass.opacity}
                     onChange={(e) =>
-                      props.onGlassChange({ ...props.glass, opacity: Number(e.currentTarget.value) })
+                      props.onGlassChange({
+                        ...props.glass,
+                        opacity: Number(e.currentTarget.value),
+                      })
                     }
                   />
                 </label>
@@ -217,7 +225,9 @@ function ModeDisplay() {
       setError("Enter a valid HTTPS URL");
       return;
     }
-    const url = new URL(trimmed); url.search = ""; doSwitch("remote", url.toString().replace(/\/$/, ""));
+    const url = new URL(trimmed);
+    url.search = "";
+    doSwitch("remote", url.toString().replace(/\/$/, ""));
   }
 
   if (!electron?.setMode) return null;
@@ -230,7 +240,11 @@ function ModeDisplay() {
         <button className="btn ghost sm" onClick={() => doSwitch("host")} disabled={switching}>
           {switching ? "Switching…" : "Switch to Host Mode"}
         </button>
-        {error && <p className="project-settings-hint" style={{ color: "var(--danger)" }}>{error}</p>}
+        {error && (
+          <p className="project-settings-hint" style={{ color: "var(--danger)" }}>
+            {error}
+          </p>
+        )}
       </div>
     );
   }
@@ -238,21 +252,34 @@ function ModeDisplay() {
   return (
     <div className="remote-access-section">
       <label className="project-settings-label">Mode</label>
-      <p className="project-settings-hint">Running as host. All data and agents run on this machine.</p>
+      <p className="project-settings-hint">
+        Running as host. All data and agents run on this machine.
+      </p>
       <div className="project-settings-row">
         <input
           className="input"
           placeholder="https://m4pro.pangolin-frog.ts.net"
           value={remoteInput}
-          onChange={(e) => { setRemoteInput(e.target.value); setError(""); }}
+          onChange={(e) => {
+            setRemoteInput(e.target.value);
+            setError("");
+          }}
           onKeyDown={(e) => e.key === "Enter" && handleSwitchToRemote()}
           disabled={switching}
         />
-        <button className="btn primary sm" onClick={handleSwitchToRemote} disabled={switching || !remoteInput.trim()}>
+        <button
+          className="btn primary sm"
+          onClick={handleSwitchToRemote}
+          disabled={switching || !remoteInput.trim()}
+        >
           {switching ? "…" : "Switch"}
         </button>
       </div>
-      {error && <p className="project-settings-hint" style={{ color: "var(--danger)", marginTop: 6 }}>{error}</p>}
+      {error && (
+        <p className="project-settings-hint" style={{ color: "var(--danger)", marginTop: 6 }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

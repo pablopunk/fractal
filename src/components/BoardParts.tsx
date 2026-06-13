@@ -197,11 +197,7 @@ export function Sidebar(props: {
             <button className="btn block" onClick={() => props.setShowPicker(true)}>
               + Add project
             </button>
-            <button
-              className="btn block"
-              style={{ marginTop: 4 }}
-              onClick={props.onOpenSettings}
-            >
+            <button className="btn block" style={{ marginTop: 4 }} onClick={props.onOpenSettings}>
               <Monitor size={14} aria-hidden="true" style={{ marginRight: 6 }} />
               Settings
             </button>

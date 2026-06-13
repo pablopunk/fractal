@@ -1,5 +1,8 @@
+import { execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
 import type { APIRoute } from "astro";
-import { execFile } from "node:child_process/promises";
+
+const execFile = promisify(execFileCb);
 
 export const prerender = false;
 
