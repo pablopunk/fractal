@@ -1,5 +1,6 @@
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import type { APIRoute } from "astro";
+import { FRACTAL_AGENT_MODELS, type FractalAgentProvider } from "~/lib/agent-providers.js";
 import {
   archivePrompt,
   captureTerminal,
@@ -39,46 +40,55 @@ Use readState for an overview. Then act through the other tools to create projec
 - When archiving a worktree prompt, check what action is needed (create PR, merge, discard).
 - Never expose API keys in your responses.`;
 
-function resolveProvider() {
-  const settings = getSettings();
-  const keys = settings.apiKeys ?? {};
-
-  if (keys.anthropic) return "anthropic";
-  if (keys.google) return "google";
-  if (keys.openai) return "openai";
-  if (keys.openrouter) return "openrouter";
-
-  return null;
-}
-
 async function getModel() {
-  const provider = resolveProvider();
   const settings = getSettings();
+  const provider = settings.fractalAgentProvider as FractalAgentProvider | undefined;
+  const modelId = settings.fractalAgentModel;
   const keys = settings.apiKeys ?? {};
+
+  if (!provider) {
+    throw new Error(
+      "No Fractal Agent provider selected. Configure one in Settings → Fractal Agent.",
+    );
+  }
+  if (!modelId) {
+    throw new Error("No Fractal Agent model selected. Configure one in Settings → Fractal Agent.");
+  }
+
+  const validModels = FRACTAL_AGENT_MODELS[provider];
+  if (!validModels?.some((m) => m.id === modelId)) {
+    throw new Error(
+      `Model "${modelId}" is not valid for provider "${provider}". Reconfigure in Settings → Fractal Agent.`,
+    );
+  }
+
+  const apiKey = keys[provider];
+  if (!apiKey?.trim()) {
+    throw new Error(`No API key configured for ${provider}. Add one in Settings → Fractal Agent.`);
+  }
 
   if (provider === "anthropic") {
     const anthropic = await import("@ai-sdk/anthropic").then((m) => m.createAnthropic);
-    return anthropic({ apiKey: keys.anthropic })("claude-sonnet-4-20250514");
+    return anthropic({ apiKey })(modelId);
   }
   if (provider === "google") {
     const google = await import("@ai-sdk/google").then((m) => m.createGoogleGenerativeAI);
-    return google({ apiKey: keys.google })("gemini-2.5-pro-exp-03-25");
+    return google({ apiKey })(modelId);
   }
   if (provider === "openai") {
     const openai = await import("@ai-sdk/openai").then((m) => m.createOpenAI);
-    return openai({ apiKey: keys.openai })("gpt-4o");
+    return openai({ apiKey })(modelId);
   }
   if (provider === "openrouter") {
-    // OpenRouter speaks the OpenAI API protocol, so we reuse the OpenAI client
-    // with a different baseURL and the OpenRouter API key.
     const openai = await import("@ai-sdk/openai").then((m) => m.createOpenAI);
-    return openai({
-      apiKey: keys.openrouter,
-      baseURL: "https://openrouter.ai/api/v1",
-    })("anthropic/claude-sonnet-4-5");
+    return openai({ apiKey, baseURL: "https://openrouter.ai/api/v1" })(modelId);
+  }
+  if (provider === "opencode-go") {
+    const openai = await import("@ai-sdk/openai").then((m) => m.createOpenAI);
+    return openai({ apiKey, baseURL: "https://opencode.ai/zen/go/v1" })(modelId);
   }
 
-  return null;
+  throw new Error(`Unsupported provider: ${provider}`);
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -91,12 +101,11 @@ export const POST: APIRoute = async ({ request }) => {
       return Response.json({ error: "No messages provided" }, { status: 400 });
     }
 
-    const model = await getModel();
-    if (!model) {
-      return Response.json(
-        { error: "No API key configured. Add one in Settings → AI Provider." },
-        { status: 400 },
-      );
+    let model: Awaited<ReturnType<typeof getModel>>;
+    try {
+      model = await getModel();
+    } catch (e) {
+      return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 400 });
     }
 
     const messages = await convertToModelMessages(rawMessages);

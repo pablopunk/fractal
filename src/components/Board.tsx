@@ -235,7 +235,7 @@ export default function Board() {
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
   const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [appSettingsInitialTab, setAppSettingsInitialTab] = useState<
-    "remote" | "appearance" | "provider" | undefined
+    "remote" | "appearance" | "fractal-agent" | undefined
   >(undefined);
   const [githubIssues, setGithubIssues] = useState<GithubIssue[]>([]);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
@@ -257,6 +257,10 @@ export default function Board() {
   const [boardLayout, setBoardLayout] = useState<BoardLayout>(() => loadBoardLayout());
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [fractalAgentProvider, setFractalAgentProvider] = useState<
+    import("~/lib/agent-providers.js").FractalAgentProvider | ""
+  >("");
+  const [fractalAgentModel, setFractalAgentModel] = useState("");
   const [autoBoardRows, setAutoBoardRows] = useState(false);
   const [autoBoardCompact, setAutoBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
@@ -804,6 +808,8 @@ export default function Board() {
       };
       setSettings(nextSettings);
       setApiKeys(nextSettings.apiKeys ?? {});
+      setFractalAgentProvider(nextSettings.fractalAgentProvider ?? "");
+      setFractalAgentModel(nextSettings.fractalAgentModel ?? "");
       setComposerPresetId((cur) => {
         if (nextSettings.agentPresets.some((p) => p.id === cur)) return cur;
         if (nextSettings.agentPresets.some((p) => p.id === nextSettings.defaultPresetId))
@@ -2019,6 +2025,16 @@ export default function Board() {
                     setApiKeys(keys);
                     void saveSettings({ apiKeys: keys });
                   }}
+                  fractalAgentProvider={fractalAgentProvider}
+                  fractalAgentModel={fractalAgentModel}
+                  onFractalAgentProviderChange={(provider) => {
+                    setFractalAgentProvider(provider);
+                    void saveSettings({ fractalAgentProvider: provider });
+                  }}
+                  onFractalAgentModelChange={(model) => {
+                    setFractalAgentModel(model);
+                    void saveSettings({ fractalAgentModel: model });
+                  }}
                   initialTab={appSettingsInitialTab}
                 />
               )}
@@ -2037,9 +2053,11 @@ export default function Board() {
             open={agentPanelOpen}
             onToggle={() => setAgentPanelOpen((prev) => !prev)}
             apiKeys={apiKeys}
+            fractalAgentProvider={fractalAgentProvider}
+            fractalAgentModel={fractalAgentModel}
             mobile={isMobile}
             onOpenSettings={() => {
-              setAppSettingsInitialTab("provider");
+              setAppSettingsInitialTab("fractal-agent");
               setAppSettingsOpen(true);
             }}
           />

@@ -3,12 +3,15 @@ import { DefaultChatTransport } from "ai";
 import { Bot, ChevronDown, ChevronRight, Key, Loader2, Send, Wrench } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import type { FractalAgentProvider } from "~/lib/agent-providers.js";
 import Portal from "./Portal.js";
 
 type AgentPanelProps = {
   open: boolean;
   onToggle?: () => void;
   apiKeys: Record<string, string> | undefined;
+  fractalAgentProvider: FractalAgentProvider | "";
+  fractalAgentModel: string;
   onOpenSettings: () => void;
   mobile?: boolean;
 };
@@ -17,10 +20,15 @@ export default function AgentPanel({
   open,
   onToggle,
   apiKeys,
+  fractalAgentProvider,
+  fractalAgentModel,
   onOpenSettings,
   mobile,
 }: AgentPanelProps) {
-  const hasKeys = apiKeys && Object.keys(apiKeys).some((k) => apiKeys[k]);
+  const hasKeys =
+    Boolean(fractalAgentProvider) &&
+    Boolean(fractalAgentModel) &&
+    Boolean(apiKeys?.[fractalAgentProvider]?.trim());
 
   return (
     <Portal>
@@ -111,9 +119,10 @@ function AgentGatekeeper({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
     <div className="agent-gatekeeper">
       <Key size={32} strokeWidth={1.5} className="agent-gatekeeper-icon" />
-      <p>No API key configured.</p>
+      <p>Fractal Agent not configured.</p>
       <p className="agent-gatekeeper-hint">
-        Add an Anthropic, Google, OpenAI, or OpenRouter API key in Settings → AI Provider.
+        Choose a provider, select a model, and add the provider's API key in Settings → Fractal
+        Agent.
       </p>
       <button className="btn primary sm" onClick={onOpenSettings}>
         Open Settings
@@ -132,7 +141,7 @@ function AgentChat() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "instant" });
-  }, [messages.length]);
+  });
 
   const isLoading = status === "submitted" || status === "streaming";
 

@@ -1,5 +1,11 @@
-import { Key, Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Bot, Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  FRACTAL_AGENT_MODELS,
+  FRACTAL_AGENT_PROVIDERS,
+  type FractalAgentProvider,
+  providerLabel,
+} from "~/lib/agent-providers.js";
 import type {
   BoardLayout,
   GlassSettings,
@@ -20,7 +26,7 @@ const TERMINAL_THEME_OPTIONS = [
   { id: "solarized" as TerminalThemeName, label: "Solarized" },
 ];
 
-type Tab = "remote" | "appearance" | "provider";
+type Tab = "remote" | "appearance" | "fractal-agent";
 
 type ElectronGlobals = typeof window & {
   electron?: {
@@ -47,6 +53,10 @@ export default function AppSettingsModal(props: {
   onBoardLayoutChange: (layout: BoardLayout) => void;
   apiKeys?: Record<string, string>;
   onApiKeysChange?: (keys: Record<string, string>) => void;
+  fractalAgentProvider?: FractalAgentProvider | "";
+  fractalAgentModel?: string;
+  onFractalAgentProviderChange?: (provider: FractalAgentProvider | "") => void;
+  onFractalAgentModelChange?: (model: string) => void;
   initialTab?: Tab;
 }) {
   const [tab, setTab] = useState<Tab>(props.initialTab ?? "remote");
@@ -71,11 +81,11 @@ export default function AppSettingsModal(props: {
               Appearance
             </button>
             <button
-              className={`app-settings-tab ${tab === "provider" ? "active" : ""}`}
-              onClick={() => setTab("provider")}
+              className={`app-settings-tab ${tab === "fractal-agent" ? "active" : ""}`}
+              onClick={() => setTab("fractal-agent")}
             >
-              <Key size={14} />
-              AI Provider
+              <Bot size={14} />
+              Fractal Agent
             </button>
           </div>
 
@@ -192,8 +202,15 @@ export default function AppSettingsModal(props: {
             </div>
           )}
 
-          {tab === "provider" && (
+          {tab === "fractal-agent" && (
             <div className="project-settings-body">
+              <FractalAgentFields
+                provider={props.fractalAgentProvider ?? ""}
+                model={props.fractalAgentModel ?? ""}
+                apiKeys={props.apiKeys ?? {}}
+                onProviderChange={props.onFractalAgentProviderChange ?? (() => {})}
+                onModelChange={props.onFractalAgentModelChange ?? (() => {})}
+              />
               <ApiKeyFields
                 apiKeys={props.apiKeys ?? {}}
                 onChange={props.onApiKeysChange ?? (() => {})}
@@ -306,12 +323,12 @@ function ModeDisplay() {
   );
 }
 
-const API_KEY_FIELDS = [
-  { key: "anthropic", label: "Anthropic API Key", hint: "Used for Claude models" },
-  { key: "google", label: "Google API Key", hint: "Used for Gemini models" },
-  { key: "openai", label: "OpenAI API Key", hint: "Used for GPT models" },
-  { key: "openrouter", label: "OpenRouter API Key", hint: "Multi-provider access" },
-] as const;
+const API_KEY_FIELDS = FRACTAL_AGENT_PROVIDERS.map((p) => ({
+  key: p.id,
+  label: p.keyLabel,
+  hint: p.keyHint,
+  placeholder: p.keyPlaceholder,
+}));
 
 function ApiKeyFields({
   apiKeys,
@@ -322,20 +339,26 @@ function ApiKeyFields({
 }) {
   return (
     <>
-      <p className="project-settings-hint" style={{ marginBottom: 16 }}>
+      <p
+        className="project-settings-hint"
+        style={{
+          marginTop: 24,
+          paddingTop: 16,
+          borderTop: "1px solid var(--border)",
+          marginBottom: 16,
+        }}
+      >
         Add API keys so the Fractal Agent can talk to AI models. Keys are stored locally and never
         sent anywhere else.
       </p>
-      {API_KEY_FIELDS.map(({ key, label, hint }) => (
+      {API_KEY_FIELDS.map(({ key, label, hint, placeholder }) => (
         <div key={key} className="project-settings-section">
           <label className="project-settings-label">{label}</label>
           <p className="project-settings-hint">{hint}</p>
           <input
             type="password"
             className="input"
-            placeholder={
-              key === "openrouter" ? "sk-or-..." : key === "anthropic" ? "sk-ant-..." : "..."
-            }
+            placeholder={placeholder}
             value={apiKeys[key] ?? ""}
             onChange={(e) => {
               const trimmed = e.target.value.trim();
@@ -347,6 +370,102 @@ function ApiKeyFields({
           />
         </div>
       ))}
+    </>
+  );
+}
+
+function FractalAgentFields({
+  provider,
+  model,
+  apiKeys,
+  onProviderChange,
+  onModelChange,
+}: {
+  provider: FractalAgentProvider | "";
+  model: string;
+  apiKeys: Record<string, string>;
+  onProviderChange: (provider: FractalAgentProvider | "") => void;
+  onModelChange: (model: string) => void;
+}) {
+  const configuredProviders = useMemo(
+    () => FRACTAL_AGENT_PROVIDERS.filter((p) => apiKeys[p.id]?.trim()),
+    [apiKeys],
+  );
+
+  const availableModels = useMemo(() => {
+    const models: Array<{ provider: FractalAgentProvider; id: string; label: string }> = [];
+    for (const p of configuredProviders) {
+      for (const m of FRACTAL_AGENT_MODELS[p.id]) {
+        models.push({ provider: p.id, id: m.id, label: m.label });
+      }
+    }
+    return models;
+  }, [configuredProviders]);
+
+  const hasProviders = configuredProviders.length > 0;
+
+  const handleProviderChange = (value: string) => {
+    const newProv = value === "" ? "" : (value as FractalAgentProvider);
+    onProviderChange(newProv);
+    if (newProv && model) {
+      const valid = FRACTAL_AGENT_MODELS[newProv]?.some((m) => m.id === model);
+      if (!valid) onModelChange("");
+    }
+  };
+
+  const handleModelChange = (value: string) => {
+    onModelChange(value);
+    if (value) {
+      const found = availableModels.find((m) => m.id === value);
+      if (found && found.provider !== provider) {
+        onProviderChange(found.provider);
+      }
+    }
+  };
+
+  return (
+    <>
+      <div className="project-settings-section">
+        <label className="project-settings-label">Fractal Agent Provider</label>
+        <p className="project-settings-hint">Choose which AI provider the Fractal Agent uses.</p>
+        <select
+          className="input"
+          value={provider}
+          onChange={(e) => handleProviderChange(e.target.value)}
+          style={{ marginTop: 4 }}
+        >
+          <option value="">Select a provider...</option>
+          {FRACTAL_AGENT_PROVIDERS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+              {!apiKeys[p.id]?.trim() ? " (no key)" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="project-settings-section">
+        <label className="project-settings-label">Fractal Agent Model</label>
+        <p className="project-settings-hint">
+          {hasProviders
+            ? "Select which model the Fractal Agent uses."
+            : "Configure an API key below to choose a model."}
+        </p>
+        <select
+          className="input"
+          value={hasProviders ? model : ""}
+          onChange={(e) => handleModelChange(e.target.value)}
+          disabled={!hasProviders}
+          style={{ marginTop: 4, opacity: hasProviders ? 1 : 0.5 }}
+        >
+          <option value="">{hasProviders ? "Select a model..." : "No providers configured"}</option>
+          {availableModels.map((m) => (
+            <option key={`${m.provider}/${m.id}`} value={m.id}>
+              {m.label} — {providerLabel(m.provider)}
+            </option>
+          ))}
+        </select>
+      </div>
     </>
   );
 }
