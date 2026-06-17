@@ -227,25 +227,6 @@ export function Card({
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
         <div className="card-footer">
-          <div className="card-meta">
-            {isRunning && <span className="tag accent">running</span>}
-            {prompt.tmuxSession && (
-              <Tooltip content={`Copy ${prompt.tmuxSession}`}>
-                <button
-                  type="button"
-                  className="tag tag-button"
-                  aria-label={`Copy ${prompt.tmuxSession}`}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyWorktreeName();
-                  }}
-                >
-                  {prompt.tmuxSession}
-                </button>
-              </Tooltip>
-            )}
-          </div>
           <div
             className="card-actions"
             onPointerDown={(e) => e.stopPropagation()}
@@ -383,6 +364,25 @@ export function Card({
           </Tooltip>
         </div>
       </div>
+          <div className="card-meta">
+            {isRunning && <span className="tag accent">running</span>}
+            {prompt.tmuxSession && (
+              <Tooltip content={`Copy ${prompt.tmuxSession}`}>
+                <button
+                  type="button"
+                  className="tag tag-button"
+                  aria-label={`Copy ${prompt.tmuxSession}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyWorktreeName();
+                  }}
+                >
+                  {prompt.tmuxSession}
+                </button>
+              </Tooltip>
+            )}
+          </div>
         </div>
       )}
     </div>

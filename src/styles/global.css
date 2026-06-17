@@ -1727,7 +1727,7 @@ html[data-glass="true"] .column.column-compact {
   transition: opacity 80ms ease;
   pointer-events: none;
 }
-.card:hover .card-meta { opacity: 0; }
+.card:hover .card-meta { opacity: 0; pointer-events: none; }
 .card:hover .card-actions { opacity: 1; pointer-events: auto; }
 .card-actions-group {
   display: flex;
@@ -3087,7 +3087,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   .card { padding: 12px 14px; gap: 10px; touch-action: manipulation; }
   .card .text { font-size: 14px; }
   .image-attachments { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
-  .card-meta { opacity: 0; }
+  .card-meta { opacity: 0; pointer-events: none; }
   .card-actions { opacity: 1; flex-wrap: wrap; gap: 6px; pointer-events: auto; }
   .icon-btn { width: 36px; height: 36px; }
   .icon-btn svg { width: 16px; height: 16px; }
@@ -3166,7 +3166,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 /* ---------- Touch-only overrides ---------- */
 
 @media (hover: none) {
-  .card-meta { opacity: 0; }
+  .card-meta { opacity: 0; pointer-events: none; }
   .card-actions { opacity: 1; pointer-events: auto; }
   .project-item .remove { opacity: 1; }
   .picker-item { min-height: 44px; padding: 10px 8px; }
