@@ -1660,11 +1660,14 @@ html[data-glass="true"] .column.column-compact {
   to { background-position: -200% 0; }
 }
 
-.card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.card-footer {
+  display: grid;
+  align-items: center;
 }
+.card-footer > * {
+  grid-area: 1 / 1;
+}
+
 .tag {
   font-family: var(--font-mono);
   font-size: 10.5px;
@@ -1707,6 +1710,14 @@ html[data-glass="true"] .column.column-compact {
   padding: 4px 8px;
 }
 
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  opacity: 1;
+  transition: opacity 80ms ease;
+}
+
 .card-actions {
   display: flex;
   gap: 4px;
@@ -1714,8 +1725,10 @@ html[data-glass="true"] .column.column-compact {
   align-items: center;
   opacity: 0;
   transition: opacity 80ms ease;
+  pointer-events: none;
 }
-.card:hover .card-actions { opacity: 1; }
+.card:hover .card-meta { opacity: 0; }
+.card:hover .card-actions { opacity: 1; pointer-events: auto; }
 .card-actions-group {
   display: flex;
   align-items: center;
@@ -3073,9 +3086,9 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   /* ---- Cards ---- */
   .card { padding: 12px 14px; gap: 10px; touch-action: manipulation; }
   .card .text { font-size: 14px; }
-  .card-meta { gap: 6px; }
   .image-attachments { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
-  .card-actions { opacity: 1; flex-wrap: wrap; gap: 6px; }
+  .card-meta { opacity: 0; }
+  .card-actions { opacity: 1; flex-wrap: wrap; gap: 6px; pointer-events: auto; }
   .icon-btn { width: 36px; height: 36px; }
   .icon-btn svg { width: 16px; height: 16px; }
   .project-item .remove { opacity: 1; font-size: 16px; }
@@ -3153,7 +3166,8 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 /* ---------- Touch-only overrides ---------- */
 
 @media (hover: none) {
-  .card-actions { opacity: 1; }
+  .card-meta { opacity: 0; }
+  .card-actions { opacity: 1; pointer-events: auto; }
   .project-item .remove { opacity: 1; }
   .picker-item { min-height: 44px; padding: 10px 8px; }
   .project-item { min-height: 44px; padding: 8px 10px; }
