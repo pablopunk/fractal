@@ -80,6 +80,7 @@ import type {
   Prompt,
   TerminalTab,
 } from "~/lib/client/types.js";
+import AgentPanel from "./AgentPanel.js";
 import AppSettingsModal from "./AppSettingsModal.js";
 import {
   ColumnView,
@@ -125,11 +126,6 @@ function getProjectIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("project");
 }
 
-function isAgentViewFromUrl(): boolean {
-  if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).get("view") === "agent";
-}
-
 function getInitialProjectId(): string | null {
   return getProjectIdFromUrl() ?? (loadLastProjectId() || null);
 }
@@ -168,18 +164,17 @@ function retitledTerminalTab(
   return title === tab.title ? tab : { ...tab, title };
 }
 
-export type ActiveView = { kind: "project"; id: string } | { kind: "agent" };
+type ActiveView = { kind: "project"; id: string } | null;
 
 export default function Board() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [home, setHome] = useState<string>("");
   const [activeView, setActiveView] = useState<ActiveView>(() => {
-    if (isAgentViewFromUrl()) return { kind: "agent" };
     const id = getInitialProjectId();
-    return id ? { kind: "project", id } : { kind: "agent" };
+    return id ? { kind: "project", id } : null;
   });
-  const activeProjectId = activeView.kind === "project" ? activeView.id : null;
+  const activeProjectId = activeView?.id ?? null;
   const [composer, setComposer] = useState("");
   const [composerImagePaths, setComposerImagePaths] = useState<string[]>([]);
   const [composerPresetId, setComposerPresetId] = useState("");
@@ -237,9 +232,11 @@ export default function Board() {
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(() => new Set());
   const [isOpeningProjectTerminal, setIsOpeningProjectTerminal] = useState(false);
-  const [isOpeningAgentTerminal, setIsOpeningAgentTerminal] = useState(false);
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
   const [appSettingsOpen, setAppSettingsOpen] = useState(false);
+  const [appSettingsInitialTab, setAppSettingsInitialTab] = useState<
+    "remote" | "appearance" | "provider" | undefined
+  >(undefined);
   const [githubIssues, setGithubIssues] = useState<GithubIssue[]>([]);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const [loadingIssues, setLoadingIssues] = useState(false);
@@ -258,6 +255,8 @@ export default function Board() {
   const [glassSettings, setGlassSettings] = useState<GlassSettings>(() => loadGlassSettings());
   const [commandRecents, setCommandRecents] = useState<CommandRecent[]>(() => loadCommandRecents());
   const [boardLayout, setBoardLayout] = useState<BoardLayout>(() => loadBoardLayout());
+  const [agentPanelOpen, setAgentPanelOpen] = useState(false);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [autoBoardRows, setAutoBoardRows] = useState(false);
   const [autoBoardCompact, setAutoBoardCompact] = useState(false);
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
@@ -315,10 +314,6 @@ export default function Board() {
   const terminalPaneTabs = useMemo(
     () => filteredTerminalTabs.map(decorateTerminalTab),
     [filteredTerminalTabs, decorateTerminalTab],
-  );
-  const agentTabs = useMemo(
-    () => terminalTabs.filter((tab) => tab.projectId === "__agent__").map(decorateTerminalTab),
-    [terminalTabs, decorateTerminalTab],
   );
   const tabsByProject = useMemo(() => {
     const map: Record<string, DecoratedTerminalTab[]> = {};
@@ -391,9 +386,7 @@ export default function Board() {
   };
 
   const selectProjectTab = (projectId: string, tabId: string) => {
-    if (projectId === "__agent__") {
-      if (activeView.kind !== "agent") setActiveView({ kind: "agent" });
-    } else if (activeView.kind !== "project" || projectId !== activeView.id) {
+    if (activeView && activeView.id !== projectId) {
       selectProject(projectId);
     }
     activateTerminal(tabId);
@@ -420,13 +413,9 @@ export default function Board() {
     setGlassSettings(normalized.glassSettings);
     setCommandRecents(normalized.commandRecents);
     setBoardLayout(normalized.boardLayout);
-    if (isAgentViewFromUrl()) {
-      setActiveView({ kind: "agent" });
-    } else if (!getProjectIdFromUrl() && normalized.lastProjectId) {
+    if (!getProjectIdFromUrl() && normalized.lastProjectId) {
       setActiveView(
-        normalized.lastProjectId
-          ? { kind: "project", id: normalized.lastProjectId }
-          : { kind: "agent" },
+        normalized.lastProjectId ? { kind: "project", id: normalized.lastProjectId } : null,
       );
     }
   }
@@ -484,32 +473,23 @@ export default function Board() {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    saveLastProjectId(activeView.kind === "project" ? activeView.id : null);
-    if (activeView.kind === "agent") {
-      url.searchParams.set("view", "agent");
-      url.searchParams.delete("project");
-    } else if (activeProjectId) {
+    saveLastProjectId(activeView ? activeView.id : null);
+    if (activeProjectId) {
       url.searchParams.set("project", activeProjectId);
-      url.searchParams.delete("view");
       void api("/api/settings", {
         method: "PATCH",
         body: JSON.stringify({ lastProjectId: activeProjectId }),
       }).catch(() => {});
     } else {
       url.searchParams.delete("project");
-      url.searchParams.delete("view");
     }
     window.history.replaceState({}, "", url.toString());
   }, [activeProjectId, activeView]);
 
   useEffect(() => {
     const onPopState = () => {
-      if (isAgentViewFromUrl()) {
-        setActiveView({ kind: "agent" });
-        return;
-      }
       const id = getProjectIdFromUrl();
-      setActiveView(id ? { kind: "project", id } : { kind: "agent" });
+      setActiveView(id ? { kind: "project", id } : null);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -642,13 +622,6 @@ export default function Board() {
   }, [activeProject, activeTerminalId, filteredTerminalTabs, lastTerminalByProject]);
 
   useEffect(() => {
-    if (activeView.kind !== "agent") return;
-    if (activeTerminalId && agentTabs.some((tab) => tab.id === activeTerminalId)) return;
-    if (activeTerminalId !== (agentTabs[0]?.id ?? null))
-      setActiveTerminalId(agentTabs[0]?.id ?? null);
-  }, [activeView, activeTerminalId, agentTabs]);
-
-  useEffect(() => {
     const updateProjectShortcuts = (event: KeyboardEvent | MouseEvent | FocusEvent) => {
       setShowProjectShortcuts(event instanceof KeyboardEvent ? event.metaKey : false);
     };
@@ -682,9 +655,7 @@ export default function Board() {
       if (e.metaKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "t") {
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (activeView.kind === "agent") {
-          void openAgentTerminal();
-        } else if (activeProject) {
+        if (activeProject) {
           void openProjectTerminal(activeProject);
         }
         return;
@@ -825,6 +796,7 @@ export default function Board() {
         globalAgentPresetId: "pi",
       };
       setSettings(nextSettings);
+      setApiKeys(nextSettings.apiKeys ?? {});
       setComposerPresetId((cur) => {
         if (nextSettings.agentPresets.some((p) => p.id === cur)) return cur;
         if (nextSettings.agentPresets.some((p) => p.id === nextSettings.defaultPresetId))
@@ -836,23 +808,16 @@ export default function Board() {
         const hasProject = (id: string | null | undefined) =>
           !!id && data.projects.some((p) => p.id === id);
         const urlId = getProjectIdFromUrl();
-        const curId = cur.kind === "project" ? cur.id : null;
+        const curId = cur?.id ?? null;
 
-        // URL takes priority
-        if (isAgentViewFromUrl()) return { kind: "agent" as const };
         if (hasProject(urlId) && urlId) return { kind: "project" as const, id: urlId };
-
-        // Preserve current view if still valid
-        if (cur.kind === "agent") return { kind: "agent" as const };
         if (hasProject(curId) && curId) return { kind: "project" as const, id: curId };
 
         if (serverUiState?.lastProjectId && hasProject(serverUiState.lastProjectId))
           return { kind: "project" as const, id: serverUiState.lastProjectId };
         if (hasProject(nextSettings.lastProjectId))
           return { kind: "project" as const, id: nextSettings.lastProjectId };
-        return data.projects[0]?.id
-          ? { kind: "project" as const, id: data.projects[0].id }
-          : { kind: "agent" as const };
+        return data.projects[0]?.id ? { kind: "project" as const, id: data.projects[0].id } : null;
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -920,43 +885,7 @@ export default function Board() {
   }
 
   function selectAgent() {
-    setActiveView({ kind: "agent" });
-    if (agentTabs.length === 0) {
-      void openAgentTerminal();
-      return;
-    }
-    if (!activeTerminalId || !agentTabs.some((tab) => tab.id === activeTerminalId)) {
-      activateTerminal(agentTabs[0].id);
-    }
-  }
-
-  async function openAgentTerminal() {
-    if (isOpeningAgentTerminal) return;
-    setIsOpeningAgentTerminal(true);
-    try {
-      const { session, title } = await api<{ session: string; title: string }>(
-        "/api/agent/terminal",
-        { method: "POST" },
-      );
-      const existing = terminalTabs.find((tab) => tab.id === session);
-      if (existing) {
-        activateTerminal(existing.id);
-        return;
-      }
-      const tab: TerminalTab = {
-        id: session,
-        promptId: "",
-        projectId: "__agent__",
-        session,
-        title,
-      };
-      setTerminalTabs((tabs) => (tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]));
-      activateTerminal(tab.id);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIsOpeningAgentTerminal(false);
-    }
+    setAgentPanelOpen(true);
   }
 
   async function removeProject(id: string) {
@@ -968,7 +897,7 @@ export default function Board() {
         const next = prev.filter((x) => x.id !== id);
         if (activeProjectId === id) {
           const nextId = next[removedIndex]?.id ?? next[removedIndex - 1]?.id;
-          setActiveView(nextId ? { kind: "project", id: nextId } : { kind: "agent" });
+          setActiveView(nextId ? { kind: "project", id: nextId } : null);
         }
         return next;
       });
@@ -1002,7 +931,12 @@ export default function Board() {
     return `Work on ${idRef}: ${issue.title}\n${issue.url}`;
   }
 
-  async function createPromptFromIssue(column: Column, presetId: string, text: string, projectId: string) {
+  async function createPromptFromIssue(
+    column: Column,
+    presetId: string,
+    text: string,
+    projectId: string,
+  ) {
     if (!projectId || (column !== "RUN_IN_PLACE" && column !== "RUN_IN_WORKTREE")) return;
     try {
       const url = `/api/projects/${projectId}/prompts`;
@@ -1262,7 +1196,13 @@ export default function Board() {
       if (overCol === "RUN_IN_PLACE" || overCol === "RUN_IN_WORKTREE") {
         // Hidden after modal confirmation
         const issueText = buildIssuePromptText(issue);
-        setTackleIssue({ issue, column: overCol, text: issueText, presetId: activeProject?.defaultPresetId || settings.defaultPresetId, projectId: activeProjectId });
+        setTackleIssue({
+          issue,
+          column: overCol,
+          text: issueText,
+          presetId: activeProject?.defaultPresetId || settings.defaultPresetId,
+          projectId: activeProjectId,
+        });
         return;
       }
       if (overCol === "ARCHIVED") {
@@ -1274,7 +1214,13 @@ export default function Board() {
       if (overPrompt && overPrompt.column !== "PROMPTS") {
         // Hidden after modal confirmation
         const issueText = buildIssuePromptText(issue);
-        setTackleIssue({ issue, column: overPrompt.column, text: issueText, presetId: activeProject?.defaultPresetId || settings.defaultPresetId, projectId: activeProjectId });
+        setTackleIssue({
+          issue,
+          column: overPrompt.column,
+          text: issueText,
+          presetId: activeProject?.defaultPresetId || settings.defaultPresetId,
+          projectId: activeProjectId,
+        });
       }
       return;
     }
@@ -1495,7 +1441,7 @@ export default function Board() {
         tabs={filteredTerminalTabs}
         home={home}
         commandRecents={commandRecents}
-        isAgentView={activeView.kind === "agent"}
+        isAgentView={false}
         forceOpen={commandMenuOpen}
         onForceOpenChange={setCommandMenuOpen}
         onSelectProject={(project) => selectProject(project.id)}
@@ -1512,7 +1458,7 @@ export default function Board() {
         <Sidebar
           projects={projects}
           activeId={activeProjectId}
-          activeView={activeView}
+          activeView={null}
           onSelect={selectProject}
           onSelectAgent={selectAgent}
           onRemove={removeProject}
@@ -1542,73 +1488,7 @@ export default function Board() {
           }}
         />
         <main className="main">
-          {activeView.kind === "agent" ? (
-            <>
-              <div className="topbar">
-                <div className="topbar-title">
-                  <span className="topbar-title-row">
-                    <SquareTerminal className="topbar-title-icon" aria-hidden="true" />
-                    <h1>Fractal Agent</h1>
-                  </span>
-                </div>
-                <div className="topbar-spacer" />
-                <PresetSettings
-                  presets={settings.agentPresets}
-                  defaultPresetId={settings.defaultPresetId}
-                  helperPresetId={settings.helperPresetId}
-                  globalAgentPresetId={settings.globalAgentPresetId}
-                  onSetDefault={(id) => void saveSettings({ defaultPresetId: id })}
-                  onSetHelper={(id) => void saveSettings({ helperPresetId: id })}
-                  onSetGlobalAgent={(id) => void saveSettings({ globalAgentPresetId: id })}
-                  piModels={models}
-                  claudeModels={claudeModels}
-                  opencodeModels={opencodeModels}
-                  onChange={(agentPresets) => void saveSettings({ agentPresets })}
-                  open={presetSettingsOpen}
-                  onOpenChange={setPresetSettingsOpen}
-                />
-                <Tooltip content="Settings">
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => setAppSettingsOpen(true)}
-                    aria-label="App settings"
-                  >
-                    <Settings size={15} />
-                  </button>
-                </Tooltip>
-              </div>
-              <div
-                className={`workspace workspace-${agentTabs.length > 0 ? terminalPosition : "right"}`}
-              >
-                <div className="board board-snug agent-board-spacer" aria-hidden="true" />
-                {agentTabs.length > 0 && (
-                  <TerminalPane
-                    tabs={agentTabs}
-                    activeId={activeTerminalId}
-                    position={terminalPosition}
-                    size={terminalPosition === "right" ? terminalWidth : terminalHeight}
-                    snug={true}
-                    onResize={
-                      terminalPosition === "right" ? resizeTerminalWidth : resizeTerminalHeight
-                    }
-                    onTogglePosition={() =>
-                      setPersistentTerminalPosition((position) =>
-                        position === "right" ? "bottom" : "right",
-                      )
-                    }
-                    onSelect={activateTerminal}
-                    onClose={closeTerminal}
-                    onReorder={reorderTerminal}
-                    focusKey={terminalFocusKey}
-                    theme={theme}
-                    terminalThemeName={terminalThemeName}
-                    glassEnabled={glassSettings.enabled}
-                  />
-                )}
-              </div>
-            </>
-          ) : !activeProject ? (
+          {!activeProject ? (
             <div className="empty-wrapper">
               <EmptyState projects={projects} onAdd={addProject} />
             </div>
@@ -1837,17 +1717,24 @@ export default function Board() {
                 </DragOverlay>
               </DndContext>
 
-
               {/* Tackle issue modal */}
               {tackleIssue && (
                 <Portal>
                   <div className="modal-overlay" onClick={() => setTackleIssue(null)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+                    <div
+                      className="modal"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ maxWidth: 480 }}
+                    >
                       <h2>Tackle issue</h2>
                       <p style={{ fontSize: 13, marginBottom: 4, color: "var(--text-faint)" }}>
                         Tackling{" "}
-                        <strong>{tackleIssue.issue.kind === "github" ? `#${tackleIssue.issue.number}` : tackleIssue.issue.identifier}</strong>
-                        {" "}— {tackleIssue.issue.title}
+                        <strong>
+                          {tackleIssue.issue.kind === "github"
+                            ? `#${tackleIssue.issue.number}`
+                            : tackleIssue.issue.identifier}
+                        </strong>{" "}
+                        — {tackleIssue.issue.title}
                       </p>
                       <p style={{ fontSize: 12, marginBottom: 12, color: "var(--text-faint)" }}>
                         Choose a preset and review the prompt text below.
@@ -1861,13 +1748,21 @@ export default function Board() {
                         className="modal-prompt-editor"
                         onKeyDown={(e) => {
                           if (e.nativeEvent.isComposing) return;
-                          if (e.key === "Escape") { setTackleIssue(null); return; }
+                          if (e.key === "Escape") {
+                            setTackleIssue(null);
+                            return;
+                          }
                           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                             if (!tackleIssue.presetId || !tackleIssue.text.trim()) return;
                             const ti = tackleIssue;
                             setTackleIssue(null);
                             setHiddenIssueIds((ids) => new Set(ids).add(ti.issue.id));
-                            void createPromptFromIssue(ti.column, ti.presetId, ti.text, ti.projectId);
+                            void createPromptFromIssue(
+                              ti.column,
+                              ti.presetId,
+                              ti.text,
+                              ti.projectId,
+                            );
                           }
                         }}
                       />
@@ -1889,7 +1784,12 @@ export default function Board() {
                             const ti = tackleIssue;
                             setTackleIssue(null);
                             setHiddenIssueIds((ids) => new Set(ids).add(ti.issue.id));
-                            void createPromptFromIssue(ti.column, ti.presetId, ti.text, ti.projectId);
+                            void createPromptFromIssue(
+                              ti.column,
+                              ti.presetId,
+                              ti.text,
+                              ti.projectId,
+                            );
                           }}
                         >
                           Tackle
@@ -2097,7 +1997,10 @@ export default function Board() {
 
               {appSettingsOpen && (
                 <AppSettingsModal
-                  onClose={() => setAppSettingsOpen(false)}
+                  onClose={() => {
+                    setAppSettingsOpen(false);
+                    setAppSettingsInitialTab(undefined);
+                  }}
                   theme={theme}
                   terminalThemeName={terminalThemeName}
                   boardLayout={boardLayout}
@@ -2106,6 +2009,12 @@ export default function Board() {
                   onGlassChange={setGlassSettings}
                   onTerminalThemeChange={setTerminalThemeName}
                   onBoardLayoutChange={setBoardLayout}
+                  apiKeys={apiKeys}
+                  onApiKeysChange={(keys) => {
+                    setApiKeys(keys);
+                    void saveSettings({ apiKeys: keys });
+                  }}
+                  initialTab={appSettingsInitialTab}
                 />
               )}
 
@@ -2117,8 +2026,19 @@ export default function Board() {
                   onSave={saveProjectSettings}
                 />
               )}
+
             </>
           )}
+
+          <AgentPanel
+            open={agentPanelOpen}
+            onClose={() => setAgentPanelOpen(false)}
+            apiKeys={apiKeys}
+            onOpenSettings={() => {
+              setAppSettingsInitialTab("provider");
+              setAppSettingsOpen(true);
+            }}
+          />
         </main>
       </div>
     </TooltipProvider>

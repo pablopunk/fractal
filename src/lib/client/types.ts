@@ -56,6 +56,7 @@ export type AppSettings = {
   helperPresetId: string;
   lastProjectId: string;
   globalAgentPresetId: string;
+  apiKeys?: Record<string, string>;
 };
 export type PiModel = {
   id: string;

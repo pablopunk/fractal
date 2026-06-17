@@ -70,7 +70,7 @@ function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
 export function Sidebar(props: {
   projects: Project[];
   activeId: string | null;
-  activeView: { kind: "project"; id: string } | { kind: "agent" };
+  activeView: { kind: "project"; id: string } | null;
   onSelect: (id: string) => void;
   onSelectAgent: () => void;
   onRemove: (id: string) => void;
@@ -215,10 +215,7 @@ export function Sidebar(props: {
               </button>
             </div>
           ))}
-        <AgentSidebarEntry
-          active={props.activeView.kind === "agent"}
-          onClick={props.onSelectAgent}
-        />
+        <AgentSidebarEntry active={false} onClick={props.onSelectAgent} />
         <div
           className="sidebar-resize-handle"
           onPointerDown={startResize}

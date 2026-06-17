@@ -1,4 +1,4 @@
-import { Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
+import { Key, Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
   BoardLayout,
@@ -20,7 +20,7 @@ const TERMINAL_THEME_OPTIONS = [
   { id: "solarized" as TerminalThemeName, label: "Solarized" },
 ];
 
-type Tab = "remote" | "appearance";
+type Tab = "remote" | "appearance" | "provider";
 
 type ElectronGlobals = typeof window & {
   electron?: {
@@ -45,8 +45,11 @@ export default function AppSettingsModal(props: {
   onGlassChange: (settings: GlassSettings) => void;
   onTerminalThemeChange: (theme: TerminalThemeName) => void;
   onBoardLayoutChange: (layout: BoardLayout) => void;
+  apiKeys?: Record<string, string>;
+  onApiKeysChange?: (keys: Record<string, string>) => void;
+  initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>("remote");
+  const [tab, setTab] = useState<Tab>(props.initialTab ?? "remote");
 
   return (
     <Portal>
@@ -66,6 +69,13 @@ export default function AppSettingsModal(props: {
             >
               <Palette size={14} />
               Appearance
+            </button>
+            <button
+              className={`app-settings-tab ${tab === "provider" ? "active" : ""}`}
+              onClick={() => setTab("provider")}
+            >
+              <Key size={14} />
+              AI Provider
             </button>
           </div>
 
@@ -182,6 +192,15 @@ export default function AppSettingsModal(props: {
             </div>
           )}
 
+          {tab === "provider" && (
+            <div className="project-settings-body">
+              <ApiKeyFields
+                apiKeys={props.apiKeys ?? {}}
+                onChange={props.onApiKeysChange ?? (() => {})}
+              />
+            </div>
+          )}
+
           <footer className="project-settings-footer">
             <button className="btn primary sm" onClick={props.onClose}>
               Done
@@ -284,5 +303,49 @@ function ModeDisplay() {
         </p>
       )}
     </div>
+  );
+}
+
+const API_KEY_FIELDS = [
+  { key: "anthropic", label: "Anthropic API Key", hint: "Used for Claude models" },
+  { key: "google", label: "Google API Key", hint: "Used for Gemini models" },
+  { key: "openai", label: "OpenAI API Key", hint: "Used for GPT models" },
+  { key: "openrouter", label: "OpenRouter API Key", hint: "Multi-provider access" },
+] as const;
+
+function ApiKeyFields({
+  apiKeys,
+  onChange,
+}: {
+  apiKeys: Record<string, string>;
+  onChange: (keys: Record<string, string>) => void;
+}) {
+  return (
+    <>
+      <p className="project-settings-hint" style={{ marginBottom: 16 }}>
+        Add API keys so the Fractal Agent can talk to AI models. Keys are stored locally and never
+        sent anywhere else.
+      </p>
+      {API_KEY_FIELDS.map(({ key, label, hint }) => (
+        <div key={key} className="project-settings-section">
+          <label className="project-settings-label">{label}</label>
+          <p className="project-settings-hint">{hint}</p>
+          <input
+            type="password"
+            className="input"
+            placeholder={
+              key === "openrouter" ? "sk-or-..." : key === "anthropic" ? "sk-ant-..." : "..."
+            }
+            value={apiKeys[key] ?? ""}
+            onChange={(e) => {
+              const next = { ...apiKeys, [key]: e.target.value };
+              if (!e.target.value) delete next[key];
+              onChange(next);
+            }}
+            style={{ marginTop: 4 }}
+          />
+        </div>
+      ))}
+    </>
   );
 }
