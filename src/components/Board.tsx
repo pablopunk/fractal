@@ -2038,7 +2038,6 @@ export default function Board() {
             onToggle={() => setAgentPanelOpen((prev) => !prev)}
             apiKeys={apiKeys}
             mobile={isMobile}
-            sidebarWidth={sidebarWidth}
             onOpenSettings={() => {
               setAppSettingsInitialTab("provider");
               setAppSettingsOpen(true);
