@@ -891,10 +891,6 @@ export default function Board() {
     }
   }
 
-  function selectAgent() {
-    setAgentPanelOpen((prev) => !prev);
-  }
-
   async function removeProject(id: string) {
     if (!confirm("Remove this project from Fractal?")) return;
     try {
@@ -1467,7 +1463,6 @@ export default function Board() {
           activeId={activeProjectId}
           activeView={null}
           onSelect={selectProject}
-          onSelectAgent={selectAgent}
           onRemove={removeProject}
           onAdd={addProject}
           showPicker={showSidebarPicker}
@@ -2037,7 +2032,7 @@ export default function Board() {
           )}
           <AgentPanel
             open={agentPanelOpen}
-            onClose={() => setAgentPanelOpen(false)}
+            onToggle={() => setAgentPanelOpen((prev) => !prev)}
             apiKeys={apiKeys}
             onOpenSettings={() => {
               setAppSettingsInitialTab("provider");

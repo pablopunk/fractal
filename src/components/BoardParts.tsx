@@ -15,7 +15,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Bot,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -48,31 +47,11 @@ import ProjectPicker from "./ProjectPicker.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
 
-function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
-  return (
-    <div className="agent-sidebar-entry">
-      <button
-        type="button"
-        className={`project-item agent-item ${props.active ? "active" : ""}`}
-        onClick={props.onClick}
-        aria-label="Fractal Agent"
-        title="Fractal Agent"
-      >
-        <span className="agent-badge" aria-hidden="true">
-          <Bot size={13} strokeWidth={2} />
-        </span>
-        <span className="name">Fractal Agent</span>
-      </button>
-    </div>
-  );
-}
-
 export function Sidebar(props: {
   projects: Project[];
   activeId: string | null;
   activeView: { kind: "project"; id: string } | null;
   onSelect: (id: string) => void;
-  onSelectAgent: () => void;
   onRemove: (id: string) => void;
   onAdd: (path: string) => void;
   showPicker: boolean;
@@ -215,7 +194,6 @@ export function Sidebar(props: {
               </button>
             </div>
           ))}
-        <AgentSidebarEntry active={false} onClick={props.onSelectAgent} />
         <div
           className="sidebar-resize-handle"
           onPointerDown={startResize}

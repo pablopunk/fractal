@@ -504,73 +504,6 @@ a { color: inherit; }
 
 /* ---------- Agent sidebar ---------- */
 
-.agent-sidebar-entry {
-  padding: 4px 8px 6px;
-  border-top: 1px solid var(--border);
-  margin-top: 4px;
-}
-
-.sidebar.collapsed .agent-sidebar-entry {
-  padding: 8px;
-  display: flex;
-  justify-content: center;
-}
-
-.agent-sidebar-entry .project-item {
-  width: 100%;
-}
-
-.sidebar.collapsed .agent-sidebar-entry .project-item {
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  justify-content: center;
-  gap: 0;
-}
-
-.agent-item {
-  width: 100%;
-  background: transparent;
-  justify-content: center;
-  font: inherit;
-}
-.agent-item .name {
-  flex: 0 0 auto;
-  color: var(--text);
-  font-weight: 600;
-  font-size: 12px;
-}
-.sidebar .agent-item:hover {
-  background: var(--accent-soft) !important;
-  border-color: color-mix(in oklab, var(--accent) 30%, transparent) !important;
-}
-.sidebar .agent-item.active {
-  background: var(--accent-soft) !important;
-  border-color: color-mix(in oklab, var(--accent) 45%, transparent) !important;
-}
-.agent-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  flex: none;
-  color: var(--accent-contrast, #fff);
-  background: var(--accent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(0, 0, 0, 0.18);
-  transition: transform 120ms ease, box-shadow 120ms ease;
-}
-.agent-item:hover .agent-badge {
-  transform: translateY(-1px);
-}
-.agent-item.active .agent-badge {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 0 0 2px var(--state-active-border),
-    0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
 /* ---------- Main ---------- */
 
 .main {
@@ -3183,9 +3116,9 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 /* ── Agent Panel ── */
 .agent-panel {
   position: fixed;
-  bottom: 48px;
-  left: 8px;
-  width: calc(var(--sidebar-width, 236px) - 16px);
+  bottom: 58px;
+  left: 12px;
+  width: 360px;
   max-height: 600px;
   background: var(--surface);
   border: 1px solid var(--material-panel-border);
@@ -3195,6 +3128,58 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   flex-direction: column;
   overflow: hidden;
   z-index: 200;
+}
+
+.agent-tab {
+  position: fixed;
+  bottom: 8px;
+  left: 12px;
+  width: 320px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--material-panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--material-modal-shadow);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  z-index: 201;
+}
+
+.agent-tab:hover,
+.agent-tab.active {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--material-panel-border));
+  background: color-mix(in oklab, var(--surface) 88%, var(--accent));
+}
+
+.agent-tab-icon {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-contrast, #fff);
+  background: var(--accent);
+  border-radius: 6px;
+  flex: none;
+}
+
+.agent-tab-chevron {
+  margin-left: auto;
+  color: var(--text-faint);
+  transform: rotate(-90deg);
+  transition: transform 140ms ease;
+}
+
+.agent-tab.active .agent-tab-chevron {
+  transform: rotate(90deg);
 }
 
 .agent-panel-header {
@@ -3219,19 +3204,6 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 .agent-panel-title svg {
   color: var(--accent);
   flex-shrink: 0;
-}
-
-.agent-panel-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.agent-panel-btn {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* ── Agent Chat ── */
@@ -3484,21 +3456,21 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 /* ── Agent Panel: Mobile ── */
 @media (max-width: 768px) {
   .agent-panel {
-    bottom: 0;
-    right: 0;
-    left: 0;
-    width: 100%;
+    bottom: 58px;
+    right: 8px;
+    left: 8px;
+    width: auto;
     max-height: 55vh;
-    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .agent-tab {
+    right: 8px;
+    left: 8px;
+    width: auto;
   }
 
   .agent-panel-header {
     padding: 14px 16px;
-  }
-
-  .agent-panel-btn {
-    width: 36px;
-    height: 36px;
   }
 
   .agent-send-btn {

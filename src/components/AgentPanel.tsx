@@ -1,109 +1,60 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import {
-  ChevronDown,
-  ChevronRight,
-  Key,
-  Loader2,
-  Minimize2,
-  Send,
-  Sparkles,
-  Wrench,
-  X,
-} from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Key, Loader2, Send, Wrench } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import Portal from "./Portal.js";
 
 type AgentPanelProps = {
   open: boolean;
-  onClose: () => void;
+  onToggle: () => void;
   apiKeys: Record<string, string> | undefined;
   onOpenSettings: () => void;
 };
 
-export default function AgentPanel({ open, onClose, apiKeys, onOpenSettings }: AgentPanelProps) {
-  const [minimized, setMinimized] = useState(false);
-
+export default function AgentPanel({ open, onToggle, apiKeys, onOpenSettings }: AgentPanelProps) {
   const hasKeys = apiKeys && Object.keys(apiKeys).some((k) => apiKeys[k]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <Portal>
+    <Portal>
+      <AnimatePresence>
+        {open && (
           <motion.div
             className="agent-panel"
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              height: minimized ? "auto" : undefined,
-            }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
             style={{ transformOrigin: "bottom left" }}
             transition={{ type: "spring", duration: 0.35, bounce: 0 }}
           >
-            {minimized ? (
-              <AgentHeader onMaximize={() => setMinimized(false)} onClose={onClose} minimized />
-            ) : (
-              <>
-                <AgentHeader onMinimize={() => setMinimized(true)} onClose={onClose} />
-                {hasKeys ? <AgentChat /> : <AgentGatekeeper onOpenSettings={onOpenSettings} />}
-              </>
-            )}
+            <AgentHeader />
+            {hasKeys ? <AgentChat /> : <AgentGatekeeper onOpenSettings={onOpenSettings} />}
           </motion.div>
-        </Portal>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+      <button
+        type="button"
+        className={`agent-tab ${open ? "active" : ""}`}
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-label="Toggle Fractal Agent"
+      >
+        <span className="agent-tab-icon" aria-hidden="true">
+          <Bot size={15} strokeWidth={2} />
+        </span>
+        <span>Fractal Agent</span>
+        <ChevronRight className="agent-tab-chevron" size={14} aria-hidden="true" />
+      </button>
+    </Portal>
   );
 }
 
-function AgentHeader({
-  onMinimize,
-  onMaximize,
-  onClose,
-  minimized,
-}: {
-  onMinimize?: () => void;
-  onMaximize?: () => void;
-  onClose: () => void;
-  minimized?: boolean;
-}) {
+function AgentHeader() {
   return (
     <div className="agent-panel-header">
       <div className="agent-panel-title">
-        <Sparkles size={16} strokeWidth={2.2} />
+        <Bot size={16} strokeWidth={2.1} />
         <span>Fractal Agent</span>
-      </div>
-      <div className="agent-panel-actions">
-        {minimized ? (
-          <button
-            className="icon-btn agent-panel-btn"
-            onClick={onMaximize}
-            aria-label="Maximize"
-            title="Maximize"
-          >
-            <ChevronRight size={14} />
-          </button>
-        ) : (
-          <button
-            className="icon-btn agent-panel-btn"
-            onClick={onMinimize}
-            aria-label="Minimize"
-            title="Minimize"
-          >
-            <Minimize2 size={14} />
-          </button>
-        )}
-        <button
-          className="icon-btn agent-panel-btn"
-          onClick={onClose}
-          aria-label="Close"
-          title="Close"
-        >
-          <X size={14} />
-        </button>
       </div>
     </div>
   );
@@ -187,7 +138,7 @@ function AgentMessageStream({ messages }: { messages: UIMessage[] }) {
   if (messages.length === 0) {
     return (
       <div className="agent-empty">
-        <Sparkles size={24} strokeWidth={1.5} />
+        <Bot size={24} strokeWidth={1.5} />
         <p>
           Ask me anything about Fractal. I can create prompts, launch agents, manage projects, and
           more.
