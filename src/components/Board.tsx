@@ -661,6 +661,13 @@ export default function Board() {
         return;
       }
 
+      if (e.metaKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setAgentPanelOpen((prev) => !prev);
+        return;
+      }
+
       const ctrlOrCmd = e.ctrlKey || e.metaKey;
       if (ctrlOrCmd && !e.shiftKey && /^[1-9]$/.test(e.key)) {
         e.preventDefault();
