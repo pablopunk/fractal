@@ -90,6 +90,7 @@ export function Sidebar(props: {
   onReorderTabs: (fromId: string, toId: string) => void;
   agentPanelOpen?: boolean;
   onToggleAgent?: () => void;
+  showAgentEntry?: boolean;
 }) {
   const projectSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -217,10 +218,12 @@ export function Sidebar(props: {
               </button>
             </div>
           ))}
-        <AgentSidebarEntry
-          active={!!props.agentPanelOpen}
-          onClick={props.onToggleAgent ?? (() => {})}
-        />
+        {props.showAgentEntry !== false && (
+          <AgentSidebarEntry
+            active={!!props.agentPanelOpen}
+            onClick={props.onToggleAgent ?? (() => {})}
+          />
+        )}
         <div
           className="sidebar-resize-handle"
           onPointerDown={startResize}

@@ -2195,15 +2195,6 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
 }
 .terminal-pane-toggle:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-3); }
 
-.agent-board-spacer {
-  flex: 0 0 0 !important;
-  width: 0;
-  min-width: 0;
-  padding: 0;
-  gap: 0;
-  overflow: hidden;
-}
-
 .terminal-resizer-bottom {
   left: 0;
   right: 0;
@@ -3117,8 +3108,8 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 .agent-panel {
   position: fixed;
   bottom: 48px;
-  left: calc(var(--sidebar-width, 204px) + 8px);
-  width: 380px;
+  left: var(--agent-panel-left, 212px);
+  width: 420px;
   max-height: 600px;
   background: var(--surface);
   border: 1px solid var(--material-panel-border);
