@@ -505,9 +505,9 @@ a { color: inherit; }
 /* ---------- Agent sidebar ---------- */
 
 .agent-sidebar-entry {
-  padding: 8px 8px 10px;
+  padding: 4px 8px 6px;
   border-top: 1px solid var(--border);
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .sidebar.collapsed .agent-sidebar-entry {
@@ -538,6 +538,7 @@ a { color: inherit; }
   flex: 0 0 auto;
   color: var(--text);
   font-weight: 600;
+  font-size: 12px;
 }
 .sidebar .agent-item:hover {
   background: var(--accent-soft) !important;
@@ -551,9 +552,9 @@ a { color: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   flex: none;
   color: var(--accent-contrast, #fff);
   background: var(--accent);

@@ -15,12 +15,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Bot,
   ChevronLeft,
   ChevronRight,
   Info,
   Plus,
   RefreshCw,
-  Sparkles,
   SquareTerminal,
   Trash2,
 } from "lucide-react";
@@ -59,7 +59,7 @@ function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
         title="Fractal Agent"
       >
         <span className="agent-badge" aria-hidden="true">
-          <Sparkles size={14} strokeWidth={2.4} />
+          <Bot size={13} strokeWidth={2} />
         </span>
         <span className="name">Fractal Agent</span>
       </button>
