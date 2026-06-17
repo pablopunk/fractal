@@ -5,7 +5,8 @@ import { ensureSession, sanitizeSessionName } from "~/lib/server/tmux.js";
 export const prerender = false;
 
 export const POST: APIRoute = async ({ params }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   const project = getProject(id);
   if (!project) return Response.json({ error: "not found" }, { status: 404 });
 

@@ -5,7 +5,8 @@ import { getProject, listPrompts } from "~/lib/server/store.js";
 export const prerender = false;
 
 export const DELETE: APIRoute = async ({ params }) => {
-  const projectId = params.id!;
+  const projectId = params.id;
+  if (!projectId) return Response.json({ error: "not found" }, { status: 404 });
   if (!getProject(projectId)) return Response.json({ error: "not found" }, { status: 404 });
 
   const donePrompts = listPrompts(projectId).filter((prompt) => prompt.isArchived);

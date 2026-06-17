@@ -175,7 +175,9 @@ export function createPrompt(input: {
     updatedAt: now,
   };
   getDb().insert(prompts).values(row).run();
-  return getPrompt(row.id)!;
+  const prompt = getPrompt(row.id);
+  if (!prompt) throw new Error("Failed to create prompt: row not found after insert");
+  return prompt;
 }
 
 export function updatePrompt(id: string, patch: Partial<Prompt>): Prompt | undefined {

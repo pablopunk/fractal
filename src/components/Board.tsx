@@ -1002,7 +1002,12 @@ export default function Board() {
     return `Work on ${idRef}: ${issue.title}\n${issue.url}`;
   }
 
-  async function createPromptFromIssue(column: Column, presetId: string, text: string, projectId: string) {
+  async function createPromptFromIssue(
+    column: Column,
+    presetId: string,
+    text: string,
+    projectId: string,
+  ) {
     if (!projectId || (column !== "RUN_IN_PLACE" && column !== "RUN_IN_WORKTREE")) return;
     try {
       const url = `/api/projects/${projectId}/prompts`;
@@ -1262,7 +1267,13 @@ export default function Board() {
       if (overCol === "RUN_IN_PLACE" || overCol === "RUN_IN_WORKTREE") {
         // Hidden after modal confirmation
         const issueText = buildIssuePromptText(issue);
-        setTackleIssue({ issue, column: overCol, text: issueText, presetId: activeProject?.defaultPresetId || settings.defaultPresetId, projectId: activeProjectId });
+        setTackleIssue({
+          issue,
+          column: overCol,
+          text: issueText,
+          presetId: activeProject?.defaultPresetId || settings.defaultPresetId,
+          projectId: activeProjectId,
+        });
         return;
       }
       if (overCol === "ARCHIVED") {
@@ -1274,7 +1285,13 @@ export default function Board() {
       if (overPrompt && overPrompt.column !== "PROMPTS") {
         // Hidden after modal confirmation
         const issueText = buildIssuePromptText(issue);
-        setTackleIssue({ issue, column: overPrompt.column, text: issueText, presetId: activeProject?.defaultPresetId || settings.defaultPresetId, projectId: activeProjectId });
+        setTackleIssue({
+          issue,
+          column: overPrompt.column,
+          text: issueText,
+          presetId: activeProject?.defaultPresetId || settings.defaultPresetId,
+          projectId: activeProjectId,
+        });
       }
       return;
     }
@@ -1837,17 +1854,24 @@ export default function Board() {
                 </DragOverlay>
               </DndContext>
 
-
               {/* Tackle issue modal */}
               {tackleIssue && (
                 <Portal>
                   <div className="modal-overlay" onClick={() => setTackleIssue(null)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+                    <div
+                      className="modal"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ maxWidth: 480 }}
+                    >
                       <h2>Tackle issue</h2>
                       <p style={{ fontSize: 13, marginBottom: 4, color: "var(--text-faint)" }}>
                         Tackling{" "}
-                        <strong>{tackleIssue.issue.kind === "github" ? `#${tackleIssue.issue.number}` : tackleIssue.issue.identifier}</strong>
-                        {" "}— {tackleIssue.issue.title}
+                        <strong>
+                          {tackleIssue.issue.kind === "github"
+                            ? `#${tackleIssue.issue.number}`
+                            : tackleIssue.issue.identifier}
+                        </strong>{" "}
+                        — {tackleIssue.issue.title}
                       </p>
                       <p style={{ fontSize: 12, marginBottom: 12, color: "var(--text-faint)" }}>
                         Choose a preset and review the prompt text below.
@@ -1861,13 +1885,21 @@ export default function Board() {
                         className="modal-prompt-editor"
                         onKeyDown={(e) => {
                           if (e.nativeEvent.isComposing) return;
-                          if (e.key === "Escape") { setTackleIssue(null); return; }
+                          if (e.key === "Escape") {
+                            setTackleIssue(null);
+                            return;
+                          }
                           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                             if (!tackleIssue.presetId || !tackleIssue.text.trim()) return;
                             const ti = tackleIssue;
                             setTackleIssue(null);
                             setHiddenIssueIds((ids) => new Set(ids).add(ti.issue.id));
-                            void createPromptFromIssue(ti.column, ti.presetId, ti.text, ti.projectId);
+                            void createPromptFromIssue(
+                              ti.column,
+                              ti.presetId,
+                              ti.text,
+                              ti.projectId,
+                            );
                           }
                         }}
                       />
@@ -1889,7 +1921,12 @@ export default function Board() {
                             const ti = tackleIssue;
                             setTackleIssue(null);
                             setHiddenIssueIds((ids) => new Set(ids).add(ti.issue.id));
-                            void createPromptFromIssue(ti.column, ti.presetId, ti.text, ti.projectId);
+                            void createPromptFromIssue(
+                              ti.column,
+                              ti.presetId,
+                              ti.text,
+                              ti.projectId,
+                            );
                           }}
                         >
                           Tackle

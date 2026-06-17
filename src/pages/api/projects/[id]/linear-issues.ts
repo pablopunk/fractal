@@ -5,7 +5,8 @@ import { getProject } from "~/lib/server/store.js";
 export const prerender = false;
 
 export const GET: APIRoute = async ({ params }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   if (!getProject(id)) return Response.json({ error: "not found" }, { status: 404 });
 
   const issues = await fetchLinearIssues();

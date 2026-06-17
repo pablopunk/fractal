@@ -231,7 +231,7 @@ export default function TerminalPane(props: {
 function TerminalView({
   tab,
   onClose,
-  focusKey,
+  focusKey: _focusKey,
   theme,
   terminalThemeName,
   glassEnabled,
