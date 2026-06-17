@@ -235,7 +235,16 @@ export function getSettings(): AppSettings {
     if (row.key === "lastProjectId") out.lastProjectId = row.value;
     if (row.key === "apiKeys") {
       try {
-        out.apiKeys = JSON.parse(row.value);
+        const parsed = JSON.parse(row.value);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const valid: Record<string, string> = {};
+          for (const [k, v] of Object.entries(parsed)) {
+            if (typeof k === "string" && typeof v === "string" && v.trim()) {
+              valid[k] = v.trim();
+            }
+          }
+          out.apiKeys = valid;
+        }
       } catch (err) {
         console.error("[fractal-settings] failed to parse apiKeys:", err);
       }

@@ -133,7 +133,7 @@ function AgentChat() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "instant" });
-  });
+  }, [messages.length]);
 
   const isLoading = status === "submitted" || status === "streaming";
 

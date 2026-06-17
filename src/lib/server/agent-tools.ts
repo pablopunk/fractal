@@ -9,18 +9,25 @@ async function fractalFetch<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (init?.body) headers["Content-Type"] = "application/json";
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: init?.method ?? "GET",
-    headers,
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(
-      `Fractal API error ${res.status}: ${(data as { error?: string }).error ?? res.statusText}`,
-    );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: init?.method ?? "GET",
+      headers,
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(
+        `Fractal API error ${res.status}: ${(data as { error?: string }).error ?? res.statusText}`,
+      );
+    }
+    return data as T;
+  } finally {
+    clearTimeout(timeout);
   }
-  return data as T;
 }
 
 function stripSecrets(obj: unknown): unknown {

@@ -48,6 +48,7 @@ export type Prompt = {
   launchedAt?: number | null;
   isRunning?: boolean;
 };
+type ApiProvider = "anthropic" | "google" | "openai" | "openrouter";
 export type AppSettings = {
   fastModel: string;
   smartModel: string;
@@ -56,7 +57,7 @@ export type AppSettings = {
   helperPresetId: string;
   lastProjectId: string;
   globalAgentPresetId: string;
-  apiKeys?: Record<string, string>;
+  apiKeys?: Partial<Record<ApiProvider, string>>;
 };
 export type PiModel = {
   id: string;

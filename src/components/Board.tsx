@@ -2026,10 +2026,8 @@ export default function Board() {
                   onSave={saveProjectSettings}
                 />
               )}
-
             </>
           )}
-
           <AgentPanel
             open={agentPanelOpen}
             onClose={() => setAgentPanelOpen(false)}

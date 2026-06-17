@@ -338,8 +338,9 @@ function ApiKeyFields({
             }
             value={apiKeys[key] ?? ""}
             onChange={(e) => {
-              const next = { ...apiKeys, [key]: e.target.value };
-              if (!e.target.value) delete next[key];
+              const trimmed = e.target.value.trim();
+              const next = { ...apiKeys, [key]: trimmed };
+              if (!trimmed) delete next[key];
               onChange(next);
             }}
             style={{ marginTop: 4 }}
