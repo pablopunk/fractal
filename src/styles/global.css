@@ -3183,7 +3183,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 .agent-panel {
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  left: calc(var(--sidebar-width, 204px) + 12px);
   width: 420px;
   max-height: 600px;
   background: var(--material-panel-bg);
