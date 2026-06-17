@@ -33,14 +33,15 @@ export default function AgentPanel({ open, onClose, apiKeys, onOpenSettings }: A
         <Portal>
           <motion.div
             className="agent-panel"
-            initial={{ opacity: 0, y: 8, scale: 0.97 }}
+            initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{
               opacity: 1,
               y: 0,
               scale: 1,
               height: minimized ? "auto" : undefined,
             }}
-            exit={{ opacity: 0, y: 8, scale: 0.97 }}
+            exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            style={{ transformOrigin: "bottom left" }}
             transition={{ type: "spring", duration: 0.35, bounce: 0 }}
           >
             {minimized ? (
