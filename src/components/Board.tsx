@@ -885,7 +885,7 @@ export default function Board() {
   }
 
   function selectAgent() {
-    setAgentPanelOpen(true);
+    setAgentPanelOpen((prev) => !prev);
   }
 
   async function removeProject(id: string) {

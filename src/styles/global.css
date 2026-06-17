@@ -3186,7 +3186,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   left: 12px;
   width: 420px;
   max-height: 600px;
-  background: var(--material-panel-bg);
+  background: var(--surface);
   border: 1px solid var(--material-panel-border);
   border-radius: var(--radius);
   box-shadow: var(--material-modal-shadow);
