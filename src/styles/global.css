@@ -3116,9 +3116,9 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 /* ── Agent Panel ── */
 .agent-panel {
   position: fixed;
-  bottom: 58px;
-  left: 12px;
-  width: 360px;
+  bottom: 48px;
+  left: calc(var(--sidebar-width, 204px) + 8px);
+  width: 380px;
   max-height: 600px;
   background: var(--surface);
   border: 1px solid var(--material-panel-border);
@@ -3130,58 +3130,95 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   z-index: 200;
 }
 
-.agent-tab {
-  position: fixed;
-  bottom: 8px;
-  left: 12px;
-  width: 320px;
-  height: 42px;
+/* ── Sidebar Fractal Agent Button ── */
+.agent-sidebar-entry {
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.sidebar.collapsed .agent-sidebar-entry {
+  padding: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar-agent-btn {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--material-panel-border);
-  border-radius: var(--radius);
-  box-shadow: var(--material-modal-shadow);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  text-align: left;
   cursor: pointer;
-  z-index: 201;
+  transition: background 120ms, border-color 120ms;
 }
 
-.agent-tab:hover,
-.agent-tab.active {
-  border-color: color-mix(in oklab, var(--accent) 45%, var(--material-panel-border));
-  background: color-mix(in oklab, var(--surface) 88%, var(--accent));
+.sidebar.collapsed .sidebar-agent-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
 }
 
-.agent-tab-icon {
+.sidebar-agent-btn:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.sidebar-agent-btn.active {
+  background: var(--accent-soft);
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+.sidebar-agent-btn.active .sidebar-agent-icon {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 2px color-mix(in oklab, var(--accent) 55%, transparent),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-agent-icon {
   display: inline-flex;
-  width: 22px;
-  height: 22px;
   align-items: center;
   justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex: none;
   color: var(--accent-contrast, #fff);
   background: var(--accent);
-  border-radius: 6px;
-  flex: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 120ms ease;
 }
 
-.agent-tab-chevron {
-  margin-left: auto;
-  color: var(--text-faint);
-  transform: rotate(-90deg);
-  transition: transform 140ms ease;
+/* ── Mobile FAB ── */
+.agent-mobile-fab {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  border: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 202;
+  touch-action: none;
+  user-select: none;
 }
 
-.agent-tab.active .agent-tab-chevron {
-  transform: rotate(90deg);
-}
-
+/* ── Agent Panel Header ── */
 .agent-panel-header {
   display: flex;
   align-items: center;
@@ -3455,18 +3492,15 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 
 /* ── Agent Panel: Mobile ── */
 @media (max-width: 768px) {
-  .agent-panel {
-    bottom: 58px;
-    right: 8px;
-    left: 8px;
-    width: auto;
-    max-height: 55vh;
-  }
-
-  .agent-tab {
-    right: 8px;
-    left: 8px;
-    width: auto;
+  .agent-panel-mobile {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
   }
 
   .agent-panel-header {

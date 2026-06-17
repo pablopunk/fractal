@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Bot,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -47,6 +48,26 @@ import ProjectPicker from "./ProjectPicker.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
 
+function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
+  return (
+    <div className="agent-sidebar-entry">
+      <button
+        type="button"
+        className={`sidebar-agent-btn ${props.active ? "active" : ""}`}
+        onClick={props.onClick}
+        aria-label="Toggle Fractal Agent"
+        title="Fractal Agent"
+        aria-expanded={props.active}
+      >
+        <span className="sidebar-agent-icon" aria-hidden="true">
+          <Bot size={14} strokeWidth={2} />
+        </span>
+        <span className="name">Fractal Agent</span>
+      </button>
+    </div>
+  );
+}
+
 export function Sidebar(props: {
   projects: Project[];
   activeId: string | null;
@@ -67,6 +88,8 @@ export function Sidebar(props: {
   activeTabId: string | null;
   onSelectTab: (projectId: string, tabId: string) => void;
   onReorderTabs: (fromId: string, toId: string) => void;
+  agentPanelOpen?: boolean;
+  onToggleAgent?: () => void;
 }) {
   const projectSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -194,6 +217,10 @@ export function Sidebar(props: {
               </button>
             </div>
           ))}
+        <AgentSidebarEntry
+          active={!!props.agentPanelOpen}
+          onClick={props.onToggleAgent ?? (() => {})}
+        />
         <div
           className="sidebar-resize-handle"
           onPointerDown={startResize}

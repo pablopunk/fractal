@@ -7,20 +7,28 @@ import Portal from "./Portal.js";
 
 type AgentPanelProps = {
   open: boolean;
-  onToggle: () => void;
+  onToggle?: () => void;
   apiKeys: Record<string, string> | undefined;
   onOpenSettings: () => void;
+  mobile?: boolean;
 };
 
-export default function AgentPanel({ open, onToggle, apiKeys, onOpenSettings }: AgentPanelProps) {
+export default function AgentPanel({
+  open,
+  onToggle,
+  apiKeys,
+  onOpenSettings,
+  mobile,
+}: AgentPanelProps) {
   const hasKeys = apiKeys && Object.keys(apiKeys).some((k) => apiKeys[k]);
 
   return (
     <Portal>
+      {mobile && onToggle && <MobileFab onToggle={onToggle} />}
       <AnimatePresence>
         {open && (
           <motion.div
-            className="agent-panel"
+            className={`agent-panel ${mobile ? "agent-panel-mobile" : ""}`}
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
@@ -32,20 +40,59 @@ export default function AgentPanel({ open, onToggle, apiKeys, onOpenSettings }: 
           </motion.div>
         )}
       </AnimatePresence>
-      <button
-        type="button"
-        className={`agent-tab ${open ? "active" : ""}`}
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-label="Toggle Fractal Agent"
-      >
-        <span className="agent-tab-icon" aria-hidden="true">
-          <Bot size={15} strokeWidth={2} />
-        </span>
-        <span>Fractal Agent</span>
-        <ChevronRight className="agent-tab-chevron" size={14} aria-hidden="true" />
-      </button>
     </Portal>
+  );
+}
+
+function MobileFab({ onToggle }: { onToggle: () => void }) {
+  const [pos, setPos] = useState({ x: window.innerWidth - 64, y: window.innerHeight - 120 });
+  const dragging = useRef(false);
+  const origin = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
+  const moved = useRef(false);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!dragging.current || !origin.current) return;
+      moved.current = true;
+      const nx = Math.max(
+        0,
+        Math.min(window.innerWidth - 56, origin.current.sx + e.clientX - origin.current.x),
+      );
+      const ny = Math.max(
+        0,
+        Math.min(window.innerHeight - 56, origin.current.sy + e.clientY - origin.current.y),
+      );
+      setPos({ x: nx, y: ny });
+    };
+    const onUp = () => {
+      dragging.current = false;
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
+
+  return (
+    <button
+      type="button"
+      className="agent-mobile-fab"
+      style={{ left: pos.x, top: pos.y }}
+      onPointerDown={(e) => {
+        moved.current = false;
+        origin.current = { x: e.clientX, y: e.clientY, sx: pos.x, sy: pos.y };
+        dragging.current = true;
+      }}
+      onClick={() => {
+        if (moved.current) return;
+        onToggle();
+      }}
+      aria-label="Toggle Fractal Agent"
+    >
+      <Bot size={22} strokeWidth={2} />
+    </button>
   );
 }
 

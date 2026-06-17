@@ -1477,6 +1477,8 @@ export default function Board() {
           activeTabId={activeTerminalId}
           onSelectTab={selectProjectTab}
           onReorderTabs={reorderTerminal}
+          agentPanelOpen={agentPanelOpen}
+          onToggleAgent={() => setAgentPanelOpen((prev) => !prev)}
           onReorder={async (ids) => {
             const ordered = ids
               .map((id) => projects.find((p) => p.id === id))
@@ -2034,6 +2036,7 @@ export default function Board() {
             open={agentPanelOpen}
             onToggle={() => setAgentPanelOpen((prev) => !prev)}
             apiKeys={apiKeys}
+            mobile={isMobile}
             onOpenSettings={() => {
               setAppSettingsInitialTab("provider");
               setAppSettingsOpen(true);
