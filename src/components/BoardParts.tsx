@@ -741,9 +741,7 @@ export function ColumnView(props: {
                   onOpenTerminal={props.onOpenTerminal}
                   onSummarize={props.onSummarize}
                   isSummarizing={props.summarizingIds?.has(p.id)}
-                  isTerminalOpen={!!p.tmuxSession && props.openTerminalIds.has(p.tmuxSession)}
                   isActiveTerminal={!!p.tmuxSession && p.tmuxSession === props.activeTerminalId}
-                  home={props.home}
                   isArchivedCol={props.isArchivedCol}
                 />
               </motion.div>

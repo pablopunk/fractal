@@ -40,9 +40,7 @@ export function Card({
   onOpenTerminal,
   onSummarize,
   isSummarizing,
-  isTerminalOpen,
   isActiveTerminal,
-  home,
   isArchivedCol,
 }: {
   prompt: Prompt;
@@ -57,9 +55,7 @@ export function Card({
   onOpenTerminal: (prompt: Prompt) => void;
   onSummarize?: (id: string) => void | Promise<void>;
   isSummarizing?: boolean;
-  isTerminalOpen: boolean;
   isActiveTerminal: boolean;
-  home: string;
   isArchivedCol?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -228,33 +224,33 @@ export function Card({
           ))}
         </div>
       )}
-      {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
-        <div className="card-meta">
-          {isRunning && <span className="tag accent">running</span>}
-          {prompt.tmuxSession && (
-            <Tooltip content={`Copy ${prompt.tmuxSession}`}>
-              <button
-                type="button"
-                className="tag tag-button"
-                aria-label={`Copy ${prompt.tmuxSession}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyWorktreeName();
-                }}
-              >
-                {prompt.tmuxSession}
-              </button>
-            </Tooltip>
-          )}
-        </div>
-      )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
-      <div
-        className="card-actions"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
+      {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
+        <div className="card-footer">
+          <div className="card-meta">
+            {isRunning && <span className="tag accent">running</span>}
+            {prompt.tmuxSession && (
+              <Tooltip content={`Copy ${prompt.tmuxSession}`}>
+                <button
+                  type="button"
+                  className="tag tag-button"
+                  aria-label={`Copy ${prompt.tmuxSession}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyWorktreeName();
+                  }}
+                >
+                  {prompt.tmuxSession}
+                </button>
+              </Tooltip>
+            )}
+          </div>
+          <div
+            className="card-actions"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
         {prompt.column === "PROMPTS" ? (
           <PresetPicker
             presets={presets}
@@ -387,6 +383,8 @@ export function Card({
           </Tooltip>
         </div>
       </div>
+        </div>
+      )}
     </div>
   );
 }
