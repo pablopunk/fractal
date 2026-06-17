@@ -3183,9 +3183,9 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 /* ── Agent Panel ── */
 .agent-panel {
   position: fixed;
-  bottom: 56px;
-  left: 0;
-  width: 420px;
+  bottom: 48px;
+  left: 8px;
+  width: calc(var(--sidebar-width, 236px) - 16px);
   max-height: 600px;
   background: var(--surface);
   border: 1px solid var(--material-panel-border);
