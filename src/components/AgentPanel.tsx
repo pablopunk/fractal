@@ -1,15 +1,248 @@
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
 import { Bot, ChevronDown, ChevronRight, Key, Loader2, Send, Wrench } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FractalAgentProvider } from "~/lib/agent-providers.js";
 import Portal from "./Portal.js";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+type ToolInvocation = {
+  toolCallId: string;
+  toolName: string;
+  args: unknown;
+  result?: unknown;
+  isError?: boolean;
+  state: "running" | "done";
+};
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant" | "tool";
+  textParts: string[];
+  toolInvocations: ToolInvocation[];
+};
+
+type RequestMessage = {
+  role: string;
+  content: string;
+};
+
+function stringifyForContext(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function truncateForContext(value: string): string {
+  if (value.length <= 4000) return value;
+  return `${value.slice(0, 4000)}… [truncated]`;
+}
+
+function serializeMessageForRequest(message: ChatMessage): RequestMessage {
+  const text = message.textParts.join(" ").trim();
+  if (message.role !== "assistant" || message.toolInvocations.length === 0) {
+    return { role: message.role, content: text };
+  }
+
+  const toolSummary = message.toolInvocations.map((tool) => ({
+    tool: tool.toolName,
+    input: tool.args,
+    result: tool.result,
+    isError: tool.isError ?? false,
+  }));
+  const content = [
+    text,
+    `Tool activity from this assistant turn:\n${truncateForContext(stringifyForContext(toolSummary))}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  return { role: message.role, content };
+}
+
+// ── SSE Event Types ────────────────────────────────────────────────────────
+
+type SseEvent =
+  | { type: "text_delta"; content: string }
+  | { type: "tool_start"; toolCallId: string; name: string; args: unknown }
+  | { type: "tool_end"; toolCallId: string; name: string; result: unknown; isError?: boolean }
+  | { type: "done" }
+  | { type: "error"; message: string };
+
+// ── Custom hook ────────────────────────────────────────────────────────────
+
+function useFractalAgentChat() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
+
+  /** Shared streaming fetch — used by both send and regenerate. */
+  const doSend = useCallback(async (bodyMessages: RequestMessage[], addUserToState: boolean) => {
+    abortRef.current?.abort();
+    setIsLoading(true);
+    setError(null);
+
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+
+    const assistantMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      textParts: [],
+      toolInvocations: [],
+    };
+    if (addUserToState) {
+      const lastMsg = bodyMessages[bodyMessages.length - 1];
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        textParts: [lastMsg.content],
+        toolInvocations: [],
+      };
+      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+    } else {
+      setMessages((prev) => [...prev, assistantMsg]);
+    }
+
+    try {
+      const res = await fetch("/api/agent/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: bodyMessages }),
+        signal: abortController.signal,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6)) as SseEvent;
+            setMessages((prev) => {
+              const next = prev.map((m) => ({ ...m }));
+              const assistant = next[next.length - 1];
+              if (assistant?.role !== "assistant") return next;
+
+              switch (event.type) {
+                case "text_delta":
+                  if (assistant.textParts.length === 0) {
+                    assistant.textParts = [event.content];
+                  } else {
+                    assistant.textParts = [assistant.textParts[0] + event.content];
+                  }
+                  break;
+                case "tool_start": {
+                  const existing = assistant.toolInvocations.find(
+                    (t) => t.toolCallId === event.toolCallId,
+                  );
+                  if (!existing) {
+                    assistant.toolInvocations = [
+                      ...assistant.toolInvocations,
+                      {
+                        toolCallId: event.toolCallId,
+                        toolName: event.name,
+                        args: event.args,
+                        state: "running" as const,
+                      },
+                    ];
+                  }
+                  break;
+                }
+                case "tool_end": {
+                  assistant.toolInvocations = assistant.toolInvocations.map((t) =>
+                    t.toolCallId === event.toolCallId
+                      ? {
+                          ...t,
+                          result: event.result,
+                          isError: event.isError,
+                          state: "done" as const,
+                        }
+                      : t,
+                  );
+                  break;
+                }
+                case "done":
+                  break;
+                case "error":
+                  setError(event.message);
+                  break;
+              }
+              return next;
+            });
+          } catch {
+            // Skip malformed JSON lines
+          }
+        }
+      }
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsLoading(false);
+      abortRef.current = null;
+    }
+  }, []);
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      // Build full message history: all prior messages + the new user message
+      const prior = messagesRef.current.map(serializeMessageForRequest);
+      const fullMessages = [...prior, { role: "user", content: text }];
+      await doSend(fullMessages, true);
+    },
+    [doSend],
+  );
+
+  const regenerate = useCallback(() => {
+    setMessages((prev) => {
+      // Drop the last assistant message so the last entry is the user prompt
+      const withoutLastAssistant = prev.filter(
+        (m, i) => i !== prev.length - 1 || m.role !== "assistant",
+      );
+      const contextMsgs = withoutLastAssistant.map(serializeMessageForRequest);
+      // Re-send the existing context (last message is the user prompt)
+      if (contextMsgs.length > 0 && contextMsgs[contextMsgs.length - 1].role === "user") {
+        setTimeout(() => doSend(contextMsgs, false), 0);
+      }
+      return withoutLastAssistant;
+    });
+  }, [doSend]);
+
+  const abort = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  return { messages, sendMessage, isLoading, error, regenerate, abort };
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
 
 type AgentPanelProps = {
   open: boolean;
   onToggle?: () => void;
-  apiKeys: Record<string, string> | undefined;
   fractalAgentProvider: FractalAgentProvider | "";
   fractalAgentModel: string;
   onOpenSettings: () => void;
@@ -19,16 +252,12 @@ type AgentPanelProps = {
 export default function AgentPanel({
   open,
   onToggle,
-  apiKeys,
   fractalAgentProvider,
   fractalAgentModel,
   onOpenSettings,
   mobile,
 }: AgentPanelProps) {
-  const hasKeys =
-    Boolean(fractalAgentProvider) &&
-    Boolean(fractalAgentModel) &&
-    Boolean(apiKeys?.[fractalAgentProvider]?.trim());
+  const hasProvider = Boolean(fractalAgentProvider) && Boolean(fractalAgentModel);
 
   return (
     <Portal>
@@ -44,7 +273,7 @@ export default function AgentPanel({
             transition={{ type: "spring", duration: 0.35, bounce: 0 }}
           >
             <AgentHeader />
-            {hasKeys ? <AgentChat /> : <AgentGatekeeper onOpenSettings={onOpenSettings} />}
+            {hasProvider ? <AgentChat /> : <AgentGatekeeper onOpenSettings={onOpenSettings} />}
           </motion.div>
         )}
       </AnimatePresence>
@@ -121,8 +350,8 @@ function AgentGatekeeper({ onOpenSettings }: { onOpenSettings: () => void }) {
       <Key size={32} strokeWidth={1.5} className="agent-gatekeeper-icon" />
       <p>Fractal Agent not configured.</p>
       <p className="agent-gatekeeper-hint">
-        Choose a provider, select a model, and add the provider's API key in Settings → Fractal
-        Agent.
+        Choose a provider and model in Settings → Fractal Agent. Fractal Agent requires local Pi
+        with Pi auth already configured.
       </p>
       <button className="btn primary sm" onClick={onOpenSettings}>
         Open Settings
@@ -132,10 +361,7 @@ function AgentGatekeeper({ onOpenSettings }: { onOpenSettings: () => void }) {
 }
 
 function AgentChat() {
-  const { messages, sendMessage, status, error, regenerate } = useChat({
-    transport: new DefaultChatTransport({ api: "/api/agent/chat" }),
-  });
-
+  const { messages, sendMessage, isLoading, error, regenerate, abort } = useFractalAgentChat();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -143,14 +369,12 @@ function AgentChat() {
     bottomRef.current?.scrollIntoView({ behavior: "instant" });
   });
 
-  const isLoading = status === "submitted" || status === "streaming";
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     const text = input;
     setInput("");
-    await sendMessage({ text });
+    await sendMessage(text);
   }
 
   return (
@@ -158,7 +382,7 @@ function AgentChat() {
       <AgentMessageStream messages={messages} />
       {error && (
         <div className="agent-error">
-          <p>{error.message || "Something went wrong"}</p>
+          <p>{error}</p>
           <button className="btn ghost sm" onClick={() => regenerate()}>
             Retry
           </button>
@@ -170,27 +394,13 @@ function AgentChat() {
         onChange={(e) => setInput(e.target.value)}
         onSubmit={handleSubmit}
         isLoading={isLoading}
+        onStop={abort}
       />
     </div>
   );
 }
 
-type UIMessage = {
-  id: string;
-  role: string;
-  parts: Array<{
-    type: string;
-    text?: string;
-    toolInvocation?: {
-      toolName?: string;
-      args?: unknown;
-      result?: unknown;
-      state?: string;
-    };
-  }>;
-};
-
-function AgentMessageStream({ messages }: { messages: UIMessage[] }) {
+function AgentMessageStream({ messages }: { messages: ChatMessage[] }) {
   if (messages.length === 0) {
     return (
       <div className="agent-empty">
@@ -207,38 +417,36 @@ function AgentMessageStream({ messages }: { messages: UIMessage[] }) {
     <div className="agent-messages">
       {messages.map((msg) => (
         <div key={msg.id} className={`agent-message agent-message-${msg.role}`}>
-          {msg.parts?.map((part, i) => {
-            if (part.type === "text" && part.text) {
-              return (
-                <div key={i} className="agent-text">
-                  {part.text}
-                </div>
-              );
-            }
-            if (part.type === "tool-invocation" && part.toolInvocation) {
-              return <ToolCallCard key={i} invocation={part.toolInvocation} />;
-            }
-            return null;
-          })}
+          {msg.role === "assistant" && (
+            <>
+              {msg.textParts.map((text, i) =>
+                text ? (
+                  <div key={`text-${i}`} className="agent-text">
+                    {text}
+                  </div>
+                ) : null,
+              )}
+              {msg.toolInvocations.map((inv) => (
+                <ToolCallCard key={inv.toolCallId} invocation={inv} />
+              ))}
+            </>
+          )}
+          {msg.role === "user" &&
+            msg.textParts.map((text, i) => (
+              <div key={`user-${i}`} className="agent-text">
+                {text}
+              </div>
+            ))}
         </div>
       ))}
     </div>
   );
 }
 
-function ToolCallCard({
-  invocation,
-}: {
-  invocation: {
-    toolName?: string;
-    args?: unknown;
-    result?: unknown;
-    state?: string;
-  };
-}) {
+function ToolCallCard({ invocation }: { invocation: ToolInvocation }) {
   const [expanded, setExpanded] = useState(false);
-  const isRunning = invocation.state === "call";
-  const isDone = invocation.state === "result";
+  const isRunning = invocation.state === "running";
+  const isDone = invocation.state === "done";
 
   return (
     <div
@@ -278,11 +486,13 @@ function AgentComposer({
   onChange,
   onSubmit,
   isLoading,
+  onStop,
 }: {
   input: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
+  onStop: () => void;
 }) {
   return (
     <form className="agent-composer" onSubmit={onSubmit}>
@@ -293,14 +503,25 @@ function AgentComposer({
         placeholder={isLoading ? "Fractal Agent is thinking..." : "Ask Fractal Agent..."}
         disabled={isLoading}
       />
-      <button
-        type="submit"
-        className="icon-btn agent-send-btn"
-        disabled={!input.trim() || isLoading}
-        aria-label="Send"
-      >
-        {isLoading ? <Loader2 size={16} className="agent-spin" /> : <Send size={16} />}
-      </button>
+      {isLoading ? (
+        <button
+          type="button"
+          className="icon-btn agent-stop-btn"
+          onClick={onStop}
+          aria-label="Stop"
+        >
+          <Loader2 size={16} className="agent-spin" />
+        </button>
+      ) : (
+        <button
+          type="submit"
+          className="icon-btn agent-send-btn"
+          disabled={!input.trim()}
+          aria-label="Send"
+        >
+          <Send size={16} />
+        </button>
+      )}
     </form>
   );
 }

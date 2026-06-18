@@ -51,7 +51,6 @@ export type Prompt = {
 
 import type { FractalAgentProvider } from "~/lib/agent-providers.js";
 
-type ApiProvider = "anthropic" | "google" | "openai" | "openrouter" | "opencode-go";
 export type AppSettings = {
   fastModel: string;
   smartModel: string;
@@ -60,7 +59,6 @@ export type AppSettings = {
   helperPresetId: string;
   lastProjectId: string;
   globalAgentPresetId: string;
-  apiKeys?: Partial<Record<ApiProvider, string>>;
   fractalAgentProvider?: FractalAgentProvider | "";
   fractalAgentModel?: string;
 };

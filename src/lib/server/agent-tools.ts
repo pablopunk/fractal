@@ -1,7 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { dynamicTool } from "ai";
-import { z } from "zod";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { Type } from "@earendil-works/pi-ai";
 
 const BASE_URL = `http://127.0.0.1:${process.env.PORT ?? "7666"}`;
 
@@ -43,163 +43,206 @@ function stripSecrets(obj: unknown): unknown {
   return out;
 }
 
-function tool<T>(
-  _name: string,
-  description: string,
-  schema: z.ZodType<T>,
-  execute: (input: T) => Promise<unknown>,
-) {
-  return dynamicTool({
-    description,
-    inputSchema: schema,
-    execute: async (input: unknown) => await execute(input as T),
-  });
+function textContent(text: string) {
+  return [{ type: "text" as const, text }];
 }
 
-export const readState = tool(
-  "readState",
-  "Read the full Fractal state: all projects, all prompts (with running status), current settings, and active tmux sessions.",
-  z.object({}),
-  async () => {
+export const readState: AgentTool = {
+  name: "readState",
+  label: "Read State",
+  description:
+    "Read the full Fractal state: all projects, all prompts (with running status), current settings, and active tmux sessions.",
+  parameters: Type.Object({}),
+  execute: async () => {
     const state = await fractalFetch("/api/state");
-    return stripSecrets(state);
+    const safe = stripSecrets(state);
+    return { content: textContent(JSON.stringify(safe)), details: safe };
   },
-);
+};
 
-export const createProject = tool(
-  "createProject",
-  "Add a project to Fractal by its absolute directory path.",
-  z.object({
-    path: z.string().describe("Absolute path to the project directory"),
-    name: z.string().optional().describe("Optional display name"),
+export const createProject: AgentTool = {
+  name: "createProject",
+  label: "Create Project",
+  description: "Add a project to Fractal by its absolute directory path.",
+  parameters: Type.Object({
+    path: Type.String({ description: "Absolute path to the project directory" }),
+    name: Type.Optional(Type.String({ description: "Optional display name" })),
   }),
-  async (args: { path: string; name?: string }) => {
-    return fractalFetch("/api/projects", { method: "POST", body: args });
+  execute: async (_id, params) => {
+    const p = params as { path: string; name?: string };
+    const result = await fractalFetch("/api/projects", { method: "POST", body: p });
+    return { content: textContent(JSON.stringify(result)), details: result };
   },
-);
+};
 
-export const deleteProject = tool(
-  "deleteProject",
-  "Remove a project from Fractal. Does not delete files on disk.",
-  z.object({
-    id: z.string().describe("Project ID"),
+export const deleteProject: AgentTool = {
+  name: "deleteProject",
+  label: "Delete Project",
+  description: "Remove a project from Fractal. Does not delete files on disk.",
+  parameters: Type.Object({
+    id: Type.String({ description: "Project ID" }),
   }),
-  async (args: { id: string }) => {
-    await fractalFetch(`/api/projects/${args.id}`, { method: "DELETE" });
-    return { ok: true };
+  execute: async (_id, params) => {
+    const p = params as { id: string };
+    await fractalFetch(`/api/projects/${p.id}`, { method: "DELETE" });
+    return { content: textContent(JSON.stringify({ ok: true })), details: { ok: true } };
   },
-);
+};
 
-export const createPrompt = tool(
-  "createPrompt",
-  "Create a new prompt card in the backlog of a project.",
-  z.object({
-    projectId: z.string(),
-    text: z.string().describe("The prompt text / task description"),
-    presetId: z.string().optional(),
-    modelProfile: z.enum(["smart", "fast"]).optional(),
-  }),
-  async (args: { projectId: string; text: string; presetId?: string; modelProfile?: string }) => {
-    return fractalFetch(`/api/projects/${args.projectId}/prompts`, { method: "POST", body: args });
-  },
-);
+const CreatePromptSchema = Type.Object({
+  projectId: Type.String(),
+  text: Type.String({ description: "The prompt text / task description" }),
+  presetId: Type.Optional(Type.String()),
+  modelProfile: Type.Optional(Type.Union([Type.Literal("smart"), Type.Literal("fast")])),
+});
 
-export const updatePrompt = tool(
-  "updatePrompt",
-  "Update a prompt: change text, move between columns, change preset.",
-  z.object({
-    id: z.string(),
-    text: z.string().optional(),
-    column: z.enum(["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE"]).optional(),
-    presetId: z.string().optional(),
-    modelProfile: z.enum(["smart", "fast"]).optional(),
-  }),
-  async (args: Record<string, unknown>) => {
-    const { id, ...patch } = args;
-    return fractalFetch(`/api/prompts/${id}`, { method: "PATCH", body: patch });
-  },
-);
-
-export const deletePrompt = tool(
-  "deletePrompt",
-  "Delete a prompt. Use force:true to skip safety checks.",
-  z.object({
-    id: z.string(),
-    force: z.boolean().optional().default(false),
-  }),
-  async (args: { id: string; force?: boolean }) => {
-    return fractalFetch(`/api/prompts/${args.id}`, {
-      method: "DELETE",
-      body: { force: args.force },
-    });
-  },
-);
-
-export const launchPrompt = tool(
-  "launchPrompt",
-  "Launch a prompt's agent. Use RUN_IN_PLACE for the project directory, RUN_IN_WORKTREE for an isolated git worktree.",
-  z.object({
-    id: z.string(),
-    target: z.enum(["RUN_IN_PLACE", "RUN_IN_WORKTREE"]),
-  }),
-  async (args: { id: string; target: string }) => {
-    const endpoint =
-      args.target === "RUN_IN_PLACE"
-        ? `/api/prompts/${args.id}/run-in-place`
-        : `/api/prompts/${args.id}/run-in-worktree`;
-    return fractalFetch(endpoint, { method: "POST" });
-  },
-);
-
-export const archivePrompt = tool(
-  "archivePrompt",
-  "Archive (mark as done) a prompt. For worktree prompts use action: 'create-pr', 'merge-main', or 'discard'.",
-  z.object({
-    id: z.string(),
-    action: z.enum(["create-pr", "merge-main", "discard"]).optional(),
-  }),
-  async (args: { id: string; action?: string }) => {
-    return fractalFetch(`/api/prompts/${args.id}/archive`, {
+export const createPrompt: AgentTool<typeof CreatePromptSchema> = {
+  name: "createPrompt",
+  label: "Create Prompt",
+  description: "Create a new prompt card in the backlog of a project.",
+  parameters: CreatePromptSchema,
+  execute: async (_id, params) => {
+    const result = await fractalFetch(`/api/projects/${params.projectId}/prompts`, {
       method: "POST",
-      body: args.action ? { action: args.action } : {},
+      body: params,
     });
+    return { content: textContent(JSON.stringify(result)), details: result };
   },
-);
+};
 
-export const readSettings = tool(
-  "readSettings",
-  "Read current Fractal app settings. API keys are never returned.",
-  z.object({}),
-  async () => {
+const UpdatePromptSchema = Type.Object({
+  id: Type.String(),
+  text: Type.Optional(Type.String()),
+  column: Type.Optional(
+    Type.Union([
+      Type.Literal("PROMPTS"),
+      Type.Literal("RUN_IN_PLACE"),
+      Type.Literal("RUN_IN_WORKTREE"),
+    ]),
+  ),
+  presetId: Type.Optional(Type.String()),
+  modelProfile: Type.Optional(Type.Union([Type.Literal("smart"), Type.Literal("fast")])),
+});
+
+export const updatePrompt: AgentTool<typeof UpdatePromptSchema> = {
+  name: "updatePrompt",
+  label: "Update Prompt",
+  description: "Update a prompt: change text, move between columns, change preset.",
+  parameters: UpdatePromptSchema,
+  execute: async (_id, params) => {
+    const { id, ...patch } = params;
+    const result = await fractalFetch(`/api/prompts/${id}`, { method: "PATCH", body: patch });
+    return { content: textContent(JSON.stringify(result)), details: result };
+  },
+};
+
+const DeletePromptSchema = Type.Object({
+  id: Type.String(),
+  force: Type.Optional(Type.Boolean({ default: false })),
+});
+
+export const deletePrompt: AgentTool<typeof DeletePromptSchema> = {
+  name: "deletePrompt",
+  label: "Delete Prompt",
+  description: "Delete a prompt. Use force:true to skip safety checks.",
+  parameters: DeletePromptSchema,
+  execute: async (_id, params) => {
+    const result = await fractalFetch(`/api/prompts/${params.id}`, {
+      method: "DELETE",
+      body: { force: params.force },
+    });
+    return { content: textContent(JSON.stringify(result)), details: result };
+  },
+};
+
+const LaunchPromptSchema = Type.Object({
+  id: Type.String(),
+  target: Type.Union([Type.Literal("RUN_IN_PLACE"), Type.Literal("RUN_IN_WORKTREE")]),
+});
+
+export const launchPrompt: AgentTool<typeof LaunchPromptSchema> = {
+  name: "launchPrompt",
+  label: "Launch Prompt",
+  description:
+    "Launch a prompt's agent. Use RUN_IN_PLACE for the project directory, RUN_IN_WORKTREE for an isolated git worktree.",
+  parameters: LaunchPromptSchema,
+  execute: async (_id, params) => {
+    const endpoint =
+      params.target === "RUN_IN_PLACE"
+        ? `/api/prompts/${params.id}/run-in-place`
+        : `/api/prompts/${params.id}/run-in-worktree`;
+    const result = await fractalFetch(endpoint, { method: "POST" });
+    return { content: textContent(JSON.stringify(result)), details: result };
+  },
+};
+
+const ArchivePromptSchema = Type.Object({
+  id: Type.String(),
+  action: Type.Optional(
+    Type.Union([Type.Literal("create-pr"), Type.Literal("merge-main"), Type.Literal("discard")]),
+  ),
+});
+
+export const archivePrompt: AgentTool<typeof ArchivePromptSchema> = {
+  name: "archivePrompt",
+  label: "Archive Prompt",
+  description:
+    "Archive (mark as done) a prompt. For worktree prompts use action: 'create-pr', 'merge-main', or 'discard'.",
+  parameters: ArchivePromptSchema,
+  execute: async (_id, params) => {
+    const result = await fractalFetch(`/api/prompts/${params.id}/archive`, {
+      method: "POST",
+      body: params.action ? { action: params.action } : {},
+    });
+    return { content: textContent(JSON.stringify(result)), details: result };
+  },
+};
+
+export const readSettings: AgentTool = {
+  name: "readSettings",
+  label: "Read Settings",
+  description: "Read current Fractal app settings. Secrets are never returned.",
+  parameters: Type.Object({}),
+  execute: async () => {
     const settings = await fractalFetch("/api/settings");
-    return stripSecrets(settings);
+    const safe = stripSecrets(settings);
+    return { content: textContent(JSON.stringify(safe)), details: safe };
   },
-);
+};
 
-export const updateSettings = tool(
-  "updateSettings",
-  "Update Fractal app settings.",
-  z.object({
-    defaultPresetId: z.string().optional(),
-    globalAgentPresetId: z.string().optional(),
-    lastProjectId: z.string().optional(),
-  }),
-  async (args: Record<string, unknown>) => {
-    return fractalFetch("/api/settings", { method: "PATCH", body: args });
-  },
-);
+const UpdateSettingsSchema = Type.Object({
+  defaultPresetId: Type.Optional(Type.String()),
+  globalAgentPresetId: Type.Optional(Type.String()),
+  lastProjectId: Type.Optional(Type.String()),
+});
 
-export const captureTerminal = tool(
-  "captureTerminal",
-  "Read the current content of a tmux pane.",
-  z.object({
-    session: z.string().describe("Tmux session name"),
-    lines: z.number().optional().default(200),
-  }),
-  async (args: { session: string; lines?: number }) => {
-    return fractalFetch("/api/agent/tmux/capture", { method: "POST", body: args });
+export const updateSettings: AgentTool<typeof UpdateSettingsSchema> = {
+  name: "updateSettings",
+  label: "Update Settings",
+  description: "Update Fractal app settings.",
+  parameters: UpdateSettingsSchema,
+  execute: async (_id, params) => {
+    const result = await fractalFetch("/api/settings", { method: "PATCH", body: params });
+    const safe = stripSecrets(result);
+    return { content: textContent(JSON.stringify(safe)), details: safe };
   },
-);
+};
+
+const CaptureTerminalSchema = Type.Object({
+  session: Type.String({ description: "Tmux session name" }),
+  lines: Type.Optional(Type.Number({ default: 200 })),
+});
+
+export const captureTerminal: AgentTool<typeof CaptureTerminalSchema> = {
+  name: "captureTerminal",
+  label: "Capture Terminal",
+  description: "Read the current content of a tmux pane.",
+  parameters: CaptureTerminalSchema,
+  execute: async (_id, params) => {
+    const result = await fractalFetch("/api/agent/tmux/capture", { method: "POST", body: params });
+    return { content: textContent(JSON.stringify(result)), details: result };
+  },
+};
 
 const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "[::]"]);
 
@@ -246,19 +289,23 @@ async function assertPublicHost(hostname: string): Promise<void> {
   }
 }
 
-export const webFetch = tool(
-  "webFetch",
-  "Fetch the contents of a URL. Use for reading docs, repos, etc. Only public URLs are allowed.",
-  z.object({
-    url: z.string().url(),
-    maxLength: z.number().optional().default(50000),
-  }),
-  async (args: { url: string; maxLength?: number }) => {
+const WebFetchSchema = Type.Object({
+  url: Type.String(),
+  maxLength: Type.Optional(Type.Number({ default: 50000 })),
+});
+
+export const webFetch: AgentTool<typeof WebFetchSchema> = {
+  name: "webFetch",
+  label: "Web Fetch",
+  description:
+    "Fetch the contents of a URL. Use for reading docs, repos, etc. Only public URLs are allowed.",
+  parameters: WebFetchSchema,
+  execute: async (_id, params) => {
     let parsed: URL;
     try {
-      parsed = new URL(args.url);
+      parsed = new URL(params.url);
     } catch {
-      throw new Error(`Invalid URL: ${args.url}`);
+      throw new Error(`Invalid URL: ${params.url}`);
     }
     if (!["http:", "https:"].includes(parsed.protocol)) {
       throw new Error(`Unsupported protocol: ${parsed.protocol}`);
@@ -286,30 +333,38 @@ export const webFetch = tool(
         current = next.toString();
         continue;
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${args.url}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${params.url}`);
       const text = await res.text();
-      const max = args.maxLength ?? 50000;
-      return {
-        url: res.url || args.url,
+      const max = params.maxLength ?? 50000;
+      const truncated = text.length > max;
+      const result = {
+        url: res.url || params.url,
         status: res.status,
         content: text.slice(0, max),
-        truncated: text.length > max,
+        truncated,
+      };
+      return {
+        content: textContent(JSON.stringify(result)),
+        details: { url: result.url, status: result.status, truncated, text: result.content },
       };
     }
     throw new Error("Too many redirects");
   },
-);
+};
 
-export const webSearch = tool(
-  "webSearch",
-  "Search the web using DuckDuckGo.",
-  z.object({
-    query: z.string(),
-    maxResults: z.number().optional().default(5),
-  }),
-  async (args: { query: string; maxResults?: number }) => {
+const WebSearchSchema = Type.Object({
+  query: Type.String(),
+  maxResults: Type.Optional(Type.Number({ default: 5 })),
+});
+
+export const webSearch: AgentTool<typeof WebSearchSchema> = {
+  name: "webSearch",
+  label: "Web Search",
+  description: "Search the web using DuckDuckGo.",
+  parameters: WebSearchSchema,
+  execute: async (_id, params) => {
     const res = await fetch(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(args.query)}`,
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(params.query)}`,
       {
         headers: { "User-Agent": "Fractal-Agent/1.0" },
         signal: AbortSignal.timeout(10000),
@@ -319,11 +374,29 @@ export const webSearch = tool(
     const html = await res.text();
     const links: Array<{ title: string; url: string }> = [];
     const linkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi;
-    const limit = args.maxResults ?? 5;
+    const limit = params.maxResults ?? 5;
     for (const match of html.matchAll(linkRegex)) {
       if (links.length >= limit) break;
       links.push({ title: match[2].replace(/<[^>]*>/g, "").trim(), url: match[1] });
     }
-    return { query: args.query, results: links };
+    const result = { query: params.query, results: links };
+    return { content: textContent(JSON.stringify(result)), details: result };
   },
-);
+};
+
+/** All Fractal Agent tools as an array. */
+export const AGENT_TOOLS: AgentTool[] = [
+  readState,
+  createProject,
+  deleteProject,
+  createPrompt,
+  updatePrompt,
+  deletePrompt,
+  launchPrompt,
+  archivePrompt,
+  readSettings,
+  updateSettings,
+  captureTerminal,
+  webFetch,
+  webSearch,
+];

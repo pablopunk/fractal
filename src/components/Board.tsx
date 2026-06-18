@@ -194,6 +194,7 @@ export default function Board() {
   const [models, setModels] = useState<PiModel[]>([]);
   const [claudeModels, setClaudeModels] = useState<PiModel[]>([]);
   const [opencodeModels, setOpenCodeModels] = useState<PiModel[]>([]);
+  const [fractalAgentModels, setFractalAgentModels] = useState<PiModel[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [showSidebarPicker, setShowSidebarPicker] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<Column, boolean>>(() =>
@@ -256,7 +257,6 @@ export default function Board() {
   const [commandRecents, setCommandRecents] = useState<CommandRecent[]>(() => loadCommandRecents());
   const [boardLayout, setBoardLayout] = useState<BoardLayout>(() => loadBoardLayout());
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [fractalAgentProvider, setFractalAgentProvider] = useState<
     import("~/lib/agent-providers.js").FractalAgentProvider | ""
   >("");
@@ -807,7 +807,6 @@ export default function Board() {
         globalAgentPresetId: "pi",
       };
       setSettings(nextSettings);
-      setApiKeys(nextSettings.apiKeys ?? {});
       setFractalAgentProvider(nextSettings.fractalAgentProvider ?? "");
       setFractalAgentModel(nextSettings.fractalAgentModel ?? "");
       setComposerPresetId((cur) => {
@@ -1347,6 +1346,9 @@ export default function Board() {
         setClaudeModels(data.claudeModels ?? []);
         setOpenCodeModels(data.opencodeModels ?? []);
       })
+      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+    void api<{ models: PiModel[] }>("/api/agent/models")
+      .then((data) => setFractalAgentModels(data.models ?? []))
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
@@ -2020,17 +2022,7 @@ export default function Board() {
                   onGlassChange={setGlassSettings}
                   onTerminalThemeChange={setTerminalThemeName}
                   onBoardLayoutChange={setBoardLayout}
-                  apiKeys={apiKeys}
-                  onApiKeysChange={async (keys) => {
-                    const prev = apiKeys;
-                    setApiKeys(keys);
-                    const saved = await saveSettings({ apiKeys: keys });
-                    if (!saved) {
-                      setApiKeys(prev);
-                      return;
-                    }
-                    setApiKeys(saved.apiKeys ?? {});
-                  }}
+                  piModels={fractalAgentModels}
                   fractalAgentProvider={fractalAgentProvider}
                   fractalAgentModel={fractalAgentModel}
                   onFractalAgentProviderChange={(provider) => {
@@ -2058,7 +2050,6 @@ export default function Board() {
           <AgentPanel
             open={agentPanelOpen}
             onToggle={() => setAgentPanelOpen((prev) => !prev)}
-            apiKeys={apiKeys}
             fractalAgentProvider={fractalAgentProvider}
             fractalAgentModel={fractalAgentModel}
             mobile={isMobile}

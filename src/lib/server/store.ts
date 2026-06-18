@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
-import { FRACTAL_AGENT_PROVIDERS, type FractalAgentProvider } from "../agent-providers.js";
+import type { FractalAgentProvider } from "../agent-providers.js";
 import { type AgentPreset, DEFAULT_AGENT_PRESETS } from "./agents.js";
 import { getDb } from "./db/client.js";
 import { type Project, type Prompt, projects, prompts, settings } from "./db/schema.js";
@@ -257,10 +257,7 @@ export function getSettings(): AppSettings {
       }
     }
     if (row.key === "fractalAgentProvider") {
-      const valid = FRACTAL_AGENT_PROVIDERS.some((p) => p.id === row.value)
-        ? (row.value as FractalAgentProvider)
-        : "";
-      out.fractalAgentProvider = valid;
+      out.fractalAgentProvider = row.value.trim() ? (row.value as FractalAgentProvider) : "";
     }
     if (row.key === "fractalAgentModel") out.fractalAgentModel = row.value || "";
   }
