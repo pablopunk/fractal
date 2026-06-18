@@ -384,7 +384,7 @@ function AgentChat({
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -397,7 +397,7 @@ function AgentChat({
 
   return (
     <div className="agent-chat">
-      <AgentMessageStream messages={messages} />
+      <AgentMessageStream messages={messages} bottomRef={bottomRef} />
       {error && (
         <div className="agent-error">
           <p>{error}</p>
@@ -406,7 +406,6 @@ function AgentChat({
           </button>
         </div>
       )}
-      <div ref={bottomRef} />
       <AgentComposer
         input={input}
         onChange={(e) => onInputChange(e.target.value)}
@@ -419,7 +418,13 @@ function AgentChat({
   );
 }
 
-function AgentMessageStream({ messages }: { messages: ChatMessage[] }) {
+function AgentMessageStream({
+  messages,
+  bottomRef,
+}: {
+  messages: ChatMessage[];
+  bottomRef: React.RefObject<HTMLDivElement | null>;
+}) {
   if (messages.length === 0) {
     return (
       <div className="agent-empty">
@@ -428,6 +433,7 @@ function AgentMessageStream({ messages }: { messages: ChatMessage[] }) {
           Ask me anything about Fractal. I can create prompts, launch agents, manage projects, and
           more.
         </p>
+        <div ref={bottomRef} />
       </div>
     );
   }
@@ -458,6 +464,7 @@ function AgentMessageStream({ messages }: { messages: ChatMessage[] }) {
             ))}
         </div>
       ))}
+      <div ref={bottomRef} />
     </div>
   );
 }
