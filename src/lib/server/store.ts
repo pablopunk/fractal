@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
+import type { FractalAgentProvider } from "../agent-providers.js";
 import { type AgentPreset, DEFAULT_AGENT_PRESETS } from "./agents.js";
 import { getDb } from "./db/client.js";
 import { type Project, type Prompt, projects, prompts, settings } from "./db/schema.js";
@@ -17,6 +18,9 @@ export type AppSettings = {
   remoteAccessEnabled: boolean;
   remoteAccessToken: string;
   keepAwakeEnabled: boolean;
+  apiKeys?: Record<string, string>;
+  fractalAgentProvider?: FractalAgentProvider | "";
+  fractalAgentModel?: string;
 };
 
 export type UiColumn = Column | "GITHUB" | "LINEAR" | "ARCHIVED";
@@ -55,6 +59,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   remoteAccessEnabled: false,
   remoteAccessToken: "",
   keepAwakeEnabled: false,
+  apiKeys: {},
+  fractalAgentProvider: "",
+  fractalAgentModel: "",
 };
 
 const DEFAULT_COLLAPSED = {
@@ -233,6 +240,27 @@ export function getSettings(): AppSettings {
     if (row.key === "remoteAccessEnabled") out.remoteAccessEnabled = row.value === "true";
     if (row.key === "keepAwakeEnabled") out.keepAwakeEnabled = row.value === "true";
     if (row.key === "lastProjectId") out.lastProjectId = row.value;
+    if (row.key === "apiKeys") {
+      try {
+        const parsed = JSON.parse(row.value);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const valid: Record<string, string> = {};
+          for (const [k, v] of Object.entries(parsed)) {
+            if (typeof k === "string" && typeof v === "string" && v.trim()) {
+              valid[k] = v.trim();
+            }
+          }
+          out.apiKeys = valid;
+        }
+      } catch (err) {
+        console.error("[fractal-settings] failed to parse apiKeys:", err);
+      }
+    }
+    if (row.key === "fractalAgentProvider") {
+      const provider = row.value.trim();
+      out.fractalAgentProvider = provider ? (provider as FractalAgentProvider) : "";
+    }
+    if (row.key === "fractalAgentModel") out.fractalAgentModel = row.value || "";
   }
   for (const preset of DEFAULT_AGENT_PRESETS) {
     if (!out.agentPresets.some((p) => p.id === preset.id)) out.agentPresets.push(preset);

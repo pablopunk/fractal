@@ -1,5 +1,6 @@
-import { Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Bot, Monitor, Moon, Palette, Radio, Sun } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { type FractalAgentProvider, modelLabel, providerLabel } from "~/lib/agent-providers.js";
 import type {
   BoardLayout,
   GlassSettings,
@@ -7,6 +8,7 @@ import type {
   ThemeMode,
 } from "~/lib/client/persistence.js";
 import { terminalThemePreview } from "~/lib/client/terminal-themes.js";
+import type { PiModel } from "~/lib/client/types.js";
 import { KeepAwakeToggle } from "./KeepAwakeToggle.js";
 import Portal from "./Portal.js";
 import RemoteAccessSettings from "./RemoteAccessSettings.js";
@@ -20,7 +22,7 @@ const TERMINAL_THEME_OPTIONS = [
   { id: "solarized" as TerminalThemeName, label: "Solarized" },
 ];
 
-type Tab = "remote" | "appearance";
+type Tab = "remote" | "appearance" | "fractal-agent";
 
 type ElectronGlobals = typeof window & {
   electron?: {
@@ -45,8 +47,14 @@ export default function AppSettingsModal(props: {
   onGlassChange: (settings: GlassSettings) => void;
   onTerminalThemeChange: (theme: TerminalThemeName) => void;
   onBoardLayoutChange: (layout: BoardLayout) => void;
+  piModels?: PiModel[];
+  fractalAgentProvider?: FractalAgentProvider | "";
+  fractalAgentModel?: string;
+  onFractalAgentProviderChange?: (provider: FractalAgentProvider | "") => void;
+  onFractalAgentModelChange?: (model: string) => void;
+  initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>("remote");
+  const [tab, setTab] = useState<Tab>(props.initialTab ?? "remote");
 
   return (
     <Portal>
@@ -66,6 +74,13 @@ export default function AppSettingsModal(props: {
             >
               <Palette size={14} />
               Appearance
+            </button>
+            <button
+              className={`app-settings-tab ${tab === "fractal-agent" ? "active" : ""}`}
+              onClick={() => setTab("fractal-agent")}
+            >
+              <Bot size={14} />
+              Fractal Agent
             </button>
           </div>
 
@@ -182,6 +197,18 @@ export default function AppSettingsModal(props: {
             </div>
           )}
 
+          {tab === "fractal-agent" && (
+            <div className="project-settings-body">
+              <FractalAgentFields
+                provider={props.fractalAgentProvider ?? ""}
+                model={props.fractalAgentModel ?? ""}
+                piModels={props.piModels ?? []}
+                onProviderChange={props.onFractalAgentProviderChange ?? (() => {})}
+                onModelChange={props.onFractalAgentModelChange ?? (() => {})}
+              />
+            </div>
+          )}
+
           <footer className="project-settings-footer">
             <button className="btn primary sm" onClick={props.onClose}>
               Done
@@ -284,5 +311,128 @@ function ModeDisplay() {
         </p>
       )}
     </div>
+  );
+}
+
+function FractalAgentFields({
+  provider,
+  model,
+  piModels,
+  onProviderChange,
+  onModelChange,
+}: {
+  provider: FractalAgentProvider | "";
+  model: string;
+  piModels: PiModel[];
+  onProviderChange: (provider: FractalAgentProvider | "") => void;
+  onModelChange: (model: string) => void;
+}) {
+  const availableProviders = useMemo(() => {
+    const ids = new Set(piModels.map((m) => m.provider as FractalAgentProvider));
+    return Array.from(ids).sort();
+  }, [piModels]);
+
+  const availableModels = useMemo(
+    () =>
+      piModels
+        .filter((m) => !provider || m.provider === provider)
+        .map((m) => ({
+          provider: m.provider as FractalAgentProvider,
+          id: m.model,
+          value: `${m.provider}/${m.model}`,
+          label: modelLabel(m.provider as FractalAgentProvider, m.model),
+        })),
+    [piModels, provider],
+  );
+
+  const selectedModelValue = provider && model ? `${provider}/${model}` : "";
+  const hasPiModels = piModels.length > 0;
+
+  useEffect(() => {
+    if (provider && !availableProviders.includes(provider)) {
+      onProviderChange("");
+      onModelChange("");
+      return;
+    }
+    if (model && !availableModels.some((availableModel) => availableModel.id === model)) {
+      onModelChange("");
+    }
+  }, [provider, model, availableProviders, availableModels, onProviderChange, onModelChange]);
+
+  const handleProviderChange = (value: string) => {
+    const nextProvider = value === "" ? "" : (value as FractalAgentProvider);
+    onProviderChange(nextProvider);
+    if (
+      nextProvider &&
+      model &&
+      !piModels.some((m) => m.provider === nextProvider && m.model === model)
+    ) {
+      onModelChange("");
+    }
+  };
+
+  const handleModelChange = (value: string) => {
+    if (!value) {
+      onModelChange("");
+      return;
+    }
+    const found = availableModels.find((m) => m.value === value);
+    if (!found) return;
+    onProviderChange(found.provider);
+    onModelChange(found.id);
+  };
+
+  return (
+    <>
+      <div className="project-settings-section">
+        <label className="project-settings-label">Local Pi required</label>
+        <p className="project-settings-hint">
+          Fractal Agent uses your local Pi installation and Pi auth only. Run Pi locally, log in
+          there, then choose one of the authenticated Pi models.
+        </p>
+      </div>
+
+      <div className="project-settings-section">
+        <label className="project-settings-label">Fractal Agent Provider</label>
+        <p className="project-settings-hint">Providers come from your local Pi model registry.</p>
+        <select
+          className="input"
+          value={provider}
+          onChange={(e) => handleProviderChange(e.target.value)}
+          disabled={!hasPiModels}
+          style={{ marginTop: 4, opacity: hasPiModels ? 1 : 0.5 }}
+        >
+          <option value="">{hasPiModels ? "Any provider" : "No local Pi models found"}</option>
+          {availableProviders.map((id) => (
+            <option key={id} value={id}>
+              {providerLabel(id)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="project-settings-section">
+        <label className="project-settings-label">Fractal Agent Model</label>
+        <p className="project-settings-hint">
+          {hasPiModels
+            ? "Select a model from your local Pi model list."
+            : "Install and log into Pi, then reopen settings after Pi has authenticated models."}
+        </p>
+        <select
+          className="input"
+          value={selectedModelValue}
+          onChange={(e) => handleModelChange(e.target.value)}
+          disabled={!hasPiModels}
+          style={{ marginTop: 4, opacity: hasPiModels ? 1 : 0.5 }}
+        >
+          <option value="">{hasPiModels ? "Select a model..." : "No local Pi models found"}</option>
+          {availableModels.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label} — {providerLabel(m.provider)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
   );
 }

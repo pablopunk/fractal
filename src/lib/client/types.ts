@@ -48,6 +48,9 @@ export type Prompt = {
   launchedAt?: number | null;
   isRunning?: boolean;
 };
+
+import type { FractalAgentProvider } from "~/lib/agent-providers.js";
+
 export type AppSettings = {
   fastModel: string;
   smartModel: string;
@@ -56,6 +59,8 @@ export type AppSettings = {
   helperPresetId: string;
   lastProjectId: string;
   globalAgentPresetId: string;
+  fractalAgentProvider?: FractalAgentProvider | "";
+  fractalAgentModel?: string;
 };
 export type PiModel = {
   id: string;

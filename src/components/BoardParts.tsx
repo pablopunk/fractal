@@ -15,12 +15,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Bot,
   ChevronLeft,
   ChevronRight,
   Info,
   Plus,
   RefreshCw,
-  Sparkles,
   SquareTerminal,
   Trash2,
 } from "lucide-react";
@@ -53,13 +53,14 @@ function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
     <div className="agent-sidebar-entry">
       <button
         type="button"
-        className={`project-item agent-item ${props.active ? "active" : ""}`}
+        className={`sidebar-agent-btn ${props.active ? "active" : ""}`}
         onClick={props.onClick}
-        aria-label="Fractal Agent"
+        aria-label="Toggle Fractal Agent"
         title="Fractal Agent"
+        aria-expanded={props.active}
       >
-        <span className="agent-badge" aria-hidden="true">
-          <Sparkles size={14} strokeWidth={2.4} />
+        <span className="sidebar-agent-icon" aria-hidden="true">
+          <Bot size={14} strokeWidth={2} />
         </span>
         <span className="name">Fractal Agent</span>
       </button>
@@ -70,9 +71,8 @@ function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
 export function Sidebar(props: {
   projects: Project[];
   activeId: string | null;
-  activeView: { kind: "project"; id: string } | { kind: "agent" };
+  activeView: { kind: "project"; id: string } | null;
   onSelect: (id: string) => void;
-  onSelectAgent: () => void;
   onRemove: (id: string) => void;
   onAdd: (path: string) => void;
   showPicker: boolean;
@@ -88,6 +88,9 @@ export function Sidebar(props: {
   activeTabId: string | null;
   onSelectTab: (projectId: string, tabId: string) => void;
   onReorderTabs: (fromId: string, toId: string) => void;
+  agentPanelOpen?: boolean;
+  onToggleAgent?: () => void;
+  showAgentEntry?: boolean;
 }) {
   const projectSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -215,10 +218,9 @@ export function Sidebar(props: {
               </button>
             </div>
           ))}
-        <AgentSidebarEntry
-          active={props.activeView.kind === "agent"}
-          onClick={props.onSelectAgent}
-        />
+        {props.showAgentEntry !== false && props.onToggleAgent && (
+          <AgentSidebarEntry active={!!props.agentPanelOpen} onClick={props.onToggleAgent} />
+        )}
         <div
           className="sidebar-resize-handle"
           onPointerDown={startResize}

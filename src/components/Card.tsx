@@ -2,33 +2,13 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, Copy, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 import EditablePromptText from "./EditablePromptText.js";
+import MarkdownText from "./MarkdownText.js";
 import PresetIcon from "./PresetIcon.js";
 import PresetPicker from "./PresetPicker.js";
-import {
-  extractImagePaths,
-  LocalImageAttachment,
-  parseImagePaths,
-  UrlPreviewLink,
-} from "./PromptMedia.js";
+import { extractImagePaths, LocalImageAttachment, parseImagePaths } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
-
-function PromptMarkdown({ text }: { text: string }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        a: ({ href, children }) =>
-          href ? <UrlPreviewLink url={href}>{children}</UrlPreviewLink> : children,
-      }}
-    >
-      {text}
-    </ReactMarkdown>
-  );
-}
 
 export function Card({
   prompt,
@@ -202,14 +182,14 @@ export function Card({
             <>
               <span className="ai-helper-tooltip-title">Generated summary from</span>
               <div className="markdown-text tooltip-markdown">
-                <PromptMarkdown text={prompt.text} />
+                <MarkdownText text={prompt.text} />
               </div>
             </>
           )
         }
       >
         <div className="text markdown-text">
-          <PromptMarkdown text={displayText} />
+          <MarkdownText text={displayText} />
           {isShowingSummary && (
             <span className="ai-helper-mark" aria-label="Prompt summary was generated">
               ∗
