@@ -218,11 +218,8 @@ export function Sidebar(props: {
               </button>
             </div>
           ))}
-        {props.showAgentEntry !== false && (
-          <AgentSidebarEntry
-            active={!!props.agentPanelOpen}
-            onClick={props.onToggleAgent ?? (() => {})}
-          />
+        {props.showAgentEntry !== false && props.onToggleAgent && (
+          <AgentSidebarEntry active={!!props.agentPanelOpen} onClick={props.onToggleAgent} />
         )}
         <div
           className="sidebar-resize-handle"

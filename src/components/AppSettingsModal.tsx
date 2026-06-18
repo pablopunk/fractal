@@ -404,6 +404,17 @@ function FractalAgentFields({
 
   const hasProviders = configuredProviders.length > 0;
 
+  useEffect(() => {
+    if (provider && !apiKeys[provider]?.trim()) {
+      onProviderChange("");
+      onModelChange("");
+      return;
+    }
+    if (model && !availableModels.some((availableModel) => availableModel.id === model)) {
+      onModelChange("");
+    }
+  }, [apiKeys, provider, model, availableModels, onProviderChange, onModelChange]);
+
   const handleProviderChange = (value: string) => {
     const newProv = value === "" ? "" : (value as FractalAgentProvider);
     onProviderChange(newProv);
@@ -434,11 +445,12 @@ function FractalAgentFields({
           onChange={(e) => handleProviderChange(e.target.value)}
           style={{ marginTop: 4 }}
         >
-          <option value="">Select a provider...</option>
-          {FRACTAL_AGENT_PROVIDERS.map((p) => (
+          <option value="">
+            {hasProviders ? "Select a provider..." : "No providers configured"}
+          </option>
+          {configuredProviders.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label}
-              {!apiKeys[p.id]?.trim() ? " (no key)" : ""}
             </option>
           ))}
         </select>

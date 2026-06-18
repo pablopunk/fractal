@@ -1,3 +1,5 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { dynamicTool } from "ai";
 import { z } from "zod";
 
@@ -201,16 +203,47 @@ export const captureTerminal = tool(
 
 const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "[::]"]);
 
-function isBlockedHost(hostname: string): boolean {
-  if (BLOCKED_HOSTS.has(hostname) || hostname.endsWith(".local")) return true;
-  const v4 = hostname.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)?.[1];
-  if (!v4) return false;
-  const parts = v4.split(".").map(Number);
-  return (
-    parts[0] === 10 ||
-    (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-    (parts[0] === 192 && parts[1] === 168)
-  );
+function isPrivateAddress(host: string): boolean {
+  const normalized = host.replace(/^\[|\]$/g, "").toLowerCase();
+  const ipVersion = isIP(normalized);
+  if (ipVersion === 4) {
+    const [a, b] = normalized.split(".").map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 100 && b >= 64 && b <= 127)
+    );
+  }
+  if (ipVersion === 6) {
+    return (
+      normalized === "::" ||
+      normalized === "::1" ||
+      normalized.startsWith("fc") ||
+      normalized.startsWith("fd") ||
+      normalized.startsWith("fe80:")
+    );
+  }
+  return false;
+}
+
+async function assertPublicHost(hostname: string): Promise<void> {
+  const normalized = hostname.toLowerCase();
+  if (
+    BLOCKED_HOSTS.has(normalized) ||
+    normalized.endsWith(".local") ||
+    isPrivateAddress(hostname)
+  ) {
+    throw new Error(`Cannot fetch private/internal host: ${hostname}`);
+  }
+  if (isIP(hostname.replace(/^\[|\]$/g, ""))) return;
+  const records = await lookup(hostname, { all: true, verbatim: true });
+  if (records.some((record) => isPrivateAddress(record.address))) {
+    throw new Error(`Cannot fetch private/internal host: ${hostname}`);
+  }
 }
 
 export const webFetch = tool(
@@ -234,9 +267,7 @@ export const webFetch = tool(
     let current = parsed.toString();
     for (let i = 0; i <= 5; i++) {
       parsed = new URL(current);
-      if (isBlockedHost(parsed.hostname)) {
-        throw new Error(`Cannot fetch private/internal host: ${parsed.hostname}`);
-      }
+      await assertPublicHost(parsed.hostname);
       const res = await fetch(current, {
         headers: {
           "User-Agent": "Fractal-Agent/1.0",
@@ -281,8 +312,10 @@ export const webSearch = tool(
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(args.query)}`,
       {
         headers: { "User-Agent": "Fractal-Agent/1.0" },
+        signal: AbortSignal.timeout(10000),
       },
     );
+    if (!res.ok) throw new Error(`DuckDuckGo request failed with HTTP ${res.status}`);
     const html = await res.text();
     const links: Array<{ title: string; url: string }> = [];
     const linkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi;

@@ -2021,9 +2021,15 @@ export default function Board() {
                   onTerminalThemeChange={setTerminalThemeName}
                   onBoardLayoutChange={setBoardLayout}
                   apiKeys={apiKeys}
-                  onApiKeysChange={(keys) => {
+                  onApiKeysChange={async (keys) => {
+                    const prev = apiKeys;
                     setApiKeys(keys);
-                    void saveSettings({ apiKeys: keys });
+                    const saved = await saveSettings({ apiKeys: keys });
+                    if (!saved) {
+                      setApiKeys(prev);
+                      return;
+                    }
+                    setApiKeys(saved.apiKeys ?? {});
                   }}
                   fractalAgentProvider={fractalAgentProvider}
                   fractalAgentModel={fractalAgentModel}
