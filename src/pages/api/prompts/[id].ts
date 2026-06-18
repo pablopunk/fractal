@@ -6,7 +6,8 @@ import { getPrompt, updatePrompt } from "~/lib/server/store.js";
 export const prerender = false;
 
 export const PATCH: APIRoute = async ({ params, request }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   if (!getPrompt(id)) return Response.json({ error: "not found" }, { status: 404 });
   const body = (await request.json().catch(() => ({}))) as {
     text?: string;
@@ -37,7 +38,8 @@ export const PATCH: APIRoute = async ({ params, request }) => {
 };
 
 export const DELETE: APIRoute = async ({ params, request }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
 

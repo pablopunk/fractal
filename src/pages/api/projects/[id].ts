@@ -5,14 +5,16 @@ import { deleteProject, getProject, updateProject } from "~/lib/server/store.js"
 export const prerender = false;
 
 export const DELETE: APIRoute = async ({ params }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   if (!getProject(id)) return Response.json({ error: "not found" }, { status: 404 });
   deleteProject(id);
   return Response.json({ ok: true });
 };
 
 export const PATCH: APIRoute = async ({ params, request }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   const existing = getProject(id);
   if (!existing) return Response.json({ error: "not found" }, { status: 404 });
 

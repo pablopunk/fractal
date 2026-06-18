@@ -5,7 +5,8 @@ import { getProject } from "~/lib/server/store.js";
 export const prerender = false;
 
 export const GET: APIRoute = async ({ params, url }) => {
-  const id = params.id!;
+  const id = params.id;
+  if (!id) return Response.json({ error: "not found" }, { status: 404 });
   const project = getProject(id);
   if (!project) return Response.json({ error: "not found" }, { status: 404 });
 

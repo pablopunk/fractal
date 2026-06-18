@@ -264,6 +264,7 @@ function StartedPromptActions(props: {
   onDeletePrompt: (prompt: Prompt) => void;
 }) {
   const title = promptTitle(props.prompt);
+  const session = props.prompt.tmuxSession;
   return (
     <>
       {props.prompt.tmuxSession && (
@@ -281,7 +282,10 @@ function StartedPromptActions(props: {
           title={`Copy session: ${title}`}
           subtitle={props.prompt.tmuxSession}
           value={`copy session ${props.prompt.text} ${props.prompt.tmuxSession}`}
-          onSelect={() => props.run(() => props.copySession(props.prompt.tmuxSession!))}
+          onSelect={() => {
+            if (!session) return;
+            props.run(() => props.copySession(session));
+          }}
         />
       )}
       <ActionItem

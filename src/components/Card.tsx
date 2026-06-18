@@ -225,145 +225,145 @@ export function Card({
         </div>
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
-      {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
-        <div className="card-footer">
-          <div
-            className="card-actions"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {prompt.column === "PROMPTS" ? (
-              <PresetPicker
-                presets={presets}
-                value={prompt.presetId}
-                onChange={(id) => {
-                  if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id });
-                }}
-              />
-            ) : (
-              <Tooltip content={prompt.presetId}>
-                <span className="model-badge">
-                  {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
-                  {presetName}
-                </span>
+      <div className="card-footer">
+        <div
+          className="card-actions"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {prompt.column === "PROMPTS" ? (
+            <PresetPicker
+              presets={presets}
+              value={prompt.presetId}
+              onChange={(id) => {
+                if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id });
+              }}
+            />
+          ) : (
+            <Tooltip content={prompt.presetId}>
+              <span className="model-badge">
+                {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
+                {presetName}
+              </span>
+            </Tooltip>
+          )}
+          <div className="card-actions-group">
+            {copied && (
+              <span className="copy-notice" role="status" aria-live="polite">
+                Copied
+              </span>
+            )}
+            {prompt.column !== "PROMPTS" && !prompt.summary?.trim() && onSummarize && (
+              <Tooltip content={isSummarizing ? "Summarizing…" : "Summarize prompt"}>
+                <button
+                  className="icon-btn"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  disabled={!!pendingAction || !!isSummarizing}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onSummarize(prompt.id);
+                  }}
+                  aria-label={isSummarizing ? "Summarizing prompt" : "Summarize prompt"}
+                >
+                  {isSummarizing ? (
+                    <span className="btn-spinner" aria-hidden="true" />
+                  ) : (
+                    <Sparkles size={14} />
+                  )}
+                </button>
               </Tooltip>
             )}
-            <div className="card-actions-group">
-              {copied && (
-                <span className="copy-notice" role="status" aria-live="polite">
-                  Copied
-                </span>
-              )}
-              {prompt.column !== "PROMPTS" && !prompt.summary?.trim() && onSummarize && (
-                <Tooltip content={isSummarizing ? "Summarizing…" : "Summarize prompt"}>
-                  <button
-                    className="icon-btn"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    disabled={!!pendingAction || !!isSummarizing}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void onSummarize(prompt.id);
-                    }}
-                    aria-label={isSummarizing ? "Summarizing prompt" : "Summarize prompt"}
-                  >
-                    {isSummarizing ? (
-                      <span className="btn-spinner" aria-hidden="true" />
-                    ) : (
-                      <Sparkles size={14} />
-                    )}
-                  </button>
-                </Tooltip>
-              )}
-              <Tooltip content="Edit prompt">
+            <Tooltip content="Edit prompt">
+              <button
+                className="icon-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditText(prompt.text);
+                  setEditPresetId(prompt.presetId);
+                  setIsEditing(true);
+                }}
+                aria-label="Edit prompt"
+              >
+                <Pencil size={14} />
+              </button>
+            </Tooltip>
+            {prompt.tmuxSession && (
+              <Tooltip content="Copy worktree name">
                 <button
+                  type="button"
                   className="icon-btn"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setEditText(prompt.text);
-                    setEditPresetId(prompt.presetId);
-                    setIsEditing(true);
+                    copyWorktreeName();
                   }}
-                  aria-label="Edit prompt"
+                  aria-label="Copy worktree name"
                 >
-                  <Pencil size={14} />
+                  <Copy size={14} />
                 </button>
               </Tooltip>
-              {prompt.tmuxSession && (
-                <Tooltip content="Copy worktree name">
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      copyWorktreeName();
-                    }}
-                    aria-label="Copy worktree name"
-                  >
-                    <Copy size={14} />
-                  </button>
-                </Tooltip>
-              )}
-              {isArchivedCol ? (
-                <Tooltip content="Move prompt out of DONE">
-                  <button
-                    className="icon-btn"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    disabled={!!pendingAction}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void runCardAction("unarchive", () => onUnarchive(prompt.id));
-                    }}
-                    aria-label="Move prompt out of DONE"
-                  >
-                    {pendingAction === "unarchive" ? (
-                      <span className="btn-spinner" aria-hidden="true" />
-                    ) : (
-                      <Undo2 size={14} />
-                    )}
-                  </button>
-                </Tooltip>
-              ) : (
-                <Tooltip content="Mark prompt as done">
-                  <button
-                    className="icon-btn"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    disabled={!!pendingAction}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void runCardAction("archive", () => onArchive(prompt.id));
-                    }}
-                    aria-label="Mark prompt as done"
-                  >
-                    {pendingAction === "archive" ? (
-                      <span className="btn-spinner" aria-hidden="true" />
-                    ) : (
-                      <Check size={14} />
-                    )}
-                  </button>
-                </Tooltip>
-              )}
-              <Tooltip content="Delete prompt and cleanup resources">
+            )}
+            {isArchivedCol ? (
+              <Tooltip content="Move prompt out of DONE">
                 <button
-                  className="icon-btn danger"
+                  className="icon-btn"
                   onPointerDown={(e) => e.stopPropagation()}
                   disabled={!!pendingAction}
                   onClick={(e) => {
                     e.stopPropagation();
-                    void runCardAction("delete", () => onDelete(prompt.id));
+                    void runCardAction("unarchive", () => onUnarchive(prompt.id));
                   }}
-                  aria-label="Delete prompt and cleanup resources"
+                  aria-label="Move prompt out of DONE"
                 >
-                  {pendingAction === "delete" ? (
+                  {pendingAction === "unarchive" ? (
                     <span className="btn-spinner" aria-hidden="true" />
                   ) : (
-                    <Trash2 size={14} />
+                    <Undo2 size={14} />
                   )}
                 </button>
               </Tooltip>
-            </div>
+            ) : (
+              <Tooltip content="Mark prompt as done">
+                <button
+                  className="icon-btn"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  disabled={!!pendingAction}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void runCardAction("archive", () => onArchive(prompt.id));
+                  }}
+                  aria-label="Mark prompt as done"
+                >
+                  {pendingAction === "archive" ? (
+                    <span className="btn-spinner" aria-hidden="true" />
+                  ) : (
+                    <Check size={14} />
+                  )}
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip content="Delete prompt and cleanup resources">
+              <button
+                className="icon-btn danger"
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={!!pendingAction}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void runCardAction("delete", () => onDelete(prompt.id));
+                }}
+                aria-label="Delete prompt and cleanup resources"
+              >
+                {pendingAction === "delete" ? (
+                  <span className="btn-spinner" aria-hidden="true" />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+              </button>
+            </Tooltip>
           </div>
+        </div>
+        {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
           <div className="card-meta">
             {isRunning && <span className="tag accent">running</span>}
             {prompt.tmuxSession && (
@@ -383,8 +383,8 @@ export function Card({
               </Tooltip>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
