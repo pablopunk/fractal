@@ -257,7 +257,8 @@ export function getSettings(): AppSettings {
       }
     }
     if (row.key === "fractalAgentProvider") {
-      out.fractalAgentProvider = row.value.trim() ? (row.value as FractalAgentProvider) : "";
+      const provider = row.value.trim();
+      out.fractalAgentProvider = provider ? (provider as FractalAgentProvider) : "";
     }
     if (row.key === "fractalAgentModel") out.fractalAgentModel = row.value || "";
   }
