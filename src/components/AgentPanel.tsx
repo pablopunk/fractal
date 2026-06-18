@@ -259,6 +259,8 @@ export default function AgentPanel({
   mobile,
 }: AgentPanelProps) {
   const hasProvider = Boolean(fractalAgentProvider) && Boolean(fractalAgentModel);
+  const chat = useFractalAgentChat();
+  const [input, setInput] = useState("");
 
   return (
     <Portal>
@@ -274,7 +276,11 @@ export default function AgentPanel({
             transition={{ type: "spring", duration: 0.35, bounce: 0 }}
           >
             <AgentHeader />
-            {hasProvider ? <AgentChat /> : <AgentGatekeeper onOpenSettings={onOpenSettings} />}
+            {hasProvider ? (
+              <AgentChat chat={chat} input={input} onInputChange={setInput} />
+            ) : (
+              <AgentGatekeeper onOpenSettings={onOpenSettings} />
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -361,9 +367,18 @@ function AgentGatekeeper({ onOpenSettings }: { onOpenSettings: () => void }) {
   );
 }
 
-function AgentChat() {
-  const { messages, sendMessage, isLoading, error, regenerate, abort } = useFractalAgentChat();
-  const [input, setInput] = useState("");
+type FractalAgentChat = ReturnType<typeof useFractalAgentChat>;
+
+function AgentChat({
+  chat,
+  input,
+  onInputChange,
+}: {
+  chat: FractalAgentChat;
+  input: string;
+  onInputChange: (value: string) => void;
+}) {
+  const { messages, sendMessage, isLoading, error, regenerate, abort } = chat;
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -374,7 +389,7 @@ function AgentChat() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     const text = input;
-    setInput("");
+    onInputChange("");
     await sendMessage(text);
   }
 
@@ -392,7 +407,7 @@ function AgentChat() {
       <div ref={bottomRef} />
       <AgentComposer
         input={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => onInputChange(e.target.value)}
         onSubmit={handleSubmit}
         isLoading={isLoading}
         onStop={abort}
