@@ -2,6 +2,7 @@ import { Bot, ChevronDown, ChevronRight, Key, Loader2, Send, Wrench } from "luci
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FractalAgentProvider } from "~/lib/agent-providers.js";
+import MarkdownText from "./MarkdownText.js";
 import Portal from "./Portal.js";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -421,8 +422,8 @@ function AgentMessageStream({ messages }: { messages: ChatMessage[] }) {
             <>
               {msg.textParts.map((text, i) =>
                 text ? (
-                  <div key={`text-${i}`} className="agent-text">
-                    {text}
+                  <div key={`text-${i}`} className="agent-text markdown-text">
+                    <MarkdownText text={text} />
                   </div>
                 ) : null,
               )}

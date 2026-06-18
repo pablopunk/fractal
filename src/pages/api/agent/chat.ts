@@ -4,7 +4,7 @@ import { fauxAssistantMessage, streamSimple } from "@earendil-works/pi-ai";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import type { APIRoute } from "astro";
 import type { FractalAgentProvider } from "~/lib/agent-providers.js";
-import { AGENT_TOOLS } from "~/lib/server/agent-tools.js";
+import { AGENT_TOOLS, withAgentToolBaseUrl } from "~/lib/server/agent-tools.js";
 import { getSettings } from "~/lib/server/store.js";
 
 export const prerender = false;
@@ -236,6 +236,10 @@ async function prepareAgent(
 
 // ── Route handler ──────────────────────────────────────────────────────────
 
+function requestOrigin(request: Request): string {
+  return new URL(request.url).origin;
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const stream = new ReadableStream({
     async start(controller) {
@@ -272,12 +276,15 @@ export const POST: APIRoute = async ({ request }) => {
         const priorMessages = allMessages.slice(0, -1);
 
         agent = await prepareAgent(encoder, controller, priorMessages);
+        const activeAgent = agent;
 
         request.signal.addEventListener("abort", () => {
-          agent?.abort();
+          activeAgent.abort();
         });
 
-        await agent.prompt(lastMsg.content);
+        await withAgentToolBaseUrl(requestOrigin(request), () =>
+          activeAgent.prompt(lastMsg.content),
+        );
 
         controller.close();
       } catch (e) {

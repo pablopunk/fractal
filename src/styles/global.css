@@ -3297,6 +3297,10 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   white-space: pre-wrap;
 }
 
+.agent-text.markdown-text {
+  white-space: normal;
+}
+
 /* ── Tool Cards ── */
 .agent-tool-card {
   margin-top: 8px;

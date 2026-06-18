@@ -1,9 +1,19 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
-const BASE_URL = `http://127.0.0.1:${process.env.PORT ?? "7666"}`;
+const DEFAULT_BASE_URL = `http://127.0.0.1:${process.env.PORT ?? "7666"}`;
+const baseUrlStorage = new AsyncLocalStorage<string>();
+
+export function withAgentToolBaseUrl<T>(baseUrl: string, fn: () => Promise<T>): Promise<T> {
+  return baseUrlStorage.run(baseUrl, fn);
+}
+
+function getBaseUrl(): string {
+  return baseUrlStorage.getStore() ?? DEFAULT_BASE_URL;
+}
 
 async function fractalFetch<T>(
   path: string,
@@ -14,7 +24,7 @@ async function fractalFetch<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const res = await fetch(`${getBaseUrl()}${path}`, {
       method: init?.method ?? "GET",
       headers,
       body: init?.body ? JSON.stringify(init.body) : undefined,
