@@ -204,16 +204,16 @@ export default function AppSettingsModal(props: {
 
           {tab === "fractal-agent" && (
             <div className="project-settings-body">
+              <AddProviderFields
+                apiKeys={props.apiKeys ?? {}}
+                onChange={props.onApiKeysChange ?? (() => {})}
+              />
               <FractalAgentFields
                 provider={props.fractalAgentProvider ?? ""}
                 model={props.fractalAgentModel ?? ""}
                 apiKeys={props.apiKeys ?? {}}
                 onProviderChange={props.onFractalAgentProviderChange ?? (() => {})}
                 onModelChange={props.onFractalAgentModelChange ?? (() => {})}
-              />
-              <ApiKeyFields
-                apiKeys={props.apiKeys ?? {}}
-                onChange={props.onApiKeysChange ?? (() => {})}
               />
             </div>
           )}
@@ -323,53 +323,94 @@ function ModeDisplay() {
   );
 }
 
-const API_KEY_FIELDS = FRACTAL_AGENT_PROVIDERS.map((p) => ({
-  key: p.id,
-  label: p.keyLabel,
-  hint: p.keyHint,
-  placeholder: p.keyPlaceholder,
-}));
-
-function ApiKeyFields({
+function AddProviderFields({
   apiKeys,
   onChange,
 }: {
   apiKeys: Record<string, string>;
   onChange: (keys: Record<string, string>) => void;
 }) {
+  const [providerToAdd, setProviderToAdd] = useState<FractalAgentProvider | "">("");
+  const configuredProviders = FRACTAL_AGENT_PROVIDERS.filter((provider) =>
+    apiKeys[provider.id]?.trim(),
+  );
+  const availableProviders = FRACTAL_AGENT_PROVIDERS.filter(
+    (provider) => !apiKeys[provider.id]?.trim() || provider.id === providerToAdd,
+  );
+  const selectedProvider = FRACTAL_AGENT_PROVIDERS.find(
+    (provider) => provider.id === providerToAdd,
+  );
+
+  function updateProviderKey(providerId: FractalAgentProvider, value: string) {
+    const trimmed = value.trim();
+    const next = { ...apiKeys };
+    if (trimmed) next[providerId] = trimmed;
+    else delete next[providerId];
+    onChange(next);
+  }
+
   return (
     <>
-      <p
-        className="project-settings-hint"
-        style={{
-          marginTop: 24,
-          paddingTop: 16,
-          borderTop: "1px solid var(--border)",
-          marginBottom: 16,
-        }}
-      >
-        Add API keys so the Fractal Agent can talk to AI models. Keys are stored locally and never
-        sent anywhere else.
-      </p>
-      {API_KEY_FIELDS.map(({ key, label, hint, placeholder }) => (
-        <div key={key} className="project-settings-section">
-          <label className="project-settings-label">{label}</label>
-          <p className="project-settings-hint">{hint}</p>
+      <div className="project-settings-section">
+        <label className="project-settings-label">Add provider</label>
+        <p className="project-settings-hint">
+          Connect only the providers you want the Fractal Agent to use.
+        </p>
+        <select
+          className="input"
+          value={providerToAdd}
+          onChange={(e) => setProviderToAdd(e.target.value as FractalAgentProvider | "")}
+          disabled={availableProviders.length === 0}
+          style={{ marginTop: 4, opacity: availableProviders.length === 0 ? 0.5 : 1 }}
+        >
+          <option value="">
+            {availableProviders.length === 0 ? "All providers connected" : "Select provider..."}
+          </option>
+          {availableProviders.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.label}
+              {apiKeys[provider.id]?.trim() ? " (connected)" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedProvider && (
+        <div className="project-settings-section">
+          <label className="project-settings-label">{selectedProvider.keyLabel}</label>
+          <p className="project-settings-hint">{selectedProvider.keyHint}</p>
           <input
             type="password"
             className="input"
-            placeholder={placeholder}
-            value={apiKeys[key] ?? ""}
-            onChange={(e) => {
-              const trimmed = e.target.value.trim();
-              const next = { ...apiKeys, [key]: trimmed };
-              if (!trimmed) delete next[key];
-              onChange(next);
-            }}
+            placeholder={selectedProvider.keyPlaceholder}
+            value={apiKeys[selectedProvider.id] ?? ""}
+            onChange={(e) => updateProviderKey(selectedProvider.id, e.target.value)}
             style={{ marginTop: 4 }}
           />
         </div>
-      ))}
+      )}
+
+      <div className="project-settings-section">
+        <label className="project-settings-label">Connected providers</label>
+        {configuredProviders.length === 0 ? (
+          <p className="project-settings-hint">No providers connected yet.</p>
+        ) : (
+          <div className="model-picker-items" style={{ marginTop: 6 }}>
+            {configuredProviders.map((provider) => (
+              <div key={provider.id} className="picker-item">
+                <span className="picker-name">{provider.label}</span>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => updateProviderKey(provider.id, "")}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </>
   );
 }
