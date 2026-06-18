@@ -277,7 +277,7 @@ export default function AgentPanel({
           >
             <AgentHeader />
             {hasProvider ? (
-              <AgentChat chat={chat} input={input} onInputChange={setInput} />
+              <AgentChat chat={chat} input={input} onInputChange={setInput} open={open} />
             ) : (
               <AgentGatekeeper onOpenSettings={onOpenSettings} />
             )}
@@ -373,10 +373,12 @@ function AgentChat({
   chat,
   input,
   onInputChange,
+  open,
 }: {
   chat: FractalAgentChat;
   input: string;
   onInputChange: (value: string) => void;
+  open: boolean;
 }) {
   const { messages, sendMessage, isLoading, error, regenerate, abort } = chat;
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -411,6 +413,7 @@ function AgentChat({
         onSubmit={handleSubmit}
         isLoading={isLoading}
         onStop={abort}
+        autoFocusSignal={open}
       />
     </div>
   );
@@ -503,16 +506,26 @@ function AgentComposer({
   onSubmit,
   isLoading,
   onStop,
+  autoFocusSignal,
 }: {
   input: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   onStop: () => void;
+  autoFocusSignal: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!autoFocusSignal || isLoading) return;
+    const id = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [autoFocusSignal, isLoading]);
   return (
     <form className="agent-composer" onSubmit={onSubmit}>
       <input
+        ref={inputRef}
         className="agent-composer-input"
         value={input}
         onChange={onChange}
