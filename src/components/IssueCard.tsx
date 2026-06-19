@@ -88,6 +88,7 @@ export function SortableIssueCard({
         href={issue.url}
         target="_blank"
         rel="noopener noreferrer"
+        className="issue-card-link"
         onClick={(e) => e.stopPropagation()}
         draggable={false}
       >
