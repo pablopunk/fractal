@@ -24,7 +24,13 @@ async function buildWorktreeStatus(projectPath: string, branch: string, worktree
     getPrDetails(projectPath, branch),
     existsSync(worktreePath) ? getUncommittedChanges(worktreePath) : Promise.resolve([]),
   ]);
-  return { hasUncommitted, merged, hasPr: prDetails !== null, prUrl: prDetails?.url ?? null, changes };
+  return {
+    hasUncommitted,
+    merged,
+    hasPr: prDetails !== null,
+    prUrl: prDetails?.url ?? null,
+    changes,
+  };
 }
 
 function archiveError(detail: string, status: number, extra: Record<string, unknown> = {}) {

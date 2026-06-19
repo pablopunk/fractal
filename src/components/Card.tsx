@@ -1,6 +1,15 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, Copy, ExternalLink, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  Pencil,
+  Sparkles,
+  SquareTerminal,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 import EditablePromptText from "./EditablePromptText.js";

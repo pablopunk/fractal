@@ -1078,9 +1078,7 @@ export default function Board() {
           changes?: string[];
         };
         if (body.prUrl) {
-          setPrompts((p) =>
-            p.map((x) => (x.id === id ? { ...x, prUrl: body.prUrl ?? null } : x)),
-          );
+          setPrompts((p) => p.map((x) => (x.id === id ? { ...x, prUrl: body.prUrl ?? null } : x)));
         }
         setDoneActionInfo({
           promptId: id,

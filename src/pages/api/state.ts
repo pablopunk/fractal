@@ -2,7 +2,13 @@ import type { APIRoute } from "astro";
 import { HOME } from "~/lib/server/fs.js";
 import { getPrDetails } from "~/lib/server/git.js";
 import { withPromptsStatus } from "~/lib/server/prompt-status.js";
-import { getSettings, getUiState, listProjects, listPrompts, updatePrompt } from "~/lib/server/store.js";
+import {
+  getSettings,
+  getUiState,
+  listProjects,
+  listPrompts,
+  updatePrompt,
+} from "~/lib/server/store.js";
 import { listSessions } from "~/lib/server/tmux.js";
 
 export const prerender = false;
@@ -10,11 +16,7 @@ export const prerender = false;
 async function resolvePrUrls() {
   const allPrompts = listPrompts();
   const worktreePrompts = allPrompts.filter(
-    (p) =>
-      p.runMode === "worktree" &&
-      p.branch &&
-      !p.prUrl &&
-      !p.isArchived,
+    (p) => p.runMode === "worktree" && p.branch && !p.prUrl && !p.isArchived,
   );
   if (worktreePrompts.length === 0) return;
 
@@ -25,7 +27,9 @@ async function resolvePrUrls() {
     worktreePrompts.map(async (prompt) => {
       const project = projectMap.get(prompt.projectId);
       if (!project) return;
-      const details = await getPrDetails(project.path, prompt.branch!);
+      const branch = prompt.branch;
+      if (!branch) return;
+      const details = await getPrDetails(project.path, branch);
       if (details?.url) {
         updatePrompt(prompt.id, { prUrl: details.url } as never);
       }
