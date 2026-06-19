@@ -242,13 +242,7 @@ export default function Board() {
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const [loadingIssues, setLoadingIssues] = useState(false);
   const [hiddenIssueIds, setHiddenIssueIds] = useState<Set<string>>(() => new Set());
-  const [tackleIssue, setTackleIssue] = useState<{
-    issue: BoardIssue;
-    column: Column;
-    text: string;
-    presetId: string;
-    projectId: string;
-  } | null>(null);
+  const [issuePresetIds, setIssuePresetIds] = useState<Record<string, string>>({});
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const [terminalThemeName, setTerminalThemeName] = useState<TerminalThemeName>(() =>
     loadTerminalTheme(),
@@ -1212,15 +1206,12 @@ export default function Board() {
       if (!issue || !activeProjectId) return;
       const overCol = overId as Column;
       if (overCol === "RUN_IN_PLACE" || overCol === "RUN_IN_WORKTREE") {
-        // Hidden after modal confirmation
+        const presetId =
+          issuePresetIds[issue.id] || activeProject?.defaultPresetId || settings.defaultPresetId;
+        if (!presetId) return;
+        setHiddenIssueIds((ids) => new Set(ids).add(issue.id));
         const issueText = buildIssuePromptText(issue);
-        setTackleIssue({
-          issue,
-          column: overCol,
-          text: issueText,
-          presetId: activeProject?.defaultPresetId || settings.defaultPresetId,
-          projectId: activeProjectId,
-        });
+        void createPromptFromIssue(overCol, presetId, issueText, activeProjectId);
         return;
       }
       if (overCol === "ARCHIVED") {
@@ -1230,15 +1221,12 @@ export default function Board() {
       // Dropped on another issue or a prompt in PROMPTS — just reorder visually
       const overPrompt = prompts.find((p) => p.id === overId);
       if (overPrompt && overPrompt.column !== "PROMPTS") {
-        // Hidden after modal confirmation
+        const presetId =
+          issuePresetIds[issue.id] || activeProject?.defaultPresetId || settings.defaultPresetId;
+        if (!presetId) return;
+        setHiddenIssueIds((ids) => new Set(ids).add(issue.id));
         const issueText = buildIssuePromptText(issue);
-        setTackleIssue({
-          issue,
-          column: overPrompt.column,
-          text: issueText,
-          presetId: activeProject?.defaultPresetId || settings.defaultPresetId,
-          projectId: activeProjectId,
-        });
+        void createPromptFromIssue(overPrompt.column, presetId, issueText, activeProjectId);
       }
       return;
     }
@@ -1395,10 +1383,6 @@ export default function Board() {
     }
     void refreshIssues();
   }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showLinearIssues]);
-
-  useEffect(() => {
-    setTackleIssue(null);
-  }, [activeProjectId]);
 
   const githubBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
     if (!activeProject) return [];
@@ -1689,6 +1673,13 @@ export default function Board() {
                               />
                             ) : null
                           }
+                          issuePresetIds={issuePresetIds}
+                          defaultPresetId={
+                            activeProject?.defaultPresetId || settings.defaultPresetId
+                          }
+                          onIssuePresetChange={(issueId, presetId) =>
+                            setIssuePresetIds((prev) => ({ ...prev, [issueId]: presetId }))
+                          }
                         />
                       );
                     })}
@@ -1739,89 +1730,6 @@ export default function Board() {
                   ) : null}
                 </DragOverlay>
               </DndContext>
-
-              {/* Tackle issue modal */}
-              {tackleIssue && (
-                <Portal>
-                  <div className="modal-overlay" onClick={() => setTackleIssue(null)}>
-                    <div
-                      className="modal"
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ maxWidth: 480 }}
-                    >
-                      <h2>Tackle issue</h2>
-                      <p style={{ fontSize: 13, marginBottom: 4, color: "var(--text-faint)" }}>
-                        Tackling{" "}
-                        <strong>
-                          {tackleIssue.issue.kind === "github"
-                            ? `#${tackleIssue.issue.number}`
-                            : tackleIssue.issue.identifier}
-                        </strong>{" "}
-                        — {tackleIssue.issue.title}
-                      </p>
-                      <p style={{ fontSize: 12, marginBottom: 12, color: "var(--text-faint)" }}>
-                        Choose a preset and review the prompt text below.
-                      </p>
-                      <EditablePromptText
-                        value={tackleIssue.text}
-                        onChange={(v) => setTackleIssue({ ...tackleIssue, text: v })}
-                        autoFocus
-                        ariaLabel="Prompt text"
-                        placeholder="Prompt text"
-                        className="modal-prompt-editor"
-                        onKeyDown={(e) => {
-                          if (e.nativeEvent.isComposing) return;
-                          if (e.key === "Escape") {
-                            setTackleIssue(null);
-                            return;
-                          }
-                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                            if (!tackleIssue.presetId || !tackleIssue.text.trim()) return;
-                            const ti = tackleIssue;
-                            setTackleIssue(null);
-                            setHiddenIssueIds((ids) => new Set(ids).add(ti.issue.id));
-                            void createPromptFromIssue(
-                              ti.column,
-                              ti.presetId,
-                              ti.text,
-                              ti.projectId,
-                            );
-                          }
-                        }}
-                      />
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
-                        <PresetPicker
-                          presets={settings.agentPresets}
-                          value={tackleIssue.presetId}
-                          onChange={(id) => setTackleIssue({ ...tackleIssue, presetId: id })}
-                          onCreate={() => setPresetSettingsOpen(true)}
-                        />
-                        <div style={{ flex: 1 }} />
-                        <button className="btn ghost" onClick={() => setTackleIssue(null)}>
-                          Cancel
-                        </button>
-                        <button
-                          className="btn primary"
-                          disabled={!tackleIssue.presetId || !tackleIssue.text.trim()}
-                          onClick={() => {
-                            const ti = tackleIssue;
-                            setTackleIssue(null);
-                            setHiddenIssueIds((ids) => new Set(ids).add(ti.issue.id));
-                            void createPromptFromIssue(
-                              ti.column,
-                              ti.presetId,
-                              ti.text,
-                              ti.projectId,
-                            );
-                          }}
-                        >
-                          Tackle
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </Portal>
-              )}
 
               {/* Confirm deletion with uncommitted changes */}
               {pendingDeletePromptId && pendingDeleteChanges && (
