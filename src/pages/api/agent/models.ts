@@ -1,17 +1,11 @@
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import type { APIRoute } from "astro";
+import { listPiModels } from "~/lib/server/agents.js";
 
 export const prerender = false;
 
 export const GET: APIRoute = async () => {
   try {
-    const registry = ModelRegistry.create(AuthStorage.create());
-    const models = registry.getAvailable().map((model) => ({
-      id: `${model.provider}/${model.id}`,
-      provider: model.provider,
-      model: model.id,
-      agent: "pi" as const,
-    }));
+    const models = await listPiModels();
     return Response.json({ models });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

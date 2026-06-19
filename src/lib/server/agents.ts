@@ -64,15 +64,21 @@ function findBin(name: string): string {
   return candidates.find(existsSync) ?? name;
 }
 
-export async function listPiModels(): Promise<AgentModel[]> {
-  const { stdout, stderr } = await exec(findBin("pi"), ["--list-models"], { timeoutMs: 30000 });
-  const lines = (stderr || stdout).split(/\r?\n/).filter(Boolean);
+function parsePiListModels(output: string): AgentModel[] {
+  const lines = output.split(/\r?\n/).filter(Boolean);
   return lines.slice(1).flatMap((line) => {
     const match = line.match(/^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$/);
     if (!match) return [];
     const [, provider, model] = match;
     return [{ provider, model, id: `${provider}/${model}`, agent: "pi" as const }];
   });
+}
+
+export async function listPiModels(): Promise<AgentModel[]> {
+  const { stdout, stderr } = await exec(findBin("pi"), ["--list-models"], { timeoutMs: 30000 });
+  const models = parsePiListModels(stdout);
+  if (models.length > 0) return models;
+  return parsePiListModels(stderr);
 }
 
 export function listClaudeModels(): AgentModel[] {
