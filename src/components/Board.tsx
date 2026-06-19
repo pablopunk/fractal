@@ -1058,6 +1058,8 @@ export default function Board() {
   }
 
   async function archivePrompt(id: string) {
+    const prev = prompts;
+    setPrompts((p) => p.map((x) => (x.id === id ? { ...x, isArchived: true } : x)));
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, {
         method: "POST",
@@ -1067,6 +1069,7 @@ export default function Board() {
       const oldSession = prompts.find((x) => x.id === id)?.tmuxSession;
       if (oldSession) closeTerminal(oldSession);
     } catch (e) {
+      setPrompts(prev);
       if (e instanceof ApiError && e.status === 409) {
         const body = e.body as {
           detail: string;
@@ -1095,6 +1098,8 @@ export default function Board() {
   async function archiveWithAction(id: string, action: string) {
     if (doneActionPending) return;
     setDoneActionPending(action);
+    const prev = prompts;
+    setPrompts((p) => p.map((x) => (x.id === id ? { ...x, isArchived: true } : x)));
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, {
         method: "POST",
@@ -1107,6 +1112,7 @@ export default function Board() {
       setDoneActionInfo(null);
       setDoneDiscardConfirm(false);
     } catch (e) {
+      setPrompts(prev);
       toast.error(e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
     } finally {
       setDoneActionPending(null);
