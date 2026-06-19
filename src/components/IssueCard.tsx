@@ -1,7 +1,8 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GitBranch, Hash } from "lucide-react";
-import type { GithubIssue, LinearIssue } from "~/lib/client/types.js";
+import type { AgentPreset, GithubIssue, LinearIssue } from "~/lib/client/types.js";
+import PresetPicker from "./PresetPicker.js";
 
 export type BoardIssue = {
   id: string;
@@ -53,7 +54,17 @@ export function issueFromLinear(issue: LinearIssue): BoardIssue {
   };
 }
 
-export function SortableIssueCard({ issue }: { issue: BoardIssue }) {
+export function SortableIssueCard({
+  issue,
+  presetId,
+  presets,
+  onPresetChange,
+}: {
+  issue: BoardIssue;
+  presetId: string;
+  presets: AgentPreset[];
+  onPresetChange: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: issue.id,
   });
@@ -66,12 +77,17 @@ export function SortableIssueCard({ issue }: { issue: BoardIssue }) {
   const isGithub = issue.kind === "github";
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`card issue-card ${isGithub ? "github-issue" : "linear-issue"}`}
+    >
       <a
         href={issue.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`card issue-card ${isGithub ? "github-issue" : "linear-issue"}`}
         onClick={(e) => e.stopPropagation()}
         draggable={false}
       >
@@ -101,6 +117,15 @@ export function SortableIssueCard({ issue }: { issue: BoardIssue }) {
           </div>
         )}
       </a>
+      <div className="card-footer">
+        <div
+          className="card-actions"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <PresetPicker presets={presets} value={presetId} onChange={onPresetChange} />
+        </div>
+      </div>
     </div>
   );
 }

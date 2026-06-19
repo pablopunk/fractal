@@ -551,6 +551,9 @@ export function ColumnView(props: {
   isClearingDone?: boolean;
   onRefreshIssues?: () => void;
   loadingIssues?: boolean;
+  issuePresetIds?: Record<string, string>;
+  defaultPresetId?: string;
+  onIssuePresetChange?: (issueId: string, presetId: string) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: props.id });
   const issueIds = (props.issueItems ?? []).map((item) => item.id);
@@ -704,7 +707,12 @@ export function ColumnView(props: {
                 transition={{ type: "spring", duration: 0.3, bounce: 0 }}
               >
                 {showIndicator && overIndex === i && <div className="drop-indicator" />}
-                <SortableIssueCard issue={item.issue} />
+                <SortableIssueCard
+                  issue={item.issue}
+                  presetId={(props.issuePresetIds?.[item.id] ?? props.defaultPresetId) || ""}
+                  presets={props.presets}
+                  onPresetChange={(id) => props.onIssuePresetChange?.(item.id, id)}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
