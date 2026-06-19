@@ -2626,6 +2626,13 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 .issue-card.linear-issue {
   border-left-color: var(--accent, #5e6ad2);
 }
+.issue-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+}
 .issue-card-head {
   display: flex;
   align-items: center;
