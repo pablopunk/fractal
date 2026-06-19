@@ -3,7 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Check,
   Copy,
-  ExternalLink,
+  GitBranch,
   Pencil,
   Sparkles,
   SquareTerminal,
@@ -304,7 +304,7 @@ export function Card({
                   onClick={(e) => e.stopPropagation()}
                   aria-label="Open pull request"
                 >
-                  <ExternalLink size={14} />
+                  <GitBranch size={14} />
                 </a>
               </Tooltip>
             )}
