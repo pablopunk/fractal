@@ -4,8 +4,8 @@ import { classifyError } from "~/lib/server/api-errors.js";
 import type { Prompt } from "~/lib/server/db/schema.js";
 import {
   createPullRequest,
+  getPrDetails,
   getUncommittedChanges,
-  hasPullRequest,
   hasUncommittedChanges,
   isBranchMerged,
   mergeBranchToDefault,
@@ -18,13 +18,19 @@ import { killSession } from "~/lib/server/tmux.js";
 export const prerender = false;
 
 async function buildWorktreeStatus(projectPath: string, branch: string, worktreePath: string) {
-  const [hasUncommitted, merged, hasPr, changes] = await Promise.all([
+  const [hasUncommitted, merged, prDetails, changes] = await Promise.all([
     existsSync(worktreePath) ? hasUncommittedChanges(worktreePath) : Promise.resolve(false),
     isBranchMerged(projectPath, branch),
-    hasPullRequest(projectPath, branch),
+    getPrDetails(projectPath, branch),
     existsSync(worktreePath) ? getUncommittedChanges(worktreePath) : Promise.resolve([]),
   ]);
-  return { hasUncommitted, merged, hasPr, changes };
+  return {
+    hasUncommitted,
+    merged,
+    hasPr: prDetails !== null,
+    prUrl: prDetails?.url ?? null,
+    changes,
+  };
 }
 
 function archiveError(detail: string, status: number, extra: Record<string, unknown> = {}) {
@@ -98,6 +104,11 @@ export const POST: APIRoute = async ({ params, request }) => {
       prompt.worktreePath ?? "",
     );
 
+    // Persist PR URL if discovered and not already stored
+    if (status.prUrl && !prompt.prUrl) {
+      updatePrompt(id, { prUrl: status.prUrl } as never);
+    }
+
     // ── Discard: force-remove worktree, archive ──
     if (action === "discard") {
       if (prompt.tmuxSession) {
@@ -128,6 +139,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           hasUncommitted: true,
           changes: status.changes,
           hasPr: status.hasPr,
+          prUrl: status.prUrl,
           isMerged: status.merged,
         });
       }
@@ -155,12 +167,15 @@ export const POST: APIRoute = async ({ params, request }) => {
           hasUncommitted: true,
           changes: status.changes,
           hasPr: false,
+          prUrl: null,
           isMerged: status.merged,
         });
       }
+      let prUrl: string | null = null;
       try {
         const title = prompt.text.slice(0, 240).split("\n")[0].trim() || prompt.branch;
-        await createPullRequest(project.path, prompt.branch, title);
+        const pr = await createPullRequest(project.path, prompt.branch, title);
+        prUrl = pr.url;
       } catch (prErr) {
         return Response.json(
           { error: "PR creation failed", detail: (prErr as Error).message },
@@ -172,7 +187,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           await killSession(prompt.tmuxSession);
         } catch {}
       }
-      const updated = updatePrompt(id, { isArchived: true, tmuxSession: null } as never);
+      const updated = updatePrompt(id, { isArchived: true, tmuxSession: null, prUrl } as never);
       return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
     }
 
@@ -183,6 +198,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         hasUncommitted: true,
         changes: status.changes,
         hasPr: status.hasPr,
+        prUrl: status.prUrl,
         isMerged: status.merged,
       });
     }
@@ -192,6 +208,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         branch: prompt.branch,
         hasUncommitted: false,
         hasPr: false,
+        prUrl: null,
         isMerged: false,
       });
     }

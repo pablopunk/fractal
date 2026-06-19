@@ -45,6 +45,7 @@ export type Prompt = {
   error?: string | null;
   isArchived?: boolean | null;
   issueRef?: string | null;
+  prUrl?: string | null;
   launchedAt?: number | null;
   isRunning?: boolean;
 };

@@ -39,6 +39,7 @@ export const prompts = sqliteTable("prompts", {
   error: text("error"),
   isArchived: integer("is_archived", { mode: "boolean" }).notNull().default(false),
   issueRef: text("issue_ref"),
+  prUrl: text("pr_url"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   launchedAt: integer("launched_at", { mode: "timestamp_ms" }),
