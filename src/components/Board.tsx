@@ -1074,8 +1074,14 @@ export default function Board() {
           hasUncommitted?: boolean;
           hasPr?: boolean;
           isMerged?: boolean;
+          prUrl?: string | null;
           changes?: string[];
         };
+        if (body.prUrl) {
+          setPrompts((p) =>
+            p.map((x) => (x.id === id ? { ...x, prUrl: body.prUrl ?? null } : x)),
+          );
+        }
         setDoneActionInfo({
           promptId: id,
           branch: body.branch ?? null,

@@ -141,19 +141,26 @@ export async function isBranchMerged(repoPath: string, branch: string): Promise<
 }
 
 export async function hasPullRequest(repoPath: string, branch: string): Promise<boolean> {
+  return (await getPrDetails(repoPath, branch)) !== null;
+}
+
+export async function getPrDetails(
+  repoPath: string,
+  branch: string,
+): Promise<{ number: number; url: string } | null> {
   try {
     const { stdout } = await exec(
       "gh",
-      ["pr", "list", "--head", branch, "--state", "all", "--json", "number"],
+      ["pr", "list", "--head", branch, "--state", "all", "--json", "number,url", "--limit", "1"],
       {
         cwd: repoPath,
         timeoutMs: 5000,
       },
     );
-    const prs = JSON.parse(stdout) as Array<{ number: number }>;
-    return prs.length > 0;
+    const prs = JSON.parse(stdout) as Array<{ number: number; url: string }>;
+    return prs.length > 0 ? { number: prs[0].number, url: prs[0].url } : null;
   } catch {
-    return false;
+    return null;
   }
 }
 

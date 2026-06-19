@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, Copy, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
+import { Check, Copy, ExternalLink, Pencil, Sparkles, SquareTerminal, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 import EditablePromptText from "./EditablePromptText.js";
@@ -282,6 +282,21 @@ export function Card({
                 >
                   <Copy size={14} />
                 </button>
+              </Tooltip>
+            )}
+            {prompt.prUrl && (
+              <Tooltip content="Open pull request">
+                <a
+                  href={prompt.prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="icon-btn"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Open pull request"
+                >
+                  <ExternalLink size={14} />
+                </a>
               </Tooltip>
             )}
             {isArchivedCol ? (

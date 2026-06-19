@@ -67,6 +67,7 @@ function ensureSchema(sqlite: Database.Database) {
       error TEXT,
       is_archived INTEGER NOT NULL DEFAULT 0,
       issue_ref TEXT,
+      pr_url TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       launched_at INTEGER
@@ -153,6 +154,12 @@ function ensureSchema(sqlite: Database.Database) {
   }
   try {
     sqlite.exec("ALTER TABLE projects ADD COLUMN show_linear_issues INTEGER NOT NULL DEFAULT 0;");
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN pr_url TEXT;");
   } catch (err) {
     if (!/duplicate column/i.test(String(err)))
       console.error("[fractal-db] migration step failed:", err);
