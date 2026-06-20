@@ -124,7 +124,6 @@ export function Card({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const isRunning = !!prompt.isRunning;
   const presetForBadge = presets.find((preset) => preset.id === prompt.presetId);
   const presetName = presetForBadge?.name ?? prompt.presetId;
   const imagePaths = useMemo(
@@ -292,23 +291,18 @@ export function Card({
                 </span>
               </Tooltip>
             )}
-            {prompt.column === "REVIEW" && (
-              <>
-                <PrStatusBadges prompt={prompt} />
-                {prompt.prUrl && (
-                  <Tooltip content="Open pull request">
-                    <a
-                      href={prompt.prUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="icon-btn"
-                      aria-label="Open pull request"
-                    >
-                      <GitBranch size={14} />
-                    </a>
-                  </Tooltip>
-                )}
-              </>
+            {prompt.column === "REVIEW" && prompt.prUrl && (
+              <Tooltip content="Open pull request">
+                <a
+                  href={prompt.prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="icon-btn"
+                  aria-label="Open pull request"
+                >
+                  <GitBranch size={14} />
+                </a>
+              </Tooltip>
             )}
           </div>
           <div className="card-actions-group">
@@ -442,6 +436,37 @@ export function Card({
             </Tooltip>
           </div>
         </div>
+        {(prompt.branch ||
+          prompt.tmuxSession ||
+          prompt.worktreePath ||
+          prompt.column === "REVIEW" ||
+          prompt.isRunning) && (
+          <div className="card-meta">
+            {prompt.column === "REVIEW" ? (
+              <PrStatusBadges prompt={prompt} />
+            ) : (
+              <>
+                {prompt.isRunning && <span className="tag accent">running</span>}
+                {prompt.tmuxSession && (
+                  <Tooltip content={`Copy ${prompt.tmuxSession}`}>
+                    <button
+                      type="button"
+                      className="tag tag-button"
+                      aria-label={`Copy ${prompt.tmuxSession}`}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyWorktreeName();
+                      }}
+                    >
+                      {prompt.tmuxSession}
+                    </button>
+                  </Tooltip>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
