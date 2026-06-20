@@ -3,6 +3,7 @@ import type { Prompt } from "./db/schema.js";
 import {
   classifyGhError,
   type GhErrorCategory,
+  getPrDetails,
   getPrFullStatus,
   hasUncommittedChanges,
   removeWorktree,
@@ -22,6 +23,7 @@ export function startPrReviewPoll() {
 
   async function poll() {
     try {
+      await autoDetectPRs();
       await pollReviewCards();
     } catch (err) {
       console.error("[fractal:review-poll]", err);
@@ -38,6 +40,42 @@ export function stopPrReviewPoll() {
   if (nextTimeout) {
     clearTimeout(nextTimeout);
     nextTimeout = null;
+  }
+}
+
+/**
+ * Auto-detect PRs on RUN_IN_WORKTREE cards and move them to REVIEW.
+ */
+async function autoDetectPRs() {
+  const allPrompts = listPrompts();
+  const worktreeCards = allPrompts.filter(
+    (p: Prompt) =>
+      p.column === "RUN_IN_WORKTREE" &&
+      p.runMode === "worktree" &&
+      p.branch &&
+      !p.isArchived &&
+      !p.prUrl,
+  );
+  if (worktreeCards.length === 0) return;
+
+  for (const prompt of worktreeCards) {
+    if (!prompt.branch) continue;
+    const project = getProject(prompt.projectId);
+    if (!project) continue;
+    try {
+      const prDetails = await getPrDetails(project.path, prompt.branch);
+      if (prDetails) {
+        updatePrompt(prompt.id, {
+          column: "REVIEW",
+          prUrl: prDetails.url,
+          prCiStatus: null,
+          prReviewCount: null,
+          prHasConflicts: null,
+        } as never);
+      }
+    } catch {
+      // Best-effort — transient gh failures are retried next cycle
+    }
   }
 }
 

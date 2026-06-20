@@ -1218,7 +1218,11 @@ export default function Board() {
       setPrompts((p) => p.map((x) => (x.id === id ? updated : x)));
     } catch (e) {
       setPrompts((current) => current.map((x) => (x.id === id ? previousPrompt : x)));
-      toast.error(e instanceof Error ? e.message : String(e));
+      if (e instanceof ApiError && e.status === 409) {
+        toast.error("No PR found — create a PR on this branch first");
+      } else {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
     }
   }
 

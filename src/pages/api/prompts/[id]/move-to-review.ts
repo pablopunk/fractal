@@ -1,21 +1,15 @@
-import { existsSync } from "node:fs";
 import type { APIRoute } from "astro";
-import { generatePrDescription } from "~/lib/server/ai-helper.js";
 import { classifyError } from "~/lib/server/api-errors.js";
-import { exec } from "~/lib/server/exec.js";
-import {
-  createPullRequest,
-  getUncommittedChanges,
-  hasUncommittedChanges,
-} from "~/lib/server/git.js";
+import { getPrDetails } from "~/lib/server/git.js";
 import { withPromptStatus } from "~/lib/server/prompt-status.js";
-import { getProject, getPrompt, getSettings, updatePrompt } from "~/lib/server/store.js";
+import { getProject, getPrompt, updatePrompt } from "~/lib/server/store.js";
 
 export const prerender = false;
 
 /**
  * Move a prompt into the REVIEW column.
- * Creates a PR if one doesn't exist (AI-generated title/body).
+ * Only succeeds if a PR already exists on the branch.
+ * Fractal does NOT create PRs — they must be created externally (by the agent or user).
  * Does NOT kill the tmux session — the agent stays alive during review.
  */
 export const POST: APIRoute = async ({ params }) => {
@@ -36,58 +30,17 @@ export const POST: APIRoute = async ({ params }) => {
     const project = getProject(prompt.projectId);
     if (!project) return Response.json({ error: "project not found" }, { status: 404 });
 
-    // Check for uncommitted changes
-    if (existsSync(prompt.worktreePath)) {
-      const hasChanges = await hasUncommittedChanges(prompt.worktreePath);
-      if (hasChanges) {
-        const changes = await getUncommittedChanges(prompt.worktreePath);
+    // Check if a PR already exists on this branch
+    let prUrl = prompt.prUrl;
+    if (!prUrl) {
+      const prDetails = await getPrDetails(project.path, prompt.branch);
+      if (!prDetails) {
         return Response.json(
-          {
-            error: "Commit or stash uncommitted changes before creating a PR.",
-            hasUncommitted: true,
-            changes,
-          },
+          { error: "No PR found — create a PR on this branch first (gh pr create)" },
           { status: 409 },
         );
       }
-    }
-
-    let prUrl = prompt.prUrl;
-
-    // Create PR if none exists
-    if (!prUrl) {
-      // Generate AI description
-      const settings = getSettings();
-      const aiPreset =
-        settings.agentPresets.find((p) => p.id === settings.helperPresetId) ??
-        settings.agentPresets[0];
-      if (!aiPreset) throw new Error("No agent preset configured");
-
-      let title: string;
-      let body: string;
-      try {
-        const desc = await generatePrDescription({
-          preset: aiPreset,
-          worktreePath: prompt.worktreePath,
-          promptText: prompt.text,
-          projectPath: project.path,
-          branch: prompt.branch,
-          tmuxSession: prompt.tmuxSession,
-        });
-        title = desc.title;
-        body = desc.body;
-      } catch {
-        // Fallback: use first line of prompt as title
-        title = prompt.text.slice(0, 240).split("\n")[0].trim() || prompt.branch;
-        body = "";
-      }
-
-      // Push branch to origin first — PR creation requires the branch on the remote
-      await exec("git", ["-C", project.path, "push", "-u", "origin", prompt.branch], {
-        timeoutMs: 30000,
-      });
-      const pr = await createPullRequest(project.path, prompt.branch, title, body || undefined);
-      prUrl = pr.url;
+      prUrl = prDetails.url;
     }
 
     // Store prUrl and set column to REVIEW atomically
