@@ -48,7 +48,11 @@ import ProjectPicker from "./ProjectPicker.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
 
-function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
+function AgentSidebarEntry(props: {
+  active: boolean;
+  onClick: () => void;
+  collapsed: boolean;
+}) {
   return (
     <div className="agent-sidebar-entry">
       <button
@@ -62,7 +66,7 @@ function AgentSidebarEntry(props: { active: boolean; onClick: () => void }) {
         <span className="sidebar-agent-icon" aria-hidden="true">
           <Bot size={14} strokeWidth={2} />
         </span>
-        <span className="name">Fractal Agent</span>
+        {!props.collapsed && <span className="name">Fractal Agent</span>}
       </button>
     </div>
   );
@@ -219,7 +223,11 @@ export function Sidebar(props: {
             </div>
           ))}
         {props.showAgentEntry !== false && props.onToggleAgent && (
-          <AgentSidebarEntry active={!!props.agentPanelOpen} onClick={props.onToggleAgent} />
+          <AgentSidebarEntry
+            active={!!props.agentPanelOpen}
+            onClick={props.onToggleAgent}
+            collapsed={props.collapsed}
+          />
         )}
         <div
           className="sidebar-resize-handle"
