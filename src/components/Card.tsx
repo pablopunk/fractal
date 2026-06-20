@@ -25,8 +25,14 @@ function PrStatusBadges({ prompt }: { prompt: Prompt }) {
   const reviewCount = prompt.prReviewCount;
   const conflicts = prompt.prHasConflicts;
 
-  // All green?
-  const allGreen = ci === "pass" && reviewCount === 0 && conflicts === false;
+  const hasCi = ci !== null && ci !== undefined;
+  const hasReviews = reviewCount !== null && reviewCount !== undefined;
+  const hasConflicts = conflicts !== null && conflicts !== undefined;
+
+  // Nothing to show yet — poll hasn't run or all fields unavailable
+  if (!hasCi && !hasReviews && !hasConflicts) return null;
+
+  const allGreen = hasCi && ci === "pass" && hasReviews && reviewCount === 0 && hasConflicts && conflicts === false;
 
   return (
     <span
@@ -42,57 +48,27 @@ function PrStatusBadges({ prompt }: { prompt: Prompt }) {
         </Tooltip>
       ) : (
         <>
-          <Tooltip
-            content={
-              ci === "pass"
-                ? "CI passing"
-                : ci === "fail"
-                  ? "CI failing"
-                  : ci === "pending"
-                    ? "CI pending"
-                    : "CI status unavailable"
-            }
-          >
-            <span
-              className={`pr-badge ${ci === "pass" ? "green" : ci === "fail" ? "red" : ci === "pending" ? "amber" : "gray"}`}
-            >
-              <span className="pr-badge-dot" />
-            </span>
-          </Tooltip>
-          <Tooltip
-            content={
-              reviewCount === null
-                ? "Reviews unavailable"
-                : reviewCount === 0
-                  ? "No review comments"
-                  : `${reviewCount} review comment${reviewCount === 1 ? "" : "s"}`
-            }
-          >
-            <span
-              className={`pr-badge ${reviewCount === 0 ? "green" : reviewCount !== null ? "amber" : "gray"}`}
-            >
-              {reviewCount != null && reviewCount > 0 ? (
-                reviewCount
-              ) : (
+          {hasCi && (
+            <Tooltip content={ci === "pass" ? "CI passing" : ci === "fail" ? "CI failing" : "CI pending"}>
+              <span className={`pr-badge ${ci === "pass" ? "green" : ci === "fail" ? "red" : "amber"}`}>
                 <span className="pr-badge-dot" />
-              )}
-            </span>
-          </Tooltip>
-          <Tooltip
-            content={
-              conflicts === false
-                ? "No merge conflicts"
-                : conflicts === true
-                  ? "Merge conflicts"
-                  : "Conflict status unavailable"
-            }
-          >
-            <span
-              className={`pr-badge ${conflicts === false ? "green" : conflicts === true ? "red" : "gray"}`}
-            >
-              {conflicts ? <AlertCircle size={10} /> : <span className="pr-badge-dot" />}
-            </span>
-          </Tooltip>
+              </span>
+            </Tooltip>
+          )}
+          {hasReviews && (
+            <Tooltip content={reviewCount === 0 ? "No review comments" : `${reviewCount} review comment${reviewCount === 1 ? "" : "s"}`}>
+              <span className={`pr-badge ${reviewCount === 0 ? "green" : "amber"}`}>
+                {reviewCount !== null && reviewCount > 0 ? reviewCount : <span className="pr-badge-dot" />}
+              </span>
+            </Tooltip>
+          )}
+          {hasConflicts && (
+            <Tooltip content={conflicts === false ? "No merge conflicts" : "Merge conflicts"}>
+              <span className={`pr-badge ${conflicts === false ? "green" : "red"}`}>
+                {conflicts ? <AlertCircle size={10} /> : <span className="pr-badge-dot" />}
+              </span>
+            </Tooltip>
+          )}
         </>
       )}
     </span>
