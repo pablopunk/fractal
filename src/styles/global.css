@@ -1657,9 +1657,9 @@ html[data-glass="true"] .column.column-compact {
   gap: 4px;
   justify-content: space-between;
   align-items: center;
-  opacity: 1;
+  opacity: 0;
   transition: opacity 80ms ease;
-  pointer-events: auto;
+  pointer-events: none;
 }
 /* card-meta removed */
 /* card-actions always visible */
