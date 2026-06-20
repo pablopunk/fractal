@@ -938,6 +938,7 @@ export default function Board() {
     presetId: string,
     text: string,
     projectId: string,
+    issueRef: string,
   ) {
     if (!projectId || (column !== "RUN_IN_PLACE" && column !== "RUN_IN_WORKTREE")) return;
     try {
@@ -947,6 +948,7 @@ export default function Board() {
         body: JSON.stringify({
           text,
           presetId,
+          issueRef,
         }),
       });
       setPrompts((p) => [...p, { ...prompt, column }]);
@@ -1211,7 +1213,7 @@ export default function Board() {
         if (!presetId) return;
         setHiddenIssueIds((ids) => new Set(ids).add(issue.id));
         const issueText = buildIssuePromptText(issue);
-        void createPromptFromIssue(overCol, presetId, issueText, activeProjectId);
+        void createPromptFromIssue(overCol, presetId, issueText, activeProjectId, issue.id);
         return;
       }
       if (overCol === "ARCHIVED") {
@@ -1226,7 +1228,13 @@ export default function Board() {
         if (!presetId) return;
         setHiddenIssueIds((ids) => new Set(ids).add(issue.id));
         const issueText = buildIssuePromptText(issue);
-        void createPromptFromIssue(overPrompt.column, presetId, issueText, activeProjectId);
+        void createPromptFromIssue(
+          overPrompt.column,
+          presetId,
+          issueText,
+          activeProjectId,
+          issue.id,
+        );
       }
       return;
     }
@@ -1384,20 +1392,43 @@ export default function Board() {
     void refreshIssues();
   }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showLinearIssues]);
 
+  const linkedIssueRefs = useMemo(() => {
+    const refs = new Set<string>();
+    for (const p of prompts) {
+      if (p.projectId === activeProjectId && p.issueRef) refs.add(p.issueRef);
+    }
+    return refs;
+  }, [prompts, activeProjectId]);
+  const promptTextsForActiveProject = useMemo(
+    () => prompts.filter((p) => p.projectId === activeProjectId).map((p) => p.text),
+    [prompts, activeProjectId],
+  );
+  const isIssueAlreadyReferencedByPromptUrl = useCallback(
+    (issueUrl: string) =>
+      Boolean(issueUrl) && promptTextsForActiveProject.some((text) => text.includes(issueUrl)),
+    [promptTextsForActiveProject],
+  );
+  const isIssueOnBoard = useCallback(
+    (issue: BoardIssue) =>
+      hiddenIssueIds.has(issue.id) ||
+      linkedIssueRefs.has(issue.id) ||
+      isIssueAlreadyReferencedByPromptUrl(issue.url),
+    [hiddenIssueIds, linkedIssueRefs, isIssueAlreadyReferencedByPromptUrl],
+  );
   const githubBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
     if (!activeProject) return [];
     return githubIssues
       .map(issueFromGithub)
-      .filter((issue) => !hiddenIssueIds.has(issue.id))
+      .filter((issue) => !isIssueOnBoard(issue))
       .map((issue) => ({ id: issue.id, issue }));
-  }, [githubIssues, hiddenIssueIds, activeProject]);
+  }, [githubIssues, isIssueOnBoard, activeProject]);
   const linearBoardIssues: Array<{ id: string; issue: BoardIssue }> = useMemo(() => {
     if (!activeProject) return [];
     return linearIssues
       .map(issueFromLinear)
-      .filter((issue) => !hiddenIssueIds.has(issue.id))
+      .filter((issue) => !isIssueOnBoard(issue))
       .map((issue) => ({ id: issue.id, issue }));
-  }, [linearIssues, hiddenIssueIds, activeProject]);
+  }, [linearIssues, isIssueOnBoard, activeProject]);
   const boardIssues = useMemo(
     () => [...githubBoardIssues, ...linearBoardIssues],
     [githubBoardIssues, linearBoardIssues],
