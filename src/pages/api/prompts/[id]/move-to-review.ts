@@ -70,6 +70,7 @@ export const POST: APIRoute = async ({ params }) => {
           worktreePath: prompt.worktreePath,
           promptText: prompt.text,
           projectPath: project.path,
+          branch: prompt.branch,
           tmuxSession: prompt.tmuxSession,
         });
         title = desc.title;

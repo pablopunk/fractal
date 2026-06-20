@@ -151,7 +151,7 @@ export async function getPrDetails(
   try {
     const { stdout } = await exec(
       "gh",
-      ["pr", "list", "--head", branch, "--state", "all", "--json", "number,url", "--limit", "1"],
+      ["pr", "list", "--head", branch, "--state", "all", "--limit", "1"],
       {
         cwd: repoPath,
         timeoutMs: 5000,
@@ -260,15 +260,17 @@ export async function createPullRequest(
   title: string,
   body?: string,
 ): Promise<{ number: number; url: string }> {
-  const args = ["pr", "create", "--head", branch, "--title", title, "--json", "number,url"];
+  const args = ["pr", "create", "--head", branch, "--title", title];
   if (body) {
     args.push("--body", body);
   } else {
     args.push("--fill-first");
   }
   const { stdout } = await exec("gh", args, { cwd: repoPath, timeoutMs: 30000 });
-  const { number, url } = JSON.parse(stdout.trim()) as { number: number; url: string };
-  return { number, url };
+  const url = stdout.trim();
+  const match = url.match(/\/pull\/(\d+)/);
+  if (!match) throw new Error(`Failed to parse PR number from output: ${url}`);
+  return { number: Number(match[1]), url };
 }
 
 export async function mergeBranchToDefault(repoPath: string, branch: string): Promise<string> {

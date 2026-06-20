@@ -194,14 +194,27 @@ export async function generatePrDescription(opts: {
   worktreePath: string;
   promptText: string;
   projectPath: string;
+  branch: string;
   tmuxSession?: string | null;
 }): Promise<{ title: string; body: string }> {
-  // Gather context: git diff, git log, optional tmux pane
+  // Gather context: branch-vs-base diff (not just uncommitted changes), git log, tmux pane
+  const diffPromise = (async () => {
+    const baseBranch = await exec(
+      "git", ["-C", opts.worktreePath, "merge-base", "--fork-point", `origin/${opts.branch}`, opts.branch],
+      { cwd: opts.worktreePath, timeoutMs: 10000 },
+    ).then((r) => r.stdout.trim()).catch(() => "");
+    if (baseBranch) {
+      return exec("git", ["-C", opts.worktreePath, "diff", "--stat", `${baseBranch}...HEAD`], {
+        cwd: opts.worktreePath, timeoutMs: 10000,
+      }).catch(() => ({ stdout: "", stderr: "", code: 0 }));
+    }
+    return exec("git", ["-C", opts.worktreePath, "diff", "--stat"], {
+      cwd: opts.worktreePath, timeoutMs: 10000,
+    }).catch(() => ({ stdout: "", stderr: "", code: 0 }));
+  })();
+
   const [diffResult, logResult, paneContent] = await Promise.all([
-    exec("git", ["-C", opts.worktreePath, "diff", "--stat"], {
-      cwd: opts.worktreePath,
-      timeoutMs: 10000,
-    }).catch(() => ({ stdout: "", stderr: "", code: 0 })),
+    diffPromise,
     exec("git", ["-C", opts.worktreePath, "log", "--oneline", "-5"], {
       cwd: opts.worktreePath,
       timeoutMs: 10000,
