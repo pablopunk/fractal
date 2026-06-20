@@ -17,6 +17,7 @@ import {
   FolderKanban,
   FolderRoot,
   GitBranch,
+  GitPullRequestArrow,
   Hash,
   Menu,
   Play,
@@ -111,6 +112,7 @@ const BASE_COLUMNS: {
   { id: "LINEAR", title: "Linear Issues", icon: Hash },
   { id: "RUN_IN_PLACE", title: "Run in place", icon: Play },
   { id: "RUN_IN_WORKTREE", title: "Run in worktree", icon: FolderKanban },
+  { id: "REVIEW", title: "Review", icon: GitPullRequestArrow },
   { id: "ARCHIVED", title: "DONE", icon: Check },
 ];
 const BOARD_ROWS_MAX_WIDTH = 960;
@@ -983,7 +985,16 @@ export default function Board() {
       setPendingDeleteChanges(null);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        const json = e.body as { hasUncommitted?: boolean; changes?: string[] };
+        const json = e.body as {
+          hasUncommitted?: boolean;
+          changes?: string[];
+          hasPr?: boolean;
+          prUrl?: string;
+        };
+        if (json.hasPr) {
+          toast.error("This card has an open PR. Deleting will not close the PR.");
+          return;
+        }
         if (json.hasUncommitted) {
           setPendingDeletePromptId(id);
           setPendingDeleteChanges(json.changes ?? []);
@@ -1183,6 +1194,34 @@ export default function Board() {
     }
   }
 
+  async function moveToReview(id: string) {
+    const prompt = prompts.find((p) => p.id === id);
+    if (!prompt) return;
+    const previousPrompt = prompt;
+
+    // V1 gate: worktree only
+    if (prompt.runMode !== "worktree") {
+      toast.error("REVIEW requires a worktree — launch in worktree first");
+      return;
+    }
+
+    // Optimistic update
+    setPrompts((p) => p.map((x) => (x.id === id ? { ...x, column: "REVIEW" } : x)));
+    try {
+      const { prompt: updated } = await api<{ prompt: Prompt }>(
+        `/api/prompts/${id}/move-to-review`,
+        {
+          method: "POST",
+        },
+      );
+      // Merge the server response into local state
+      setPrompts((p) => p.map((x) => (x.id === id ? updated : x)));
+    } catch (e) {
+      setPrompts((current) => current.map((x) => (x.id === id ? previousPrompt : x)));
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const [overId, setOverId] = useState<string | null>(null);
   function onDragStart(e: DragStartEvent) {
     setActiveDragId(String(e.active.id));
@@ -1282,6 +1321,10 @@ export default function Board() {
       // Dropped on a card in a different column → treat as drop on that column
       const target = overPrompt.column;
       if (target === "GITHUB" || target === "LINEAR") return;
+      if (target === "REVIEW") {
+        void moveToReview(activeId);
+        return;
+      }
       if (target === "PROMPTS") {
         void moveToPrompts(activeId);
       } else if (activePrompt.column !== target && activePrompt.column === "PROMPTS") {
@@ -1307,6 +1350,10 @@ export default function Board() {
       } else {
         void unarchivePrompt(activeId);
       }
+      return;
+    }
+    if (target === "REVIEW") {
+      void moveToReview(activeId);
       return;
     }
     if (activePrompt.column === target) return;
@@ -1639,7 +1686,8 @@ export default function Board() {
                           : col.id === "LINEAR"
                             ? linearBoardIssues.length
                             : colPrompts.length;
-                      const colEmpty = colItemCount === 0 && col.id !== "PROMPTS";
+                      const colEmpty =
+                        colItemCount === 0 && col.id !== "PROMPTS" && col.id !== "REVIEW";
                       return (
                         <ColumnView
                           key={col.id}

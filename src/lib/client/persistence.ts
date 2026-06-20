@@ -48,6 +48,7 @@ const DEFAULT_COLLAPSED = {
   PROMPTS: false,
   RUN_IN_PLACE: false,
   RUN_IN_WORKTREE: false,
+  REVIEW: true,
   GITHUB: false,
   LINEAR: false,
   ARCHIVED: true,
