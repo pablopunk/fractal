@@ -556,5 +556,13 @@ function TerminalView({
     };
   }, [tab.id, tab.session, tab.cwd, glassEnabled, theme, terminalThemeName]);
 
-  return <div ref={hostRef} className="terminal-host" />;
+  const hostBackground = terminalTheme(theme, terminalThemeName, false).background;
+
+  return (
+    <div
+      ref={hostRef}
+      className="terminal-host"
+      style={{ background: hostBackground }}
+    />
+  );
 }
