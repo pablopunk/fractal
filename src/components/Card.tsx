@@ -265,11 +265,7 @@ export function Card({
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       <div className="card-footer">
-        <div
-          className="card-actions"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="card-preset" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
           {prompt.column === "PROMPTS" ? (
             <PresetPicker
               presets={presets}
@@ -286,6 +282,12 @@ export function Card({
               </span>
             </Tooltip>
           )}
+        </div>
+        <div
+          className="card-actions"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="card-actions-group">
             {copied && (
               <span className="copy-notice" role="status" aria-live="polite">

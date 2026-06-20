@@ -1311,6 +1311,7 @@ html[data-glass="true"] .column.column-compact {
   transition: border-color 80ms ease, transform 80ms ease, box-shadow 300ms ease;
 }
 .card:hover { border-color: var(--border-strong); }
+.card:hover .card-actions { opacity: 1; pointer-events: auto; }
 
 .card.active-terminal { border-color: var(--state-active-border); }
 .card.active-terminal:hover { border-color: var(--state-active-border); }
@@ -1656,11 +1657,11 @@ html[data-glass="true"] .column.column-compact {
 .card-actions {
   display: flex;
   gap: 4px;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  opacity: 1;
+  opacity: 0;
   transition: opacity 80ms ease;
-  pointer-events: auto;
+  pointer-events: none;
 }
 .card-actions-group {
   display: flex;
@@ -3087,7 +3088,6 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   .image-attachments { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
   .card-meta { opacity: 0; pointer-events: none; }
   .card-actions { opacity: 1; flex-wrap: wrap; gap: 6px; pointer-events: auto; }
-  .card-actions-group { opacity: 1; pointer-events: auto; }
   .icon-btn { width: 36px; height: 36px; }
   .icon-btn svg { width: 16px; height: 16px; }
   .project-item .remove { opacity: 1; font-size: 16px; }
@@ -3167,7 +3167,6 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 @media (hover: none) {
   .card-meta { opacity: 0; pointer-events: none; }
   .card-actions { opacity: 1; pointer-events: auto; }
-  .card-actions-group { opacity: 1; pointer-events: auto; }
   .project-item .remove { opacity: 1; }
   .picker-item { min-height: 44px; padding: 10px 8px; }
   .project-item { min-height: 44px; padding: 8px 10px; }
