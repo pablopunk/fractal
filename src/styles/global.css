@@ -3166,6 +3166,10 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   gap: 0;
 }
 
+.sidebar.collapsed .sidebar-agent-btn .name {
+  display: none;
+}
+
 .sidebar-agent-btn:hover {
   background: var(--accent-soft);
   border-color: color-mix(in oklab, var(--accent) 30%, transparent);
