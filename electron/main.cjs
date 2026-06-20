@@ -243,10 +243,12 @@ function readRemoteAccessSettings() {
 
 function verifyTerminalToken(req, socket) {
   if (isLocalConnection(socket)) return true;
+  const url = new URL(req.url, "http://127.0.0.1");
+  const match = url.pathname.match(/^\/api\/terminal\/ws\/([^/]+)$/);
+  if (!match) return false;
   const settings = readRemoteAccessSettings();
   if (!settings.enabled) return false;
-  const url = new URL(req.url, "http://127.0.0.1");
-  const token = url.searchParams.get("token");
+  const token = decodeURIComponent(match[1]);
   return Boolean(token && token === settings.token);
 }
 

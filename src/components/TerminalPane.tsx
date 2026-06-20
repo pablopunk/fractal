@@ -455,11 +455,12 @@ function TerminalView({
       function buildTerminalWsUrl() {
         const params = new URLSearchParams({ session: tab.session });
         if (tab.cwd) params.set("cwd", tab.cwd);
+        let tokenPath = "";
         try {
           const freshToken = localStorage.getItem("fractal:remoteToken");
-          if (freshToken) params.set("token", freshToken);
+          if (freshToken) tokenPath = `/${encodeURIComponent(freshToken)}`;
         } catch {}
-        return `${protocol}//${window.location.host}/api/terminal/ws?${params.toString()}`;
+        return `${protocol}//${window.location.host}/api/terminal/ws${tokenPath}?${params.toString()}`;
       }
       ws = new WebSocket(buildTerminalWsUrl());
       sendResize = () => {
