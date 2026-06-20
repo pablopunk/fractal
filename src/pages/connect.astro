@@ -43,14 +43,13 @@
   </div>
   <script>
     (function () {
-      const token = new URLSearchParams(window.location.search).get("token")
-        || new URLSearchParams(window.location.hash.slice(1)).get("token");
       const status = document.getElementById("status");
       if (!status) return;
 
-      if (token) {
+      const hashToken = new URLSearchParams(window.location.hash.slice(1)).get("token");
+      if (hashToken) {
         try {
-          localStorage.setItem("fractal:remoteToken", token);
+          localStorage.setItem("fractal:remoteToken", hashToken);
           status.textContent = "Connected. Redirecting…";
         } catch (e) {
           status.textContent = "Could not store token. Check browser storage.";
