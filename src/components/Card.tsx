@@ -272,10 +272,9 @@ export function Card({
                 }}
               />
             ) : (
-              <Tooltip content={prompt.presetId}>
+              <Tooltip content={presetName}>
                 <span className="model-badge">
                   {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
-                  {presetName}
                 </span>
               </Tooltip>
             )}
