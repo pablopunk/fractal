@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import type { APIRoute } from "astro";
 import { generatePrDescription } from "~/lib/server/ai-helper.js";
 import { classifyError } from "~/lib/server/api-errors.js";
+import { exec } from "~/lib/server/exec.js";
 import {
   createPullRequest,
   getUncommittedChanges,
@@ -81,6 +82,10 @@ export const POST: APIRoute = async ({ params }) => {
         body = "";
       }
 
+      // Push branch to origin first — PR creation requires the branch on the remote
+      await exec("git", ["-C", project.path, "push", "-u", "origin", prompt.branch], {
+        timeoutMs: 30000,
+      });
       const pr = await createPullRequest(project.path, prompt.branch, title, body || undefined);
       prUrl = pr.url;
     }
