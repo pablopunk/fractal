@@ -2,6 +2,7 @@ export type Column =
   | "PROMPTS"
   | "RUN_IN_PLACE"
   | "RUN_IN_WORKTREE"
+  | "REVIEW"
   | "GITHUB"
   | "LINEAR"
   | "ARCHIVED";
@@ -46,6 +47,9 @@ export type Prompt = {
   isArchived?: boolean | null;
   issueRef?: string | null;
   prUrl?: string | null;
+  prCiStatus?: string | null;
+  prReviewCount?: number | null;
+  prHasConflicts?: boolean | null;
   launchedAt?: number | null;
   isRunning?: boolean;
 };

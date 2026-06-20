@@ -1,5 +1,6 @@
 import type { AgentPreset } from "./agents.js";
 import { exec } from "./exec.js";
+import { capturePane } from "./tmux.js";
 
 const SUMMARY_TIMEOUT_MS = 60_000;
 const MIN_SUMMARY_CHARACTERS = 96;
@@ -123,4 +124,122 @@ export async function summarizePromptText(input: {
     cwd: input.cwd,
     prompt: helperPrompt(input.text),
   });
+}
+
+function prDescriptionPrompt(
+  diffStat: string,
+  gitLog: string,
+  paneContent: string,
+  taskText: string,
+): string {
+  const contextParts = [
+    `## Task description
+
+${taskText}`,
+  ];
+  if (diffStat.trim())
+    contextParts.push(`## Changes (git diff --stat)
+
+\`\`\`
+${diffStat}
+\`\`\``);
+  if (gitLog.trim())
+    contextParts.push(`## Recent commits
+
+\`\`\`
+${gitLog}
+\`\`\``);
+  if (paneContent.trim()) {
+    const truncated = paneContent.slice(-4000);
+    contextParts.push(`## Recent terminal output (last 4000 chars)
+
+\`\`\`
+${truncated}
+\`\`\``);
+  }
+
+  return `${contextParts.join("\n\n")}
+
+---
+
+Write a GitHub pull request title and description for this work.
+
+Return exactly two sections separated by "---":
+first line: PR title (concise, 8-15 words)
+then "---"
+then: PR body (2-4 paragraphs, describe what changed and why, in plain English, no markdown tables, no lists of files)
+
+Do not include any other text. Do not wrap the output in code fences.`;
+}
+
+function parsePrDescription(output: string): { title: string; body: string } {
+  // Strip ANSI, trim
+  const cleaned = output.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "").trim();
+
+  const sepIndex = cleaned.indexOf("---");
+  if (sepIndex === -1) {
+    // Fallback: treat first line as title, rest as body
+    const lines = cleaned.split("\n");
+    const title = lines[0].trim() || "Update";
+    const body = lines.slice(1).join("\n").trim() || title;
+    return { title, body };
+  }
+  const title = cleaned.slice(0, sepIndex).trim() || "Update";
+  const body = cleaned.slice(sepIndex + 3).trim() || title;
+  return { title, body };
+}
+
+export async function generatePrDescription(opts: {
+  preset: AgentPreset;
+  worktreePath: string;
+  promptText: string;
+  projectPath: string;
+  branch: string;
+  tmuxSession?: string | null;
+}): Promise<{ title: string; body: string }> {
+  // Gather context: branch-vs-base diff (not just uncommitted changes), git log, tmux pane
+  const diffPromise = (async () => {
+    const baseBranch = await exec(
+      "git",
+      ["-C", opts.worktreePath, "merge-base", "--fork-point", `origin/${opts.branch}`, opts.branch],
+      { cwd: opts.worktreePath, timeoutMs: 10000 },
+    )
+      .then((r) => r.stdout.trim())
+      .catch(() => "");
+    if (baseBranch) {
+      return exec("git", ["-C", opts.worktreePath, "diff", "--stat", `${baseBranch}...HEAD`], {
+        cwd: opts.worktreePath,
+        timeoutMs: 10000,
+      }).catch(() => ({ stdout: "", stderr: "", code: 0 }));
+    }
+    return exec("git", ["-C", opts.worktreePath, "diff", "--stat"], {
+      cwd: opts.worktreePath,
+      timeoutMs: 10000,
+    }).catch(() => ({ stdout: "", stderr: "", code: 0 }));
+  })();
+
+  const [diffResult, logResult, paneContent] = await Promise.all([
+    diffPromise,
+    exec("git", ["-C", opts.worktreePath, "log", "--oneline", "-5"], {
+      cwd: opts.worktreePath,
+      timeoutMs: 10000,
+    }).catch(() => ({ stdout: "", stderr: "", code: 0 })),
+    opts.tmuxSession
+      ? capturePane(opts.tmuxSession, undefined, 200).catch(() => "")
+      : Promise.resolve(""),
+  ]);
+
+  const prompt = prDescriptionPrompt(
+    diffResult.stdout,
+    logResult.stdout,
+    typeof paneContent === "string" ? paneContent : "",
+    opts.promptText,
+  );
+
+  const raw = await runPresetForText({
+    preset: opts.preset,
+    cwd: opts.projectPath,
+    prompt,
+  });
+  return parsePrDescription(raw);
 }

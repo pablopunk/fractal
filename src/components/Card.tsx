@@ -1,15 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  Check,
-  Copy,
-  GitBranch,
-  Pencil,
-  Sparkles,
-  SquareTerminal,
-  Trash2,
-  Undo2,
-} from "lucide-react";
+import { AlertCircle, Check, Copy, GitBranch, Pencil, Sparkles, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 import EditablePromptText from "./EditablePromptText.js";
@@ -18,6 +9,81 @@ import PresetIcon from "./PresetIcon.js";
 import PresetPicker from "./PresetPicker.js";
 import { extractImagePaths, LocalImageAttachment, parseImagePaths } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
+
+function PrStatusBadges({ prompt }: { prompt: Prompt }) {
+  const ci = prompt.prCiStatus;
+  const reviewCount = prompt.prReviewCount;
+  const conflicts = prompt.prHasConflicts;
+
+  const hasCi = ci !== null && ci !== undefined;
+  const hasReviews = reviewCount !== null && reviewCount !== undefined;
+  const hasConflicts = conflicts !== null && conflicts !== undefined;
+
+  // Nothing to show yet — poll hasn't run or all fields unavailable
+  if (!hasCi && !hasReviews && !hasConflicts) return null;
+
+  const allGreen =
+    hasCi &&
+    ci === "pass" &&
+    hasReviews &&
+    reviewCount === 0 &&
+    hasConflicts &&
+    conflicts === false;
+
+  return (
+    <span
+      className="pr-status-badges"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {allGreen ? (
+        <Tooltip content="PR ready — CI passing, no reviews, no conflicts">
+          <span className="pr-badge green">
+            <Check size={10} />
+          </span>
+        </Tooltip>
+      ) : (
+        <>
+          {hasCi && (
+            <Tooltip
+              content={ci === "pass" ? "CI passing" : ci === "fail" ? "CI failing" : "CI pending"}
+            >
+              <span
+                className={`pr-badge ${ci === "pass" ? "green" : ci === "fail" ? "red" : "amber"}`}
+              >
+                <span className="pr-badge-dot" />
+              </span>
+            </Tooltip>
+          )}
+          {hasReviews && (
+            <Tooltip
+              content={
+                reviewCount === 0
+                  ? "No review comments"
+                  : `${reviewCount} review comment${reviewCount === 1 ? "" : "s"}`
+              }
+            >
+              <span className={`pr-badge ${reviewCount === 0 ? "green" : "amber"}`}>
+                {reviewCount !== null && reviewCount > 0 ? (
+                  reviewCount
+                ) : (
+                  <span className="pr-badge-dot" />
+                )}
+              </span>
+            </Tooltip>
+          )}
+          {hasConflicts && (
+            <Tooltip content={conflicts === false ? "No merge conflicts" : "Merge conflicts"}>
+              <span className={`pr-badge ${conflicts === false ? "green" : "red"}`}>
+                {conflicts ? <AlertCircle size={10} /> : <span className="pr-badge-dot" />}
+              </span>
+            </Tooltip>
+          )}
+        </>
+      )}
+    </span>
+  );
+}
 
 export function Card({
   prompt,
@@ -58,7 +124,6 @@ export function Card({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const isRunning = !!prompt.isRunning;
   const presetForBadge = presets.find((preset) => preset.id === prompt.presetId);
   const presetName = presetForBadge?.name ?? prompt.presetId;
   const imagePaths = useMemo(
@@ -173,16 +238,6 @@ export function Card({
       {...attributes}
       {...listeners}
     >
-      {prompt.tmuxSession && prompt.isRunning && (
-        <Tooltip content={isActiveTerminal ? "Active terminal" : "Terminal open"}>
-          <div
-            className={`terminal-card-button ${isActiveTerminal ? "active" : ""}`}
-            aria-hidden="true"
-          >
-            <SquareTerminal size={18} />
-          </div>
-        </Tooltip>
-      )}
       <Tooltip
         content={
           displayText === prompt.text ? (
@@ -215,27 +270,41 @@ export function Card({
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       <div className="card-footer">
-        <div
-          className="card-actions"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {prompt.column === "PROMPTS" ? (
-            <PresetPicker
-              presets={presets}
-              value={prompt.presetId}
-              onChange={(id) => {
-                if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id });
-              }}
-            />
-          ) : (
-            <Tooltip content={prompt.presetId}>
-              <span className="model-badge">
-                {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
-                {presetName}
-              </span>
-            </Tooltip>
-          )}
+        <div className="card-actions">
+          <div
+            className="card-left"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {prompt.column === "PROMPTS" ? (
+              <PresetPicker
+                presets={presets}
+                value={prompt.presetId}
+                onChange={(id) => {
+                  if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id });
+                }}
+              />
+            ) : (
+              <Tooltip content={presetName}>
+                <span className="model-badge">
+                  {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
+                </span>
+              </Tooltip>
+            )}
+            {prompt.column === "REVIEW" && prompt.prUrl && (
+              <Tooltip content="Open pull request">
+                <a
+                  href={prompt.prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="icon-btn"
+                  aria-label="Open pull request"
+                >
+                  <GitBranch size={14} />
+                </a>
+              </Tooltip>
+            )}
+          </div>
           <div className="card-actions-group">
             {copied && (
               <span className="copy-notice" role="status" aria-live="polite">
@@ -293,7 +362,7 @@ export function Card({
                 </button>
               </Tooltip>
             )}
-            {prompt.prUrl && (
+            {prompt.prUrl && prompt.column !== "REVIEW" && (
               <Tooltip content="Open pull request">
                 <a
                   href={prompt.prUrl}
@@ -367,24 +436,34 @@ export function Card({
             </Tooltip>
           </div>
         </div>
-        {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
+        {(prompt.branch ||
+          prompt.tmuxSession ||
+          prompt.worktreePath ||
+          prompt.column === "REVIEW" ||
+          prompt.isRunning) && (
           <div className="card-meta">
-            {isRunning && <span className="tag accent">running</span>}
-            {prompt.tmuxSession && (
-              <Tooltip content={`Copy ${prompt.tmuxSession}`}>
-                <button
-                  type="button"
-                  className="tag tag-button"
-                  aria-label={`Copy ${prompt.tmuxSession}`}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyWorktreeName();
-                  }}
-                >
-                  {prompt.tmuxSession}
-                </button>
-              </Tooltip>
+            {prompt.column === "REVIEW" ? (
+              <PrStatusBadges prompt={prompt} />
+            ) : (
+              <>
+                {prompt.isRunning && <span className="tag accent">running</span>}
+                {prompt.tmuxSession && (
+                  <Tooltip content={`Copy ${prompt.tmuxSession}`}>
+                    <button
+                      type="button"
+                      className="tag tag-button"
+                      aria-label={`Copy ${prompt.tmuxSession}`}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyWorktreeName();
+                      }}
+                    >
+                      {prompt.tmuxSession}
+                    </button>
+                  </Tooltip>
+                )}
+              </>
             )}
           </div>
         )}

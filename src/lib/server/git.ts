@@ -151,7 +151,7 @@ export async function getPrDetails(
   try {
     const { stdout } = await exec(
       "gh",
-      ["pr", "list", "--head", branch, "--state", "all", "--json", "number,url", "--limit", "1"],
+      ["pr", "list", "--head", branch, "--state", "all", "--limit", "1"],
       {
         cwd: repoPath,
         timeoutMs: 5000,
@@ -164,18 +164,113 @@ export async function getPrDetails(
   }
 }
 
+export type PrFullStatus = {
+  state: "OPEN" | "CLOSED" | "MERGED";
+  mergeable: "MERGEABLE" | "CONFLICTING" | "UNKNOWN";
+  ciStatus: "pass" | "fail" | "pending" | null;
+  reviewCommentCount: number;
+  mergedAt: string | null;
+  closedAt: string | null;
+};
+
+export type GhErrorCategory = "gh-not-installed" | "pr-not-found" | "transient" | "unknown";
+
+export function classifyGhError(err: unknown): GhErrorCategory {
+  if (!(err instanceof Error)) return "unknown";
+  if ((err as NodeJS.ErrnoException).code === "ENOENT") return "gh-not-installed";
+  const stderr = (err as { result?: { stderr?: string } }).result?.stderr ?? err.message;
+  if (stderr.includes("no pull requests") || stderr.includes("Could not resolve")) {
+    return "pr-not-found";
+  }
+  // Auth, network, rate-limit — retryable
+  if (stderr.includes("Bad credentials") || stderr.includes("connect") || stderr.includes("429")) {
+    return "transient";
+  }
+  return "unknown";
+}
+
+export async function getPrFullStatus(
+  repoPath: string,
+  prNumber: number,
+): Promise<PrFullStatus | null> {
+  const { stdout } = await exec(
+    "gh",
+    [
+      "pr",
+      "view",
+      String(prNumber),
+      "--json",
+      "state,mergeable,statusCheckRollup,reviewDecision,reviews,mergedAt,closedAt",
+    ],
+    { cwd: repoPath, timeoutMs: 10000 },
+  );
+  const pr = JSON.parse(stdout) as {
+    state: string;
+    mergeable: string;
+    statusCheckRollup?: Array<{ status?: string; conclusion?: string }>;
+    reviewDecision?: string | null;
+    reviews?: Array<{ state?: string; body?: string }>;
+    mergedAt?: string | null;
+    closedAt?: string | null;
+  };
+
+  const validStates = ["OPEN", "CLOSED", "MERGED"];
+  const state = validStates.includes(pr.state) ? (pr.state as PrFullStatus["state"]) : "OPEN";
+  const mergeableMap: Record<string, PrFullStatus["mergeable"]> = {
+    MERGEABLE: "MERGEABLE",
+    CONFLICTING: "CONFLICTING",
+    UNKNOWN: "UNKNOWN",
+  };
+
+  // Count review comments from reviews array
+  let reviewCommentCount = 0;
+  if (Array.isArray(pr.reviews)) {
+    reviewCommentCount = pr.reviews.length;
+  }
+
+  // Derive CI status from statusCheckRollup
+  let ciStatus: PrFullStatus["ciStatus"] = null;
+  if (Array.isArray(pr.statusCheckRollup) && pr.statusCheckRollup.length > 0) {
+    const hasFail = pr.statusCheckRollup.some(
+      (c) => c.conclusion === "FAILURE" || c.conclusion === "ERROR" || c.conclusion === "CANCELLED",
+    );
+    const hasPending = pr.statusCheckRollup.some((c) => !c.conclusion && c.status !== "COMPLETED");
+    if (hasFail) {
+      ciStatus = "fail";
+    } else if (hasPending) {
+      ciStatus = "pending";
+    } else {
+      ciStatus = "pass";
+    }
+  }
+
+  return {
+    state,
+    mergeable: mergeableMap[pr.mergeable] ?? "UNKNOWN",
+    ciStatus,
+    reviewCommentCount,
+    mergedAt: pr.mergedAt ?? null,
+    closedAt: pr.closedAt ?? null,
+  };
+}
+
 export async function createPullRequest(
   repoPath: string,
   branch: string,
   title: string,
+  body?: string,
 ): Promise<{ number: number; url: string }> {
-  const { stdout } = await exec(
-    "gh",
-    ["pr", "create", "--head", branch, "--fill-first", "--title", title, "--json", "number,url"],
-    { cwd: repoPath, timeoutMs: 30000 },
-  );
-  const { number, url } = JSON.parse(stdout.trim()) as { number: number; url: string };
-  return { number, url };
+  const args = ["pr", "create", "--head", branch, "--title", title];
+  if (body) {
+    args.push("--body", body);
+  } else {
+    args.push("--fill-first");
+  }
+  const { stdout } = await exec("gh", args, { cwd: repoPath, timeoutMs: 30000 });
+  const url = stdout.trim();
+  const match = url.match(/\/pull\/(\d+)/);
+  if (!match) throw new Error(`Failed to parse PR number from output: ${url}`);
+  return { number: Number(match[1]), url };
 }
 
 export async function mergeBranchToDefault(repoPath: string, branch: string): Promise<string> {

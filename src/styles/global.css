@@ -409,7 +409,7 @@ a { color: inherit; }
 }
 
 .project-item .remove {
-  opacity: 0;
+  opacity: 1;
   background: transparent;
   border: none;
   color: var(--text-faint);
@@ -1311,6 +1311,7 @@ html[data-glass="true"] .column.column-compact {
   transition: border-color 80ms ease, transform 80ms ease, box-shadow 300ms ease;
 }
 .card:hover { border-color: var(--border-strong); }
+
 .card.active-terminal { border-color: var(--state-active-border); }
 .card.active-terminal:hover { border-color: var(--state-active-border); }
 .card:active { cursor: grabbing; }
@@ -1657,22 +1658,93 @@ html[data-glass="true"] .column.column-compact {
   gap: 4px;
   justify-content: space-between;
   align-items: center;
-  opacity: 0;
-  transition: opacity 80ms ease;
-  pointer-events: none;
 }
-.card:hover .card-meta { opacity: 0; pointer-events: none; }
-.card:hover .card-actions { opacity: 1; pointer-events: auto; }
+.card-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .card-actions-group {
   display: flex;
   align-items: center;
   gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms ease;
 }
+.card:hover .card-actions-group { opacity: 1; pointer-events: auto; }
 .copy-notice {
   color: var(--success);
   font-size: 11px;
   font-weight: 600;
   padding: 0 4px;
+}
+
+.pr-status-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.pr-badge .pr-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.pr-badge.green {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.pr-badge.green .pr-badge-dot {
+  background: var(--success);
+}
+
+.pr-badge.red {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pr-badge.red .pr-badge-dot {
+  background: var(--danger);
+}
+
+.pr-badge.amber {
+  border-color: var(--warning, #d97706);
+  color: var(--warning, #d97706);
+}
+
+.pr-badge.amber .pr-badge-dot {
+  background: var(--warning, #d97706);
+}
+
+.pr-badge.gray {
+  border-color: var(--border);
+  color: var(--text-faint);
+}
+
+.pr-badge.gray .pr-badge-dot {
+  background: var(--text-faint);
 }
 .icon-btn {
   display: inline-flex;
@@ -3028,7 +3100,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
   .card .text { font-size: 14px; }
   .image-attachments { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
   .card-meta { opacity: 0; pointer-events: none; }
-  .card-actions { opacity: 1; flex-wrap: wrap; gap: 6px; pointer-events: auto; }
+  .card-actions-group { opacity: 1; pointer-events: auto; }
   .icon-btn { width: 36px; height: 36px; }
   .icon-btn svg { width: 16px; height: 16px; }
   .project-item .remove { opacity: 1; font-size: 16px; }
@@ -3107,7 +3179,7 @@ html[data-glass="true"] .terminal-host .xterm-screen canvas {
 
 @media (hover: none) {
   .card-meta { opacity: 0; pointer-events: none; }
-  .card-actions { opacity: 1; pointer-events: auto; }
+  .card-actions-group { opacity: 1; pointer-events: auto; }
   .project-item .remove { opacity: 1; }
   .picker-item { min-height: 44px; padding: 10px 8px; }
   .project-item { min-height: 44px; padding: 8px 10px; }

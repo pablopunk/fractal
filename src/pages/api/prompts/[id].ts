@@ -46,6 +46,18 @@ export const DELETE: APIRoute = async ({ params, request }) => {
   const body = (await request.json().catch(() => ({}))) as { force?: boolean };
   const force = body.force === true;
 
+  // Warn when deleting a REVIEW card with an open PR
+  if (prompt.column === "REVIEW" && prompt.prUrl && !force) {
+    return Response.json(
+      {
+        error: "This card has an open PR. Deleting will not close the PR.",
+        hasPr: true,
+        prUrl: prompt.prUrl,
+      },
+      { status: 409 },
+    );
+  }
+
   try {
     // Check for uncommitted changes first
     if (!force) {

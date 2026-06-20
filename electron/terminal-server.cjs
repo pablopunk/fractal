@@ -97,7 +97,7 @@ function ensureNodePtySpawnHelperExecutable() {
 
 function attachTerminalWSServer() {
   ensureNodePtySpawnHelperExecutable();
-  const wss = new WebSocketServer({ noServer: true, path: /^\/api\/terminal\/ws(?:\/|$|\?)/ });
+  const wss = new WebSocketServer({ noServer: true });
   const connectionCleanups = new Set();
 
   function closeAllConnections() {
