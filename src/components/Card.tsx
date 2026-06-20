@@ -7,7 +7,6 @@ import {
   GitBranch,
   Pencil,
   Sparkles,
-  SquareTerminal,
   Trash2,
   Undo2,
 } from "lucide-react";
@@ -229,15 +228,10 @@ export function Card({
       {...attributes}
       {...listeners}
     >
-      {prompt.tmuxSession && prompt.isRunning && (
-        <Tooltip content={isActiveTerminal ? "Active terminal" : "Terminal open"}>
-          <div
-            className={`terminal-card-button ${isActiveTerminal ? "active" : ""}`}
-            aria-hidden="true"
-          >
-            <SquareTerminal size={18} />
-          </div>
-        </Tooltip>
+      {prompt.column === "REVIEW" && (
+        <div className="card-badges-top" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <PrStatusBadges prompt={prompt} />
+        </div>
       )}
       <Tooltip
         content={
@@ -423,37 +417,7 @@ export function Card({
             </Tooltip>
           </div>
         </div>
-        {(prompt.column === "REVIEW" ||
-          prompt.branch ||
-          prompt.tmuxSession ||
-          prompt.worktreePath ||
-          isRunning) && (
-          <div className="card-meta">
-            {prompt.column === "REVIEW" ? (
-              <PrStatusBadges prompt={prompt} />
-            ) : (
-              <>
-                {isRunning && <span className="tag accent">running</span>}
-                {prompt.tmuxSession && (
-                  <Tooltip content={`Copy ${prompt.tmuxSession}`}>
-                    <button
-                      type="button"
-                      className="tag tag-button"
-                      aria-label={`Copy ${prompt.tmuxSession}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyWorktreeName();
-                      }}
-                    >
-                      {prompt.tmuxSession}
-                    </button>
-                  </Tooltip>
-                )}
-              </>
-            )}
-          </div>
-        )}
+
       </div>
     </div>
   );

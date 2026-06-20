@@ -1661,9 +1661,8 @@ html[data-glass="true"] .column.column-compact {
   transition: opacity 80ms ease;
   pointer-events: none;
 }
-.card:hover .card-meta { opacity: 0; pointer-events: none; }
-.card:hover .card-meta .pr-status-badges { opacity: 1; pointer-events: auto; }
-.card:hover .card-actions { opacity: 1; pointer-events: auto; }
+/* card-meta removed */
+/* card-actions always visible */
 .card-actions-group {
   display: flex;
   align-items: center;
