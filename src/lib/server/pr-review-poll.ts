@@ -100,6 +100,7 @@ async function pollReviewCards() {
             prCiStatus: null,
             prReviewCount: null,
             prHasConflicts: null,
+            prUrl: null,
           } as never);
         }
         continue;

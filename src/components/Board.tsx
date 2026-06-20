@@ -1195,9 +1195,9 @@ export default function Board() {
   }
 
   async function moveToReview(id: string) {
-    const prev = prompts;
-    const prompt = prev.find((p) => p.id === id);
+    const prompt = prompts.find((p) => p.id === id);
     if (!prompt) return;
+    const previousPrompt = prompt;
 
     // V1 gate: worktree only
     if (prompt.runMode !== "worktree") {
@@ -1217,7 +1217,7 @@ export default function Board() {
       // Merge the server response into local state
       setPrompts((p) => p.map((x) => (x.id === id ? updated : x)));
     } catch (e) {
-      setPrompts(prev);
+      setPrompts((current) => current.map((x) => (x.id === id ? previousPrompt : x)));
       toast.error(e instanceof Error ? e.message : String(e));
     }
   }
@@ -1336,10 +1336,6 @@ export default function Board() {
     // Dropped on a column
     const target = overId as Column;
     if (target === "GITHUB" || target === "LINEAR") return;
-    if (target === "REVIEW") {
-      void moveToReview(activeId);
-      return;
-    }
     if (target === "ARCHIVED") {
       if (!activePrompt.isArchived) void archivePrompt(activeId);
       return;
@@ -1354,6 +1350,10 @@ export default function Board() {
       } else {
         void unarchivePrompt(activeId);
       }
+      return;
+    }
+    if (target === "REVIEW") {
+      void moveToReview(activeId);
       return;
     }
     if (activePrompt.column === target) return;
@@ -1686,7 +1686,8 @@ export default function Board() {
                           : col.id === "LINEAR"
                             ? linearBoardIssues.length
                             : colPrompts.length;
-                      const colEmpty = colItemCount === 0 && col.id !== "PROMPTS" && col.id !== "REVIEW";
+                      const colEmpty =
+                        colItemCount === 0 && col.id !== "PROMPTS" && col.id !== "REVIEW";
                       return (
                         <ColumnView
                           key={col.id}

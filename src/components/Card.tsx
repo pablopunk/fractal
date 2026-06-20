@@ -1,15 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  AlertCircle,
-  Check,
-  Copy,
-  GitBranch,
-  Pencil,
-  Sparkles,
-  Trash2,
-  Undo2,
-} from "lucide-react";
+import { AlertCircle, Check, Copy, GitBranch, Pencil, Sparkles, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentPreset, ModelProfile, Prompt } from "~/lib/client/types.js";
 import EditablePromptText from "./EditablePromptText.js";
@@ -31,7 +22,13 @@ function PrStatusBadges({ prompt }: { prompt: Prompt }) {
   // Nothing to show yet — poll hasn't run or all fields unavailable
   if (!hasCi && !hasReviews && !hasConflicts) return null;
 
-  const allGreen = hasCi && ci === "pass" && hasReviews && reviewCount === 0 && hasConflicts && conflicts === false;
+  const allGreen =
+    hasCi &&
+    ci === "pass" &&
+    hasReviews &&
+    reviewCount === 0 &&
+    hasConflicts &&
+    conflicts === false;
 
   return (
     <span
@@ -48,16 +45,30 @@ function PrStatusBadges({ prompt }: { prompt: Prompt }) {
       ) : (
         <>
           {hasCi && (
-            <Tooltip content={ci === "pass" ? "CI passing" : ci === "fail" ? "CI failing" : "CI pending"}>
-              <span className={`pr-badge ${ci === "pass" ? "green" : ci === "fail" ? "red" : "amber"}`}>
+            <Tooltip
+              content={ci === "pass" ? "CI passing" : ci === "fail" ? "CI failing" : "CI pending"}
+            >
+              <span
+                className={`pr-badge ${ci === "pass" ? "green" : ci === "fail" ? "red" : "amber"}`}
+              >
                 <span className="pr-badge-dot" />
               </span>
             </Tooltip>
           )}
           {hasReviews && (
-            <Tooltip content={reviewCount === 0 ? "No review comments" : `${reviewCount} review comment${reviewCount === 1 ? "" : "s"}`}>
+            <Tooltip
+              content={
+                reviewCount === 0
+                  ? "No review comments"
+                  : `${reviewCount} review comment${reviewCount === 1 ? "" : "s"}`
+              }
+            >
               <span className={`pr-badge ${reviewCount === 0 ? "green" : "amber"}`}>
-                {reviewCount !== null && reviewCount > 0 ? reviewCount : <span className="pr-badge-dot" />}
+                {reviewCount !== null && reviewCount > 0 ? (
+                  reviewCount
+                ) : (
+                  <span className="pr-badge-dot" />
+                )}
               </span>
             </Tooltip>
           )}
@@ -228,7 +239,6 @@ export function Card({
       {...attributes}
       {...listeners}
     >
-
       <Tooltip
         content={
           displayText === prompt.text ? (
@@ -262,7 +272,11 @@ export function Card({
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       <div className="card-footer">
         <div className="card-actions">
-          <div className="card-left" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="card-left"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
             {prompt.column === "PROMPTS" ? (
               <PresetPicker
                 presets={presets}
@@ -428,7 +442,6 @@ export function Card({
             </Tooltip>
           </div>
         </div>
-
       </div>
     </div>
   );

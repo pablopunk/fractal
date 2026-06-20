@@ -200,16 +200,21 @@ export async function generatePrDescription(opts: {
   // Gather context: branch-vs-base diff (not just uncommitted changes), git log, tmux pane
   const diffPromise = (async () => {
     const baseBranch = await exec(
-      "git", ["-C", opts.worktreePath, "merge-base", "--fork-point", `origin/${opts.branch}`, opts.branch],
+      "git",
+      ["-C", opts.worktreePath, "merge-base", "--fork-point", `origin/${opts.branch}`, opts.branch],
       { cwd: opts.worktreePath, timeoutMs: 10000 },
-    ).then((r) => r.stdout.trim()).catch(() => "");
+    )
+      .then((r) => r.stdout.trim())
+      .catch(() => "");
     if (baseBranch) {
       return exec("git", ["-C", opts.worktreePath, "diff", "--stat", `${baseBranch}...HEAD`], {
-        cwd: opts.worktreePath, timeoutMs: 10000,
+        cwd: opts.worktreePath,
+        timeoutMs: 10000,
       }).catch(() => ({ stdout: "", stderr: "", code: 0 }));
     }
     return exec("git", ["-C", opts.worktreePath, "diff", "--stat"], {
-      cwd: opts.worktreePath, timeoutMs: 10000,
+      cwd: opts.worktreePath,
+      timeoutMs: 10000,
     }).catch(() => ({ stdout: "", stderr: "", code: 0 }));
   })();
 
