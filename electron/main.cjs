@@ -7,6 +7,22 @@ const { spawn } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+
+async function startPrReviewPoll() {
+  try {
+    const entry = path.join(__dirname, "..", "dist", "server", "pr-review-poll.js");
+    const mod = await import(pathToFileURL(entry).href);
+    mod.startPrReviewPoll();
+    console.log("[fractal-server] PR review polling started");
+  } catch (err) {
+    if (err.code === "ERR_MODULE_NOT_FOUND" || err.code === "ENOENT") {
+      // Dev mode or build not yet compiled — polling only works in production
+      return;
+    }
+    throw err;
+  }
+}
+
 const { homedir } = require("node:os");
 const { createWriteStream, mkdirSync } = require("node:fs");
 const { readConfig, writeConfig, hasSavedConfig } = require("./remote-config.cjs");
@@ -298,6 +314,10 @@ async function startUnifiedServer() {
     mainServer = server;
     serverCleanup = closeTerminal;
     console.log(`[fractal-server] listening on http://127.0.0.1:${port}`);
+    // Start PR review polling (production mode only — dev mode uses Vite which can't run this)
+    startPrReviewPoll().catch((err) =>
+      console.error("[fractal-server] failed to start PR review poll:", err),
+    );
     return { port, server, cleanup: closeTerminal };
   })();
   return serverStartPromise;

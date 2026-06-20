@@ -230,6 +230,15 @@ export const DELETE: APIRoute = async ({ params }) => {
   const prompt = getPrompt(id);
   if (!prompt) return Response.json({ error: "not found" }, { status: 404 });
 
-  const updated = updatePrompt(id, { isArchived: false } as never);
+  // Unarchived cards go to RUN_IN_WORKTREE, never REVIEW
+  const targetColumn =
+    prompt.runMode === "worktree" ? ("RUN_IN_WORKTREE" as const) : ("RUN_IN_PLACE" as const);
+  const updated = updatePrompt(id, {
+    isArchived: false,
+    column: targetColumn,
+    prCiStatus: null,
+    prReviewCount: null,
+    prHasConflicts: null,
+  } as never);
   return Response.json({ prompt: updated ? await withPromptStatus(updated) : updated });
 };

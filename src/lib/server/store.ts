@@ -5,7 +5,13 @@ import { type AgentPreset, DEFAULT_AGENT_PRESETS } from "./agents.js";
 import { getDb } from "./db/client.js";
 import { type Project, type Prompt, projects, prompts, settings } from "./db/schema.js";
 
-export type Column = "PROMPTS" | "RUN_IN_PLACE" | "RUN_IN_WORKTREE" | "GITHUB" | "LINEAR";
+export type Column =
+  | "PROMPTS"
+  | "RUN_IN_PLACE"
+  | "RUN_IN_WORKTREE"
+  | "REVIEW"
+  | "GITHUB"
+  | "LINEAR";
 export type ModelProfile = "smart" | "fast";
 export type AppSettings = {
   fastModel: string;
@@ -23,7 +29,7 @@ export type AppSettings = {
   fractalAgentModel?: string;
 };
 
-export type UiColumn = Column | "GITHUB" | "LINEAR" | "ARCHIVED";
+export type UiColumn = Column | "REVIEW" | "GITHUB" | "LINEAR" | "ARCHIVED";
 export type UiState = {
   version: 1;
   sidebarWidth: number;
@@ -68,6 +74,7 @@ const DEFAULT_COLLAPSED = {
   PROMPTS: false,
   RUN_IN_PLACE: false,
   RUN_IN_WORKTREE: false,
+  REVIEW: true,
   GITHUB: false,
   LINEAR: false,
   ARCHIVED: true,

@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  AlertCircle,
   Check,
   Copy,
   GitBranch,
@@ -18,6 +19,85 @@ import PresetIcon from "./PresetIcon.js";
 import PresetPicker from "./PresetPicker.js";
 import { extractImagePaths, LocalImageAttachment, parseImagePaths } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
+
+function PrStatusBadges({ prompt }: { prompt: Prompt }) {
+  const ci = prompt.prCiStatus;
+  const reviewCount = prompt.prReviewCount;
+  const conflicts = prompt.prHasConflicts;
+
+  // All green?
+  const allGreen = ci === "pass" && reviewCount === 0 && conflicts === false;
+
+  return (
+    <span
+      className="pr-status-badges"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {allGreen ? (
+        <Tooltip content="PR ready — CI passing, no reviews, no conflicts">
+          <span className="pr-badge green">
+            <Check size={10} />
+          </span>
+        </Tooltip>
+      ) : (
+        <>
+          <Tooltip
+            content={
+              ci === "pass"
+                ? "CI passing"
+                : ci === "fail"
+                  ? "CI failing"
+                  : ci === "pending"
+                    ? "CI pending"
+                    : "CI status unavailable"
+            }
+          >
+            <span
+              className={`pr-badge ${ci === "pass" ? "green" : ci === "fail" ? "red" : ci === "pending" ? "amber" : "gray"}`}
+            >
+              <span className="pr-badge-dot" />
+            </span>
+          </Tooltip>
+          <Tooltip
+            content={
+              reviewCount === null
+                ? "Reviews unavailable"
+                : reviewCount === 0
+                  ? "No review comments"
+                  : `${reviewCount} review comment${reviewCount === 1 ? "" : "s"}`
+            }
+          >
+            <span
+              className={`pr-badge ${reviewCount === 0 ? "green" : reviewCount !== null ? "amber" : "gray"}`}
+            >
+              {reviewCount != null && reviewCount > 0 ? (
+                reviewCount
+              ) : (
+                <span className="pr-badge-dot" />
+              )}
+            </span>
+          </Tooltip>
+          <Tooltip
+            content={
+              conflicts === false
+                ? "No merge conflicts"
+                : conflicts === true
+                  ? "Merge conflicts"
+                  : "Conflict status unavailable"
+            }
+          >
+            <span
+              className={`pr-badge ${conflicts === false ? "green" : conflicts === true ? "red" : "gray"}`}
+            >
+              {conflicts ? <AlertCircle size={10} /> : <span className="pr-badge-dot" />}
+            </span>
+          </Tooltip>
+        </>
+      )}
+    </span>
+  );
+}
 
 export function Card({
   prompt,
@@ -367,24 +447,34 @@ export function Card({
             </Tooltip>
           </div>
         </div>
-        {(prompt.branch || prompt.tmuxSession || prompt.worktreePath || isRunning) && (
+        {(prompt.column === "REVIEW" ||
+          prompt.branch ||
+          prompt.tmuxSession ||
+          prompt.worktreePath ||
+          isRunning) && (
           <div className="card-meta">
-            {isRunning && <span className="tag accent">running</span>}
-            {prompt.tmuxSession && (
-              <Tooltip content={`Copy ${prompt.tmuxSession}`}>
-                <button
-                  type="button"
-                  className="tag tag-button"
-                  aria-label={`Copy ${prompt.tmuxSession}`}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyWorktreeName();
-                  }}
-                >
-                  {prompt.tmuxSession}
-                </button>
-              </Tooltip>
+            {prompt.column === "REVIEW" ? (
+              <PrStatusBadges prompt={prompt} />
+            ) : (
+              <>
+                {isRunning && <span className="tag accent">running</span>}
+                {prompt.tmuxSession && (
+                  <Tooltip content={`Copy ${prompt.tmuxSession}`}>
+                    <button
+                      type="button"
+                      className="tag tag-button"
+                      aria-label={`Copy ${prompt.tmuxSession}`}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyWorktreeName();
+                      }}
+                    >
+                      {prompt.tmuxSession}
+                    </button>
+                  </Tooltip>
+                )}
+              </>
             )}
           </div>
         )}

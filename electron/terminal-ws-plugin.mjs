@@ -24,7 +24,7 @@ export function terminalWsPlugin() {
       server.httpServer?.once("listening", () => {
         const mod = require("./terminal-server.cjs");
         wss = mod.attachTerminalWSServer();
-        server.httpServer?.on("upgrade", (req, socket, head) => {
+        server.httpServer?.prependListener("upgrade", (req, socket, head) => {
           const url = new URL(req.url || "/", "http://127.0.0.1");
           const match = url.pathname.match(/^\/api\/terminal\/ws(\/([^/]+))?$/);
           if (match) {

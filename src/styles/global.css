@@ -1662,6 +1662,7 @@ html[data-glass="true"] .column.column-compact {
   pointer-events: none;
 }
 .card:hover .card-meta { opacity: 0; pointer-events: none; }
+.card:hover .card-meta .pr-status-badges { opacity: 1; pointer-events: auto; }
 .card:hover .card-actions { opacity: 1; pointer-events: auto; }
 .card-actions-group {
   display: flex;
@@ -1673,6 +1674,73 @@ html[data-glass="true"] .column.column-compact {
   font-size: 11px;
   font-weight: 600;
   padding: 0 4px;
+}
+
+.pr-status-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.pr-badge .pr-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.pr-badge.green {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.pr-badge.green .pr-badge-dot {
+  background: var(--success);
+}
+
+.pr-badge.red {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pr-badge.red .pr-badge-dot {
+  background: var(--danger);
+}
+
+.pr-badge.amber {
+  border-color: var(--warning, #d97706);
+  color: var(--warning, #d97706);
+}
+
+.pr-badge.amber .pr-badge-dot {
+  background: var(--warning, #d97706);
+}
+
+.pr-badge.gray {
+  border-color: var(--border);
+  color: var(--text-faint);
+}
+
+.pr-badge.gray .pr-badge-dot {
+  background: var(--text-faint);
 }
 .icon-btn {
   display: inline-flex;

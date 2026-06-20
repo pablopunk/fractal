@@ -28,7 +28,7 @@ export const prompts = sqliteTable("prompts", {
     .default("smart"),
   presetId: text("preset_id").notNull().default("pi"),
   column: text("column", {
-    enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE", "GITHUB", "LINEAR"],
+    enum: ["PROMPTS", "RUN_IN_PLACE", "RUN_IN_WORKTREE", "REVIEW", "GITHUB", "LINEAR"],
   })
     .notNull()
     .default("PROMPTS"),
@@ -40,6 +40,9 @@ export const prompts = sqliteTable("prompts", {
   isArchived: integer("is_archived", { mode: "boolean" }).notNull().default(false),
   issueRef: text("issue_ref"),
   prUrl: text("pr_url"),
+  prCiStatus: text("pr_ci_status"),
+  prReviewCount: integer("pr_review_count"),
+  prHasConflicts: integer("pr_has_conflicts", { mode: "boolean" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   launchedAt: integer("launched_at", { mode: "timestamp_ms" }),
