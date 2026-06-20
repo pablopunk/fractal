@@ -248,7 +248,7 @@ function verifyTerminalToken(req, socket) {
   if (!match) return false;
   const settings = readRemoteAccessSettings();
   if (!settings.enabled) return false;
-  const token = match[1];
+  const token = decodeURIComponent(match[1]);
   return Boolean(token && token === settings.token);
 }
 

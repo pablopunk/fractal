@@ -35,7 +35,7 @@ export function terminalWsPlugin() {
                 socket.destroy();
                 return;
               }
-              const token = match[2];
+              const token = decodeURIComponent(match[2]);
               if (!token || token !== settings.token) {
                 socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
                 socket.destroy();
