@@ -1,5 +1,8 @@
 import type { APIContext, MiddlewareNext } from "astro";
+import { startPrReviewPoll } from "~/lib/server/pr-review-poll.js";
 import { getSettings } from "~/lib/server/store.js";
+
+startPrReviewPoll();
 
 const LOCALHOST_IPS = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 

@@ -231,6 +231,19 @@ export function Card({
       {prompt.column === "REVIEW" && (
         <div className="card-badges-top" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
           <PrStatusBadges prompt={prompt} />
+          {prompt.prUrl && (
+            <Tooltip content="Open pull request">
+              <a
+                href={prompt.prUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="icon-btn"
+                aria-label="Open pull request"
+              >
+                <GitBranch size={14} />
+              </a>
+            </Tooltip>
+          )}
         </div>
       )}
       <Tooltip
@@ -345,7 +358,7 @@ export function Card({
                 </button>
               </Tooltip>
             )}
-            {prompt.prUrl && (
+            {prompt.prUrl && prompt.column !== "REVIEW" && (
               <Tooltip content="Open pull request">
                 <a
                   href={prompt.prUrl}
