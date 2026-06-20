@@ -2154,10 +2154,18 @@ html[data-glass="true"] .workspace-bottom .terminal-pane {
 .terminal-tab-close:hover { color: var(--text); background: var(--surface); }
 .terminal-host {
   min-height: 0;
-  padding: 8px;
+  padding: 0;
   overflow: hidden;
 }
-.terminal-host .xterm { height: 100%; }
+.terminal-host .xterm {
+  height: 100%;
+  padding: 8px;
+  background: inherit;
+}
+.terminal-host .xterm-viewport,
+.terminal-host .xterm-screen {
+  background: inherit !important;
+}
 
 .terminal-card-button {
   position: absolute;
