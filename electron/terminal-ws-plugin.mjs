@@ -26,7 +26,8 @@ export function terminalWsPlugin() {
         wss = mod.attachTerminalWSServer();
         server.httpServer?.on("upgrade", (req, socket, head) => {
           const url = new URL(req.url || "/", "http://127.0.0.1");
-          if (url.pathname === "/api/terminal/ws") {
+          const match = url.pathname.match(/^\/api\/terminal\/ws(\/([^/]+))?$/);
+          if (match) {
             const settings = readSettings();
             if (!isLocalAddr(socket.remoteAddress)) {
               if (!settings.enabled) {
@@ -34,7 +35,7 @@ export function terminalWsPlugin() {
                 socket.destroy();
                 return;
               }
-              const token = url.searchParams.get("token");
+              const token = match[2];
               if (!token || token !== settings.token) {
                 socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
                 socket.destroy();

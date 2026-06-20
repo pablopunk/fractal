@@ -7,8 +7,7 @@ function extractToken(request: Request): string | null {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
 
-  const url = new URL(request.url);
-  return url.searchParams.get("token");
+  return null;
 }
 
 function isLocalhost(request: Request): boolean {
