@@ -409,7 +409,7 @@ a { color: inherit; }
 }
 
 .project-item .remove {
-  opacity: 0;
+  opacity: 1;
   background: transparent;
   border: none;
   color: var(--text-faint);
@@ -1657,9 +1657,9 @@ html[data-glass="true"] .column.column-compact {
   gap: 4px;
   justify-content: space-between;
   align-items: center;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 80ms ease;
-  pointer-events: none;
+  pointer-events: auto;
 }
 /* card-meta removed */
 /* card-actions always visible */
