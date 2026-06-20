@@ -558,11 +558,5 @@ function TerminalView({
 
   const hostBackground = terminalTheme(theme, terminalThemeName, false).background;
 
-  return (
-    <div
-      ref={hostRef}
-      className="terminal-host"
-      style={{ background: hostBackground }}
-    />
-  );
+  return <div ref={hostRef} className="terminal-host" style={{ background: hostBackground }} />;
 }
