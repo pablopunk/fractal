@@ -228,24 +228,7 @@ export function Card({
       {...attributes}
       {...listeners}
     >
-      {prompt.column === "REVIEW" && (
-        <div className="card-badges-top" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-          <PrStatusBadges prompt={prompt} />
-          {prompt.prUrl && (
-            <Tooltip content="Open pull request">
-              <a
-                href={prompt.prUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="icon-btn"
-                aria-label="Open pull request"
-              >
-                <GitBranch size={14} />
-              </a>
-            </Tooltip>
-          )}
-        </div>
-      )}
+
       <Tooltip
         content={
           displayText === prompt.text ? (
@@ -278,29 +261,43 @@ export function Card({
       )}
       {prompt.error && <span className="tag error">{prompt.error}</span>}
       <div className="card-footer">
-        <div className="card-preset" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-          {prompt.column === "PROMPTS" ? (
-            <PresetPicker
-              presets={presets}
-              value={prompt.presetId}
-              onChange={(id) => {
-                if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id });
-              }}
-            />
-          ) : (
-            <Tooltip content={prompt.presetId}>
-              <span className="model-badge">
-                {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
-                {presetName}
-              </span>
-            </Tooltip>
-          )}
-        </div>
-        <div
-          className="card-actions"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="card-actions">
+          <div className="card-left" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            {prompt.column === "PROMPTS" ? (
+              <PresetPicker
+                presets={presets}
+                value={prompt.presetId}
+                onChange={(id) => {
+                  if (id !== prompt.presetId) void onEdit(prompt.id, { presetId: id });
+                }}
+              />
+            ) : (
+              <Tooltip content={prompt.presetId}>
+                <span className="model-badge">
+                  {presetForBadge && <PresetIcon preset={presetForBadge} size={12} />}
+                  {presetName}
+                </span>
+              </Tooltip>
+            )}
+            {prompt.column === "REVIEW" && (
+              <>
+                <PrStatusBadges prompt={prompt} />
+                {prompt.prUrl && (
+                  <Tooltip content="Open pull request">
+                    <a
+                      href={prompt.prUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="icon-btn"
+                      aria-label="Open pull request"
+                    >
+                      <GitBranch size={14} />
+                    </a>
+                  </Tooltip>
+                )}
+              </>
+            )}
+          </div>
           <div className="card-actions-group">
             {copied && (
               <span className="copy-notice" role="status" aria-live="polite">
