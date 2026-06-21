@@ -136,8 +136,6 @@ const runtimeCache = new Map<string, RuntimeEntry>();
 export async function getOrCreateRuntime(
   sessionId: string | undefined,
 ): Promise<{ agent: Agent; sessionId: string; isNew: boolean }> {
-  const { provider, modelId, localPi, piModel } = resolveModel();
-
   // Try cache first — set busy atomically if found.
   if (sessionId) {
     const cached = runtimeCache.get(sessionId);
@@ -164,19 +162,31 @@ export async function getOrCreateRuntime(
       return { agent: raceEntry.agent, sessionId, isNew: false };
     }
     if (dbSession) {
+      // Rehydrate with the session's persisted provider/model, not current settings
+      const sessionLocalPi = createLocalPiRuntime();
+      const sessionPiModel = sessionLocalPi.modelRegistry.find(
+        dbSession.provider,
+        dbSession.modelId,
+      );
+      if (!sessionPiModel) {
+        throw new Error(
+          `Session model "${dbSession.modelId}" for provider "${dbSession.provider}" is no longer available.`,
+        );
+      }
       let messages: AgentMessage[] = [];
       try {
         messages = JSON.parse(dbSession.messagesJson) as AgentMessage[];
       } catch {
         messages = [];
       }
-      const agent = createAgent(provider, localPi, piModel, messages);
+      const agent = createAgent(dbSession.provider, sessionLocalPi, sessionPiModel, messages);
       runtimeCache.set(sessionId, { agent, busy: true });
       return { agent, sessionId, isNew: false };
     }
   }
 
-  // New session — mark busy so the caller owns it immediately.
+  // New session — use current global settings
+  const { provider, modelId, localPi, piModel } = resolveModel();
   const newSession = await createSession(provider, modelId);
   const agent = createAgent(provider, localPi, piModel);
   runtimeCache.set(newSession.id, { agent, busy: true });

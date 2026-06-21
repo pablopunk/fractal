@@ -150,7 +150,7 @@ function useFractalAgentChat() {
     getFractalAgentSession(sid)
       .then((session) => {
         if (Array.isArray(session.messages)) {
-          setMessages(hydrateMessages(session.messages));
+          setMessages((prev) => (prev.length > 0 ? prev : hydrateMessages(session.messages)));
         }
       })
       .catch(() => {
