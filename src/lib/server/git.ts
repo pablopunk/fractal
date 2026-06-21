@@ -140,6 +140,15 @@ export async function isBranchMerged(repoPath: string, branch: string): Promise<
   }
 }
 
+export async function isGhAuthenticated(): Promise<boolean> {
+  try {
+    await exec("gh", ["auth", "status"], { timeoutMs: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function hasPullRequest(repoPath: string, branch: string): Promise<boolean> {
   return (await getPrDetails(repoPath, branch)) !== null;
 }
@@ -148,10 +157,14 @@ export async function getPrDetails(
   repoPath: string,
   branch: string,
 ): Promise<{ number: number; url: string } | null> {
+  if (!(await isGhAuthenticated())) {
+    throw new Error("GitHub CLI (gh) is not authenticated. Run 'gh auth login' to get started.");
+  }
+
   try {
     const { stdout } = await exec(
       "gh",
-      ["pr", "list", "--head", branch, "--state", "all", "--limit", "1"],
+      ["pr", "list", "--head", branch, "--state", "all", "--json", "number,url", "--limit", "1"],
       {
         cwd: repoPath,
         timeoutMs: 5000,
@@ -159,8 +172,10 @@ export async function getPrDetails(
     );
     const prs = JSON.parse(stdout) as Array<{ number: number; url: string }>;
     return prs.length > 0 ? { number: prs[0].number, url: prs[0].url } : null;
-  } catch {
-    return null;
+  } catch (err) {
+    const category = classifyGhError(err);
+    if (category === "pr-not-found") return null;
+    throw err;
   }
 }
 
