@@ -225,44 +225,47 @@ export async function getPrFullStatus(
       { cwd: repoPath, timeoutMs: 10000 },
     );
     const pr = JSON.parse(stdout) as {
-    state: string;
-    mergeable: string;
-    statusCheckRollup?: Array<{ status?: string; conclusion?: string }>;
-    reviewDecision?: string | null;
-    reviews?: Array<{ state?: string; body?: string }>;
-    mergedAt?: string | null;
-    closedAt?: string | null;
-  };
+      state: string;
+      mergeable: string;
+      statusCheckRollup?: Array<{ status?: string; conclusion?: string }>;
+      reviewDecision?: string | null;
+      reviews?: Array<{ state?: string; body?: string }>;
+      mergedAt?: string | null;
+      closedAt?: string | null;
+    };
 
-  const validStates = ["OPEN", "CLOSED", "MERGED"];
-  const state = validStates.includes(pr.state) ? (pr.state as PrFullStatus["state"]) : "OPEN";
-  const mergeableMap: Record<string, PrFullStatus["mergeable"]> = {
-    MERGEABLE: "MERGEABLE",
-    CONFLICTING: "CONFLICTING",
-    UNKNOWN: "UNKNOWN",
-  };
+    const validStates = ["OPEN", "CLOSED", "MERGED"];
+    const state = validStates.includes(pr.state) ? (pr.state as PrFullStatus["state"]) : "OPEN";
+    const mergeableMap: Record<string, PrFullStatus["mergeable"]> = {
+      MERGEABLE: "MERGEABLE",
+      CONFLICTING: "CONFLICTING",
+      UNKNOWN: "UNKNOWN",
+    };
 
-  // Count review comments from reviews array
-  let reviewCommentCount = 0;
-  if (Array.isArray(pr.reviews)) {
-    reviewCommentCount = pr.reviews.length;
-  }
-
-  // Derive CI status from statusCheckRollup
-  let ciStatus: PrFullStatus["ciStatus"] = null;
-  if (Array.isArray(pr.statusCheckRollup) && pr.statusCheckRollup.length > 0) {
-    const hasFail = pr.statusCheckRollup.some(
-      (c) => c.conclusion === "FAILURE" || c.conclusion === "ERROR" || c.conclusion === "CANCELLED",
-    );
-    const hasPending = pr.statusCheckRollup.some((c) => !c.conclusion && c.status !== "COMPLETED");
-    if (hasFail) {
-      ciStatus = "fail";
-    } else if (hasPending) {
-      ciStatus = "pending";
-    } else {
-      ciStatus = "pass";
+    // Count review comments from reviews array
+    let reviewCommentCount = 0;
+    if (Array.isArray(pr.reviews)) {
+      reviewCommentCount = pr.reviews.length;
     }
-  }
+
+    // Derive CI status from statusCheckRollup
+    let ciStatus: PrFullStatus["ciStatus"] = null;
+    if (Array.isArray(pr.statusCheckRollup) && pr.statusCheckRollup.length > 0) {
+      const hasFail = pr.statusCheckRollup.some(
+        (c) =>
+          c.conclusion === "FAILURE" || c.conclusion === "ERROR" || c.conclusion === "CANCELLED",
+      );
+      const hasPending = pr.statusCheckRollup.some(
+        (c) => !c.conclusion && c.status !== "COMPLETED",
+      );
+      if (hasFail) {
+        ciStatus = "fail";
+      } else if (hasPending) {
+        ciStatus = "pending";
+      } else {
+        ciStatus = "pass";
+      }
+    }
 
     return {
       state,
