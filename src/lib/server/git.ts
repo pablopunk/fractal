@@ -208,18 +208,23 @@ export async function getPrFullStatus(
   repoPath: string,
   prNumber: number,
 ): Promise<PrFullStatus | null> {
-  const { stdout } = await exec(
-    "gh",
-    [
-      "pr",
-      "view",
-      String(prNumber),
-      "--json",
-      "state,mergeable,statusCheckRollup,reviewDecision,reviews,mergedAt,closedAt",
-    ],
-    { cwd: repoPath, timeoutMs: 10000 },
-  );
-  const pr = JSON.parse(stdout) as {
+  if (!(await isGhAuthenticated())) {
+    throw new Error("GitHub CLI (gh) is not authenticated. Run 'gh auth login' to get started.");
+  }
+
+  try {
+    const { stdout } = await exec(
+      "gh",
+      [
+        "pr",
+        "view",
+        String(prNumber),
+        "--json",
+        "state,mergeable,statusCheckRollup,reviewDecision,reviews,mergedAt,closedAt",
+      ],
+      { cwd: repoPath, timeoutMs: 10000 },
+    );
+    const pr = JSON.parse(stdout) as {
     state: string;
     mergeable: string;
     statusCheckRollup?: Array<{ status?: string; conclusion?: string }>;
@@ -259,14 +264,19 @@ export async function getPrFullStatus(
     }
   }
 
-  return {
-    state,
-    mergeable: mergeableMap[pr.mergeable] ?? "UNKNOWN",
-    ciStatus,
-    reviewCommentCount,
-    mergedAt: pr.mergedAt ?? null,
-    closedAt: pr.closedAt ?? null,
-  };
+    return {
+      state,
+      mergeable: mergeableMap[pr.mergeable] ?? "UNKNOWN",
+      ciStatus,
+      reviewCommentCount,
+      mergedAt: pr.mergedAt ?? null,
+      closedAt: pr.closedAt ?? null,
+    };
+  } catch (err) {
+    const category = classifyGhError(err);
+    if (category === "pr-not-found") return null;
+    throw err;
+  }
 }
 
 export async function createPullRequest(

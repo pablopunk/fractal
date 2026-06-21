@@ -73,8 +73,17 @@ async function autoDetectPRs() {
           prHasConflicts: null,
         } as never);
       }
-    } catch {
-      // Best-effort — transient gh failures are retried next cycle
+    } catch (err) {
+      const category: GhErrorCategory = classifyGhError(err);
+      if (category === "gh-not-installed") {
+        if (!ghMissingLogged) {
+          console.warn("[fractal:review-poll] gh CLI not available — PR auto-detect unavailable");
+          ghMissingLogged = true;
+        }
+        return; // Skip remaining cards — gh is missing globally
+      }
+      // Transient / unknown — retry next cycle
+      console.warn("[fractal:review-poll] auto-detect transient error, retrying next cycle:", err);
     }
   }
 }

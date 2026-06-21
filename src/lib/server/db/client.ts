@@ -164,4 +164,22 @@ function ensureSchema(sqlite: Database.Database) {
     if (!/duplicate column/i.test(String(err)))
       console.error("[fractal-db] migration step failed:", err);
   }
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN pr_ci_status TEXT;");
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN pr_review_count INTEGER;");
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
+  try {
+    sqlite.exec("ALTER TABLE prompts ADD COLUMN pr_has_conflicts INTEGER;");
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err)))
+      console.error("[fractal-db] migration step failed:", err);
+  }
 }
