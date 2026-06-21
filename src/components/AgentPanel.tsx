@@ -2,6 +2,12 @@ import { Bot, ChevronDown, ChevronRight, Key, Loader2, Send, Wrench } from "luci
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FractalAgentProvider } from "~/lib/agent-providers.js";
+import { createFractalAgentChatStream, getFractalAgentSession } from "~/lib/client/api.js";
+import {
+  clearFractalAgentSessionId,
+  getFractalAgentSessionId,
+  setFractalAgentSessionId,
+} from "~/lib/client/persistence.js";
 import MarkdownText from "./MarkdownText.js";
 import Portal from "./Portal.js";
 
@@ -23,44 +29,89 @@ type ChatMessage = {
   toolInvocations: ToolInvocation[];
 };
 
-type RequestMessage = {
+// ── Hydration: convert persisted AgentMessage[] to ChatMessage[] ───────────
+
+interface AgentMessageShape {
   role: string;
-  content: string;
-};
-
-function stringifyForContext(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
+  content?: unknown;
+  toolCallId?: string;
+  toolName?: string;
+  isError?: boolean;
+  timestamp?: number;
 }
 
-function truncateForContext(value: string): string {
-  if (value.length <= 4000) return value;
-  return `${value.slice(0, 4000)}… [truncated]`;
+function hydrateMessages(raw: unknown[]): ChatMessage[] {
+  const result: ChatMessage[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const m = item as AgentMessageShape;
+
+    if (m.role === "user") {
+      const text = extractTextContent(m.content);
+      result.push({
+        id: crypto.randomUUID(),
+        role: "user",
+        textParts: text ? [text] : [],
+        toolInvocations: [],
+      });
+    } else if (m.role === "assistant") {
+      const blocks = Array.isArray(m.content) ? m.content : [];
+      const textParts: string[] = [];
+      const toolInvocations: ToolInvocation[] = [];
+      for (const block of blocks) {
+        if (!block || typeof block !== "object") continue;
+        const b = block as { type: string; text?: string; id?: string; name?: string; input?: unknown };
+        if (b.type === "text" && typeof b.text === "string") {
+          textParts.push(b.text);
+        } else if (b.type === "toolCall") {
+          toolInvocations.push({
+            toolCallId: b.id ?? crypto.randomUUID(),
+            toolName: b.name ?? "unknown",
+            args: b.input ?? {},
+            state: "done",
+          });
+        }
+      }
+      result.push({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        textParts,
+        toolInvocations,
+      });
+    } else if (m.role === "toolResult") {
+      const text = extractTextContent(m.content);
+      result.push({
+        id: crypto.randomUUID(),
+        role: "tool",
+        textParts: text ? [text] : [],
+        toolInvocations: [
+          {
+            toolCallId: m.toolCallId ?? "",
+            toolName: m.toolName ?? "unknown",
+            args: {},
+            result: text,
+            isError: m.isError ?? false,
+            state: "done",
+          },
+        ],
+      });
+    }
+  }
+  return result;
 }
 
-function serializeMessageForRequest(message: ChatMessage): RequestMessage {
-  const text = message.textParts.join(" ").trim();
-  if (message.role !== "assistant" || message.toolInvocations.length === 0) {
-    return { role: message.role, content: text };
+function extractTextContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter(
+        (c): c is { type: string; text?: string } =>
+          typeof c === "object" && c !== null && (c as { type: string }).type === "text",
+      )
+      .map((c) => (typeof c.text === "string" ? c.text : ""))
+      .join("\n");
   }
-
-  const toolSummary = message.toolInvocations.map((tool) => ({
-    tool: tool.toolName,
-    input: tool.args,
-    result: tool.result,
-    isError: tool.isError ?? false,
-  }));
-  const content = [
-    text,
-    `Tool activity from this assistant turn:\n${truncateForContext(stringifyForContext(toolSummary))}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  return { role: message.role, content };
+  return "";
 }
 
 // ── SSE Event Types ────────────────────────────────────────────────────────
@@ -78,159 +129,171 @@ function useFractalAgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(() => getFractalAgentSessionId());
   const abortRef = useRef<AbortController | null>(null);
-  const messagesRef = useRef<ChatMessage[]>([]);
-  messagesRef.current = messages;
+  const hydratedRef = useRef(false);
 
-  /** Shared streaming fetch — used by both send and regenerate. */
-  const doSend = useCallback(async (bodyMessages: RequestMessage[], addUserToState: boolean) => {
-    abortRef.current?.abort();
-    setIsLoading(true);
-    setError(null);
+  // On mount, hydrate prior messages from the backend if we have a session
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
 
-    const abortController = new AbortController();
-    abortRef.current = abortController;
+    const sid = getFractalAgentSessionId();
+    if (!sid) return;
 
-    const assistantMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      textParts: [],
-      toolInvocations: [],
-    };
-    if (addUserToState) {
-      const lastMsg = bodyMessages[bodyMessages.length - 1];
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        textParts: [lastMsg.content],
-        toolInvocations: [],
-      };
-      setMessages((prev) => [...prev, userMsg, assistantMsg]);
-    } else {
-      setMessages((prev) => [...prev, assistantMsg]);
-    }
-
-    try {
-      const res = await fetch("/api/agent/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: bodyMessages }),
-        signal: abortController.signal,
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(line.slice(6)) as SseEvent;
-            setMessages((prev) => {
-              const next = prev.map((m) => ({ ...m }));
-              const assistant = next[next.length - 1];
-              if (assistant?.role !== "assistant") return next;
-
-              switch (event.type) {
-                case "text_delta":
-                  if (assistant.textParts.length === 0) {
-                    assistant.textParts = [event.content];
-                  } else {
-                    assistant.textParts = [assistant.textParts[0] + event.content];
-                  }
-                  break;
-                case "tool_start": {
-                  const existing = assistant.toolInvocations.find(
-                    (t) => t.toolCallId === event.toolCallId,
-                  );
-                  if (!existing) {
-                    assistant.toolInvocations = [
-                      ...assistant.toolInvocations,
-                      {
-                        toolCallId: event.toolCallId,
-                        toolName: event.name,
-                        args: event.args,
-                        state: "running" as const,
-                      },
-                    ];
-                  }
-                  break;
-                }
-                case "tool_end": {
-                  assistant.toolInvocations = assistant.toolInvocations.map((t) =>
-                    t.toolCallId === event.toolCallId
-                      ? {
-                          ...t,
-                          result: event.result,
-                          isError: event.isError,
-                          state: "done" as const,
-                        }
-                      : t,
-                  );
-                  break;
-                }
-                case "done":
-                  break;
-                case "error":
-                  setError(event.message);
-                  break;
-              }
-              return next;
-            });
-          } catch {
-            // Skip malformed JSON lines
-          }
+    getFractalAgentSession(sid)
+      .then((session) => {
+        if (Array.isArray(session.messages)) {
+          setMessages(hydrateMessages(session.messages));
         }
-      }
-    } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIsLoading(false);
-      abortRef.current = null;
-    }
+      })
+      .catch(() => {
+        // Session may be expired or deleted; clear stale id
+        clearFractalAgentSessionId();
+        setSessionId(null);
+      });
   }, []);
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, skipUserMessage = false) => {
       if (!text.trim()) return;
-      // Build full message history: all prior messages + the new user message
-      const prior = messagesRef.current.map(serializeMessageForRequest);
-      const fullMessages = [...prior, { role: "user", content: text }];
-      await doSend(fullMessages, true);
+
+      abortRef.current?.abort();
+      setIsLoading(true);
+      setError(null);
+
+      const abortController = new AbortController();
+      abortRef.current = abortController;
+
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        textParts: [],
+        toolInvocations: [],
+      };
+
+      if (!skipUserMessage) {
+        const userMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: "user",
+          textParts: [text.trim()],
+          toolInvocations: [],
+        };
+        setMessages((prev) => [...prev, userMsg, assistantMsg]);
+      } else {
+        setMessages((prev) => [...prev, assistantMsg]);
+      }
+
+      try {
+        const { stream, sessionId: newSid } = await createFractalAgentChatStream({
+          sessionId,
+          prompt: text.trim(),
+          signal: abortController.signal,
+        });
+
+        // Persist session ID if this is the first turn
+        if (newSid && newSid !== sessionId) {
+          setFractalAgentSessionId(newSid);
+          setSessionId(newSid);
+        }
+
+        const reader = stream.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const event = JSON.parse(line.slice(6)) as SseEvent;
+              setMessages((prev) => {
+                const next = prev.map((m) => ({ ...m }));
+                const assistant = next[next.length - 1];
+                if (assistant?.role !== "assistant") return next;
+
+                switch (event.type) {
+                  case "text_delta":
+                    if (assistant.textParts.length === 0) {
+                      assistant.textParts = [event.content];
+                    } else {
+                      assistant.textParts = [assistant.textParts[0] + event.content];
+                    }
+                    break;
+                  case "tool_start": {
+                    const existing = assistant.toolInvocations.find(
+                      (t) => t.toolCallId === event.toolCallId,
+                    );
+                    if (!existing) {
+                      assistant.toolInvocations = [
+                        ...assistant.toolInvocations,
+                        {
+                          toolCallId: event.toolCallId,
+                          toolName: event.name,
+                          args: event.args,
+                          state: "running" as const,
+                        },
+                      ];
+                    }
+                    break;
+                  }
+                  case "tool_end": {
+                    assistant.toolInvocations = assistant.toolInvocations.map((t) =>
+                      t.toolCallId === event.toolCallId
+                        ? {
+                            ...t,
+                            result: event.result,
+                            isError: event.isError,
+                            state: "done" as const,
+                          }
+                        : t,
+                    );
+                    break;
+                  }
+                  case "done":
+                    break;
+                  case "error":
+                    setError(event.message);
+                    break;
+                }
+                return next;
+              });
+            } catch {
+              // Skip malformed JSON lines
+            }
+          }
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setIsLoading(false);
+        abortRef.current = null;
+      }
     },
-    [doSend],
+    [sessionId],
   );
 
   const regenerate = useCallback(() => {
     setMessages((prev) => {
-      // Drop the last assistant message so the last entry is the user prompt
+      // Drop the last assistant message so we have the user prompt as last
       const withoutLastAssistant = prev.filter(
         (m, i) => i !== prev.length - 1 || m.role !== "assistant",
       );
-      const contextMsgs = withoutLastAssistant.map(serializeMessageForRequest);
-      // Re-send the existing context (last message is the user prompt)
-      if (contextMsgs.length > 0 && contextMsgs[contextMsgs.length - 1].role === "user") {
-        setTimeout(() => doSend(contextMsgs, false), 0);
+      // Re-send the last user message
+      const lastUser = withoutLastAssistant.filter((m) => m.role === "user").pop();
+      if (lastUser?.textParts[0]) {
+        setTimeout(() => sendMessage(lastUser.textParts[0], true), 0);
       }
       return withoutLastAssistant;
     });
-  }, [doSend]);
+  }, [sendMessage]);
 
   const abort = useCallback(() => {
     abortRef.current?.abort();
@@ -459,6 +522,12 @@ function AgentMessageStream({
           {msg.role === "user" &&
             msg.textParts.map((text, i) => (
               <div key={`user-${i}`} className="agent-text">
+                {text}
+              </div>
+            ))}
+          {msg.role === "tool" &&
+            msg.textParts.map((text, i) => (
+              <div key={`tool-${i}`} className="agent-text agent-text-tool">
                 {text}
               </div>
             ))}

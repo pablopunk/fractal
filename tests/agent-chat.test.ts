@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 
 // ── Test SSE event formatting ─────────────────────────────────────────────
 
-// Replicate the safeJsonStringify and sseEvent logic from chat.ts
-// to test in isolation without importing the full module (which depends on pi packages).
 function safeJsonStringify(data: unknown): string {
   try {
     return JSON.stringify(data);
@@ -45,22 +43,18 @@ describe("sseEvent", () => {
     const obj: Record<string, unknown> = { a: 1 };
     obj.self = obj;
     const result = sseEvent(obj);
-    // Should not throw, should fall back to string representation
     expect(result).toContain("data: ");
     expect(typeof result).toBe("string");
   });
 
   it("handles BigInt gracefully", () => {
     const result = sseEvent({ value: BigInt(123) as unknown });
-    // Should not throw
     expect(result).toContain("data: ");
     expect(typeof result).toBe("string");
   });
 
   it("handles undefined gracefully", () => {
     const result = sseEvent(undefined);
-    // JSON.stringify(undefined) returns undefined (not a string),
-    // but our safe wrapper falls back to String(undefined)
     expect(result).toContain("data: ");
     expect(typeof result).toBe("string");
   });
@@ -72,165 +66,75 @@ describe("sseEvent", () => {
   });
 });
 
-// ── Test message validation rules ─────────────────────────────────────────
+// ── Test message validation rules (session-based contract) ─────────────────
 
-type PriorMessage = { role: string; content: string };
-
-function validateMessages(
+function validateChatBody(
   body: unknown,
-): { ok: true; allMessages: PriorMessage[] } | { ok: false; error: string } {
+): { ok: true; sessionId: string | undefined; prompt: string } | { ok: false; error: string } {
   if (!body || typeof body !== "object") return { ok: false, error: "Invalid request body" };
   const obj = body as Record<string, unknown>;
-  const rawMessages = obj.messages;
 
-  if (!Array.isArray(rawMessages)) {
-    return { ok: false, error: "Invalid request: messages must be an array" };
+  const prompt = obj.prompt;
+  if (typeof prompt !== "string" || !prompt.trim()) {
+    return { ok: false, error: "Invalid request: prompt must be a non-empty string" };
   }
 
-  if (rawMessages.length === 0) {
-    return { ok: false, error: "No messages provided" };
-  }
-
-  const lastMsg = rawMessages[rawMessages.length - 1];
-  if (
-    !lastMsg ||
-    typeof lastMsg !== "object" ||
-    (lastMsg as PriorMessage).role !== "user" ||
-    !(lastMsg as PriorMessage).content?.trim()
-  ) {
-    return { ok: false, error: "Last message must be a non-empty user message." };
-  }
-
-  return { ok: true, allMessages: rawMessages as PriorMessage[] };
+  const sessionId = typeof obj.sessionId === "string" && obj.sessionId ? obj.sessionId : undefined;
+  return { ok: true, sessionId, prompt: prompt.trim() };
 }
 
-describe("validateMessages", () => {
-  it("accepts valid messages with user last", () => {
-    const result = validateMessages({
-      messages: [
-        { role: "user", content: "hello" },
-        { role: "assistant", content: "hi" },
-        { role: "user", content: "do something" },
-      ],
+describe("validateChatBody (session-based)", () => {
+  it("accepts valid body with sessionId and prompt", () => {
+    const result = validateChatBody({
+      sessionId: "abc-123",
+      prompt: "hello",
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.allMessages).toHaveLength(3);
-  });
-
-  it("rejects null/undefined body", () => {
-    expect(validateMessages(null).ok).toBe(false);
-    expect(validateMessages(undefined).ok).toBe(false);
-  });
-
-  it("rejects non-array messages", () => {
-    const result = validateMessages({ messages: "not an array" });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("array");
-  });
-
-  it("rejects messages as a plain object", () => {
-    const result = validateMessages({ messages: { role: "user", content: "hi" } });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("array");
-  });
-
-  it("rejects empty messages array", () => {
-    const result = validateMessages({ messages: [] });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("No messages");
-  });
-
-  it("rejects when last message is not user", () => {
-    const result = validateMessages({
-      messages: [{ role: "assistant", content: "hello" }],
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("user message");
-  });
-
-  it("rejects when last message role is missing", () => {
-    const result = validateMessages({
-      messages: [{ content: "hello" }],
-    });
-    expect(result.ok).toBe(false);
-  });
-
-  it("rejects when last message has empty content", () => {
-    const result = validateMessages({
-      messages: [{ role: "user", content: "" }],
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("non-empty");
-  });
-
-  it("rejects when last message has whitespace-only content", () => {
-    const result = validateMessages({
-      messages: [{ role: "user", content: "   " }],
-    });
-    expect(result.ok).toBe(false);
-  });
-
-  it("accepts single valid user message", () => {
-    const result = validateMessages({
-      messages: [{ role: "user", content: "hello" }],
-    });
-    expect(result.ok).toBe(true);
-  });
-});
-
-// ── Test buildInitialMessages logic ────────────────────────────────────────
-
-function buildInitialMessages(priorMessages: PriorMessage[]) {
-  const messages: Array<{ role: string; content: string; timestamp?: number }> = [];
-  for (const m of priorMessages) {
-    if (m.role === "user") {
-      messages.push({ role: "user", content: m.content, timestamp: Date.now() });
-    } else if (m.role === "assistant") {
-      // In production, fauxAssistantMessage is used instead.
-      // For testing, we just push a plain object to validate the filtering logic.
-      messages.push({ role: "assistant", content: m.content });
+    if (result.ok) {
+      expect(result.sessionId).toBe("abc-123");
+      expect(result.prompt).toBe("hello");
     }
-    // "tool" role messages are intentionally dropped — they're embedded in
-    // the assistant message content by serializeMessageForRequest.
-  }
-  return messages;
-}
-
-describe("buildInitialMessages", () => {
-  it("filters out non-user/non-assistant roles", () => {
-    const result = buildInitialMessages([
-      { role: "user", content: "hello" },
-      { role: "tool", content: '{"result": "ok"}' },
-      { role: "assistant", content: "done" },
-    ]);
-    expect(result).toHaveLength(2);
-    expect(result[0].role).toBe("user");
-    expect(result[1].role).toBe("assistant");
   });
 
-  it("only includes user timestamps", () => {
-    const result = buildInitialMessages([
-      { role: "user", content: "question" },
-      { role: "assistant", content: "answer" },
-      { role: "user", content: "follow-up" },
-    ]);
-    expect(result).toHaveLength(3);
-    expect(result[0].timestamp).toBeDefined();
-    expect(result[1].timestamp).toBeUndefined();
-    expect(result[2].timestamp).toBeDefined();
+  it("accepts body without sessionId (new session)", () => {
+    const result = validateChatBody({ prompt: "hello" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.sessionId).toBeUndefined();
+      expect(result.prompt).toBe("hello");
+    }
   });
 
-  it("handles empty array", () => {
-    const result = buildInitialMessages([]);
-    expect(result).toHaveLength(0);
+  it("rejects missing prompt", () => {
+    const result = validateChatBody({ sessionId: "abc-123" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("prompt");
   });
 
-  it("drops messages with only tool roles", () => {
-    const result = buildInitialMessages([
-      { role: "tool", content: "result" },
-      { role: "tool", content: "another" },
-    ]);
-    expect(result).toHaveLength(0);
+  it("rejects empty prompt string", () => {
+    const result = validateChatBody({ prompt: "" });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects whitespace-only prompt", () => {
+    const result = validateChatBody({ prompt: "   " });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects null body", () => {
+    const result = validateChatBody(null);
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects undefined body", () => {
+    const result = validateChatBody(undefined);
+    expect(result.ok).toBe(false);
+  });
+
+  it("strips empty string sessionId to undefined", () => {
+    const result = validateChatBody({ sessionId: "", prompt: "hello" });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.sessionId).toBeUndefined();
   });
 });
 
@@ -371,7 +275,152 @@ describe("parseToolUiResult", () => {
       details: null,
     };
     const { uiResult } = parseToolUiResult(result, false);
-    // null details should fall through to contentText
     expect(uiResult).toBe("text only");
+  });
+});
+
+// ── Test hydration of persisted AgentMessage[] to ChatMessage[] ────────────
+
+interface AgentMessageShape {
+  role: string;
+  content?: unknown;
+  toolCallId?: string;
+  toolName?: string;
+  isError?: boolean;
+  timestamp?: number;
+}
+
+function hydrateMessages(raw: unknown[]): unknown[] {
+  const result: unknown[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const m = item as AgentMessageShape;
+
+    if (m.role === "user") {
+      const text = extractTextContent(m.content);
+      result.push({
+        id: expect.any(String) as unknown,
+        role: "user",
+        textParts: text ? [text] : [],
+        toolInvocations: [],
+      });
+    } else if (m.role === "assistant") {
+      const blocks = Array.isArray(m.content) ? m.content : [];
+      const textParts: string[] = [];
+      const toolInvocations: unknown[] = [];
+      for (const block of blocks) {
+        if (!block || typeof block !== "object") continue;
+        const b = block as { type: string; text?: string; id?: string; name?: string; input?: unknown };
+        if (b.type === "text" && typeof b.text === "string") {
+          textParts.push(b.text);
+        } else if (b.type === "toolCall") {
+          toolInvocations.push({
+            toolCallId: b.id ?? expect.any(String),
+            toolName: b.name ?? "unknown",
+            args: b.input ?? {},
+            state: "done",
+          });
+        }
+      }
+      result.push({
+        id: expect.any(String) as unknown,
+        role: "assistant",
+        textParts,
+        toolInvocations,
+      });
+    }
+  }
+  return result;
+}
+
+function extractTextContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter(
+        (c): c is { type: string; text?: string } =>
+          typeof c === "object" && c !== null && (c as { type: string }).type === "text",
+      )
+      .map((c) => (typeof c.text === "string" ? c.text : ""))
+      .join("\n");
+  }
+  return "";
+}
+
+describe("hydrateMessages", () => {
+  it("converts user messages with string content", () => {
+    const raw = [{ role: "user", content: "hello world", timestamp: 123 }];
+    const result = hydrateMessages(raw) as Array<{ role: string; textParts: string[] }>;
+    expect(result).toHaveLength(1);
+    expect(result[0].role).toBe("user");
+    expect(result[0].textParts).toEqual(["hello world"]);
+  });
+
+  it("converts user messages with content blocks", () => {
+    const raw = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "line 1" },
+          { type: "text", text: "line 2" },
+        ],
+      },
+    ];
+    const result = hydrateMessages(raw) as Array<{ role: string; textParts: string[] }>;
+    expect(result).toHaveLength(1);
+    expect(result[0].role).toBe("user");
+    expect(result[0].textParts).toEqual(["line 1\nline 2"]);
+  });
+
+  it("converts assistant messages with text and tool calls", () => {
+    const raw = [
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Let me check." },
+          { type: "toolCall", id: "call-1", name: "readState", input: {} },
+          { type: "text", text: "Done." },
+        ],
+      },
+    ];
+    const result = hydrateMessages(raw) as Array<{
+      role: string;
+      textParts: string[];
+      toolInvocations: unknown[];
+    }>;
+    expect(result).toHaveLength(1);
+    expect(result[0].role).toBe("assistant");
+    expect(result[0].textParts).toEqual(["Let me check.", "Done."]);
+    expect(result[0].toolInvocations).toHaveLength(1);
+    expect((result[0].toolInvocations[0] as { toolName: string }).toolName).toBe("readState");
+  });
+
+  it("skips unknown message types", () => {
+    const raw = [{ role: "custom", content: "ignored" }];
+    const result = hydrateMessages(raw);
+    expect(result).toHaveLength(0);
+  });
+
+  it("handles empty array", () => {
+    expect(hydrateMessages([])).toHaveLength(0);
+  });
+
+  it("handles non-array content on user message", () => {
+    const raw = [{ role: "user", content: undefined }];
+    const result = hydrateMessages(raw) as Array<{ role: string; textParts: string[] }>;
+    expect(result).toHaveLength(1);
+    expect(result[0].textParts).toEqual([]);
+  });
+
+  it("handles assistant with empty content", () => {
+    const raw = [{ role: "assistant", content: [] }];
+    const result = hydrateMessages(raw) as Array<{
+      role: string;
+      textParts: string[];
+      toolInvocations: unknown[];
+    }>;
+    expect(result).toHaveLength(1);
+    expect(result[0].textParts).toEqual([]);
+    expect(result[0].toolInvocations).toEqual([]);
   });
 });
