@@ -22,6 +22,10 @@ function PrStatusBadges({ prompt }: { prompt: Prompt }) {
   // Nothing to show yet — poll hasn't run or all fields unavailable
   if (!hasCi && !hasReviews && !hasConflicts) return null;
 
+  const ciBlocking = hasCi && ci !== "pass" ? ci : null;
+  const blockingReviewCount = hasReviews && reviewCount > 1 ? reviewCount : null;
+  const conflictsBlocking = hasConflicts && conflicts === true;
+  const hasBlockers = !!ciBlocking || blockingReviewCount !== null || conflictsBlocking;
   const allGreen =
     hasCi &&
     ci === "pass" &&
@@ -29,6 +33,8 @@ function PrStatusBadges({ prompt }: { prompt: Prompt }) {
     reviewCount === 0 &&
     hasConflicts &&
     conflicts === false;
+
+  if (!hasBlockers && !allGreen) return null;
 
   return (
     <span
@@ -38,44 +44,30 @@ function PrStatusBadges({ prompt }: { prompt: Prompt }) {
     >
       {allGreen ? (
         <Tooltip content="PR ready — CI passing, no reviews, no conflicts">
-          <span className="pr-badge green">
-            <Check size={10} />
+          <span className="pr-badge pr-badge-ready green">
+            <Check size={12} />
           </span>
         </Tooltip>
       ) : (
         <>
-          {hasCi && (
-            <Tooltip
-              content={ci === "pass" ? "CI passing" : ci === "fail" ? "CI failing" : "CI pending"}
-            >
-              <span
-                className={`pr-badge ${ci === "pass" ? "green" : ci === "fail" ? "red" : "amber"}`}
-              >
+          {ciBlocking && (
+            <Tooltip content={ciBlocking === "fail" ? "CI failing" : "CI pending"}>
+              <span className={`pr-badge ${ciBlocking === "fail" ? "red" : "amber"}`}>
                 <span className="pr-badge-dot" />
               </span>
             </Tooltip>
           )}
-          {hasReviews && (
+          {blockingReviewCount !== null && (
             <Tooltip
-              content={
-                reviewCount === 0
-                  ? "No review comments"
-                  : `${reviewCount} review comment${reviewCount === 1 ? "" : "s"}`
-              }
+              content={`${blockingReviewCount} review comment${blockingReviewCount === 1 ? "" : "s"}`}
             >
-              <span className={`pr-badge ${reviewCount === 0 ? "green" : "amber"}`}>
-                {reviewCount !== null && reviewCount > 0 ? (
-                  reviewCount
-                ) : (
-                  <span className="pr-badge-dot" />
-                )}
-              </span>
+              <span className="pr-badge amber">{blockingReviewCount}</span>
             </Tooltip>
           )}
-          {hasConflicts && (
-            <Tooltip content={conflicts === false ? "No merge conflicts" : "Merge conflicts"}>
-              <span className={`pr-badge ${conflicts === false ? "green" : "red"}`}>
-                {conflicts ? <AlertCircle size={10} /> : <span className="pr-badge-dot" />}
+          {conflictsBlocking && (
+            <Tooltip content="Merge conflicts">
+              <span className="pr-badge red">
+                <AlertCircle size={10} />
               </span>
             </Tooltip>
           )}
@@ -292,17 +284,20 @@ export function Card({
               </Tooltip>
             )}
             {prompt.column === "REVIEW" && prompt.prUrl && (
-              <Tooltip content="Open pull request">
-                <a
-                  href={prompt.prUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="icon-btn"
-                  aria-label="Open pull request"
-                >
-                  <GitBranch size={14} />
-                </a>
-              </Tooltip>
+              <>
+                <Tooltip content="Open pull request">
+                  <a
+                    href={prompt.prUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="icon-btn"
+                    aria-label="Open pull request"
+                  >
+                    <GitBranch size={14} />
+                  </a>
+                </Tooltip>
+                <PrStatusBadges prompt={prompt} />
+              </>
             )}
           </div>
           <div className="card-actions-group">
@@ -436,11 +431,6 @@ export function Card({
             </Tooltip>
           </div>
         </div>
-        {prompt.column === "REVIEW" && (
-          <div className="card-meta">
-            <PrStatusBadges prompt={prompt} />
-          </div>
-        )}
       </div>
     </div>
   );
