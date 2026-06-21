@@ -48,11 +48,7 @@ import ProjectPicker from "./ProjectPicker.js";
 import { LocalImageAttachment } from "./PromptMedia.js";
 import Tooltip from "./Tooltip.js";
 
-function AgentSidebarEntry(props: {
-  active: boolean;
-  onClick: () => void;
-  collapsed: boolean;
-}) {
+function AgentSidebarEntry(props: { active: boolean; onClick: () => void; collapsed: boolean }) {
   return (
     <div className="agent-sidebar-entry">
       <button
