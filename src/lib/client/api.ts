@@ -39,3 +39,51 @@ export async function api<T = unknown>(url: string, init?: RequestInit): Promise
   }
   return json as T;
 }
+
+export interface AgentSessionResponse {
+  id: string;
+  messages: unknown[];
+}
+
+export async function getFractalAgentSession(sessionId: string): Promise<AgentSessionResponse> {
+  return api<AgentSessionResponse>(`/api/agent/sessions/${sessionId}`);
+}
+
+export interface FractalAgentChatStreamResult {
+  stream: ReadableStream<Uint8Array>;
+  sessionId: string;
+}
+
+export async function createFractalAgentChatStream({
+  sessionId,
+  prompt,
+  signal,
+}: {
+  sessionId: string | null;
+  prompt: string;
+  signal?: AbortSignal;
+}): Promise<FractalAgentChatStreamResult> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const token = remoteToken();
+  if (token) headers.authorization = `Bearer ${token}`;
+
+  const res = await fetch("/api/agent/chat", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ sessionId: sessionId ?? undefined, prompt }),
+    signal,
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+  }
+
+  // Read session ID from response header (set on first turn)
+  const newSessionId = res.headers.get("x-fractal-agent-session-id") ?? sessionId ?? "";
+
+  const body = res.body;
+  if (!body) throw new Error("No response body");
+
+  return { stream: body, sessionId: newSessionId };
+}

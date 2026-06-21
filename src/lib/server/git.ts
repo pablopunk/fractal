@@ -244,63 +244,73 @@ export async function getPrFullStatus(
   repoPath: string,
   prNumber: number,
 ): Promise<PrFullStatus | null> {
-  const { stdout } = await exec(
-    "gh",
-    [
-      "pr",
-      "view",
-      String(prNumber),
-      "--json",
-      "id,state,mergeable,statusCheckRollup,reviewDecision,mergedAt,closedAt",
-    ],
-    { cwd: repoPath, timeoutMs: 10000 },
-  );
-  const pr = JSON.parse(stdout) as {
-    id: string;
-    state: string;
-    mergeable: string;
-    statusCheckRollup?: Array<{ status?: string; conclusion?: string }>;
-    reviewDecision?: string | null;
-    mergedAt?: string | null;
-    closedAt?: string | null;
-  };
-
-  const validStates = ["OPEN", "CLOSED", "MERGED"];
-  const state = validStates.includes(pr.state) ? (pr.state as PrFullStatus["state"]) : "OPEN";
-  const mergeableMap: Record<string, PrFullStatus["mergeable"]> = {
-    MERGEABLE: "MERGEABLE",
-    CONFLICTING: "CONFLICTING",
-    UNKNOWN: "UNKNOWN",
-  };
-
-  const unresolvedReviewCommentCount = await getUnresolvedReviewCommentCount(repoPath, pr.id);
-
-  // Derive CI status from statusCheckRollup
-  let ciStatus: PrFullStatus["ciStatus"] = null;
-  if (Array.isArray(pr.statusCheckRollup) && pr.statusCheckRollup.length > 0) {
-    const hasFail = pr.statusCheckRollup.some(
-      (c) => c.conclusion === "FAILURE" || c.conclusion === "ERROR" || c.conclusion === "CANCELLED",
-    );
-    const hasPending = pr.statusCheckRollup.some(
-      (c) => !c.conclusion && c.status != null && c.status !== "COMPLETED",
-    );
-    if (hasFail) {
-      ciStatus = "fail";
-    } else if (hasPending) {
-      ciStatus = "pending";
-    } else {
-      ciStatus = "pass";
-    }
+  if (!(await isGhAuthenticated())) {
+    throw new Error("GitHub CLI (gh) is not authenticated. Run 'gh auth login' to get started.");
   }
 
-  return {
-    state,
-    mergeable: mergeableMap[pr.mergeable] ?? "UNKNOWN",
-    ciStatus,
-    unresolvedReviewCommentCount,
-    mergedAt: pr.mergedAt ?? null,
-    closedAt: pr.closedAt ?? null,
-  };
+  try {
+    const { stdout } = await exec(
+      "gh",
+      [
+        "pr",
+        "view",
+        String(prNumber),
+        "--json",
+        "id,state,mergeable,statusCheckRollup,reviewDecision,mergedAt,closedAt",
+      ],
+      { cwd: repoPath, timeoutMs: 10000 },
+    );
+    const pr = JSON.parse(stdout) as {
+      id: string;
+      state: string;
+      mergeable: string;
+      statusCheckRollup?: Array<{ status?: string | null; conclusion?: string | null }>;
+      reviewDecision?: string | null;
+      mergedAt?: string | null;
+      closedAt?: string | null;
+    };
+
+    const validStates = ["OPEN", "CLOSED", "MERGED"];
+    const state = validStates.includes(pr.state) ? (pr.state as PrFullStatus["state"]) : "OPEN";
+    const mergeableMap: Record<string, PrFullStatus["mergeable"]> = {
+      MERGEABLE: "MERGEABLE",
+      CONFLICTING: "CONFLICTING",
+      UNKNOWN: "UNKNOWN",
+    };
+
+    const unresolvedReviewCommentCount = await getUnresolvedReviewCommentCount(repoPath, pr.id);
+
+    let ciStatus: PrFullStatus["ciStatus"] = null;
+    if (Array.isArray(pr.statusCheckRollup) && pr.statusCheckRollup.length > 0) {
+      const hasFail = pr.statusCheckRollup.some(
+        (c) =>
+          c.conclusion === "FAILURE" || c.conclusion === "ERROR" || c.conclusion === "CANCELLED",
+      );
+      const hasPending = pr.statusCheckRollup.some(
+        (c) => !c.conclusion && c.status != null && c.status !== "COMPLETED",
+      );
+      if (hasFail) {
+        ciStatus = "fail";
+      } else if (hasPending) {
+        ciStatus = "pending";
+      } else {
+        ciStatus = "pass";
+      }
+    }
+
+    return {
+      state,
+      mergeable: mergeableMap[pr.mergeable] ?? "UNKNOWN",
+      ciStatus,
+      unresolvedReviewCommentCount,
+      mergedAt: pr.mergedAt ?? null,
+      closedAt: pr.closedAt ?? null,
+    };
+  } catch (err) {
+    const category = classifyGhError(err);
+    if (category === "pr-not-found") return null;
+    throw err;
+  }
 }
 
 export async function createPullRequest(
