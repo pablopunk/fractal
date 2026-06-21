@@ -1,8 +1,5 @@
 import type { APIRoute } from "astro";
-import {
-  evictSession,
-  getSessionMessages,
-} from "~/lib/server/fractal-agent-runtime.js";
+import { evictSession, getSessionMessages } from "~/lib/server/fractal-agent-runtime.js";
 
 export const prerender = false;
 

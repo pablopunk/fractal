@@ -60,7 +60,13 @@ function hydrateMessages(raw: unknown[]): ChatMessage[] {
       const toolInvocations: ToolInvocation[] = [];
       for (const block of blocks) {
         if (!block || typeof block !== "object") continue;
-        const b = block as { type: string; text?: string; id?: string; name?: string; input?: unknown };
+        const b = block as {
+          type: string;
+          text?: string;
+          id?: string;
+          name?: string;
+          input?: unknown;
+        };
         if (b.type === "text" && typeof b.text === "string") {
           textParts.push(b.text);
         } else if (b.type === "toolCall") {

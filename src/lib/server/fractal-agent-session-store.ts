@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "./db/client.js";
-import { agentSessions, type AgentSession, type NewAgentSession } from "./db/schema.js";
+import { type AgentSession, agentSessions, type NewAgentSession } from "./db/schema.js";
 
 export type { AgentSession };
 
@@ -8,10 +8,7 @@ function now(): Date {
   return new Date();
 }
 
-export async function createSession(
-  provider: string,
-  modelId: string,
-): Promise<AgentSession> {
+export async function createSession(provider: string, modelId: string): Promise<AgentSession> {
   const db = getDb();
   const id = crypto.randomUUID();
   const ts = now();
@@ -27,22 +24,13 @@ export async function createSession(
   return { ...row, messagesJson: "[]" } as AgentSession;
 }
 
-export async function getSession(
-  id: string,
-): Promise<AgentSession | undefined> {
+export async function getSession(id: string): Promise<AgentSession | undefined> {
   const db = getDb();
-  const rows = await db
-    .select()
-    .from(agentSessions)
-    .where(eq(agentSessions.id, id))
-    .limit(1);
+  const rows = await db.select().from(agentSessions).where(eq(agentSessions.id, id)).limit(1);
   return rows[0];
 }
 
-export async function updateSessionMessages(
-  id: string,
-  messagesJson: string,
-): Promise<void> {
+export async function updateSessionMessages(id: string, messagesJson: string): Promise<void> {
   const db = getDb();
   await db
     .update(agentSessions)

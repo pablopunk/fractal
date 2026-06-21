@@ -3,7 +3,7 @@ import { Agent } from "@earendil-works/pi-agent-core";
 import { type Model, streamSimple } from "@earendil-works/pi-ai";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import type { FractalAgentProvider } from "../agent-providers.js";
-import { AGENT_TOOLS, withAgentToolBaseUrl } from "./agent-tools.js";
+import { AGENT_TOOLS } from "./agent-tools.js";
 import {
   createSession,
   deleteSession,
@@ -100,7 +100,6 @@ function createAgent(
   piModel: Model<any>,
   messages: AgentMessage[] = [],
 ): Agent {
-
   const agent = new Agent({
     initialState: {
       systemPrompt: SYSTEM_PROMPT,
@@ -197,9 +196,7 @@ export async function persistSession(sessionId: string): Promise<void> {
   await updateSessionMessages(sessionId, messagesJson);
 }
 
-export async function getSessionMessages(
-  sessionId: string,
-): Promise<AgentMessage[] | null> {
+export async function getSessionMessages(sessionId: string): Promise<AgentMessage[] | null> {
   const cached = runtimeCache.get(sessionId);
   if (cached) {
     return cached.agent.state.messages;

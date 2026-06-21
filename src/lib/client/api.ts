@@ -45,9 +45,7 @@ export interface AgentSessionResponse {
   messages: unknown[];
 }
 
-export async function getFractalAgentSession(
-  sessionId: string,
-): Promise<AgentSessionResponse> {
+export async function getFractalAgentSession(sessionId: string): Promise<AgentSessionResponse> {
   return api<AgentSessionResponse>(`/api/agent/sessions/${sessionId}`);
 }
 
@@ -78,14 +76,11 @@ export async function createFractalAgentChatStream({
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(
-      (data as { error?: string }).error || `HTTP ${res.status}`,
-    );
+    throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
   }
 
   // Read session ID from response header (set on first turn)
-  const newSessionId =
-    res.headers.get("x-fractal-agent-session-id") ?? sessionId ?? "";
+  const newSessionId = res.headers.get("x-fractal-agent-session-id") ?? sessionId ?? "";
 
   const body = res.body;
   if (!body) throw new Error("No response body");
