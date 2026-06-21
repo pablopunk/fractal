@@ -31,8 +31,20 @@ Use readState for an overview. Then act through the other tools to create projec
 
 // ── SSE helpers ───────────────────────────────────────────────────────────
 
+function safeJsonStringify(data: unknown): string {
+  try {
+    return JSON.stringify(data);
+  } catch {
+    try {
+      return JSON.stringify(String(data));
+    } catch {
+      return '"<unserializable>"';
+    }
+  }
+}
+
 function sseEvent(data: unknown): string {
-  return `data: ${JSON.stringify(data)}\n\n`;
+  return `data: ${safeJsonStringify(data)}\n\n`;
 }
 
 // ── Pi auth/model resolution ───────────────────────────────────────────────
@@ -169,65 +181,81 @@ async function prepareAgent(
   let turnCount = 0;
 
   agent.subscribe(async (event) => {
-    switch (event.type) {
-      case "turn_start": {
-        turnCount++;
-        if (turnCount > MAX_TURNS) {
-          agent.abort();
+    try {
+      switch (event.type) {
+        case "turn_start": {
+          turnCount++;
+          if (turnCount > MAX_TURNS) {
+            agent.abort();
+            enqueue({
+              type: "error",
+              message: `Agent reached the maximum number of turns (${MAX_TURNS}).`,
+            });
+          }
+          break;
+        }
+        case "message_update": {
+          const rawEvent = event.assistantMessageEvent;
+          if (rawEvent?.type === "text_delta") {
+            enqueue({ type: "text_delta", content: rawEvent.delta });
+          }
+          break;
+        }
+        case "tool_execution_start": {
           enqueue({
-            type: "error",
-            message: `Agent reached the maximum number of turns (${MAX_TURNS}).`,
+            type: "tool_start",
+            toolCallId: event.toolCallId,
+            name: event.toolName,
+            args: event.args,
           });
+          break;
         }
-        break;
-      }
-      case "message_update": {
-        const rawEvent = event.assistantMessageEvent;
-        if (rawEvent.type === "text_delta") {
-          enqueue({ type: "text_delta", content: rawEvent.delta });
+        case "tool_execution_end": {
+          // Combine content and details into a single UI result.
+          // Some tools put useful data in content, others only in details.
+          const result = event.result;
+          const resultContent: unknown[] =
+            result && typeof result === "object" && "content" in result
+              ? ((result as { content: unknown[] }).content ?? [])
+              : [];
+          const textItems = (Array.isArray(resultContent) ? resultContent : [])
+            .filter(
+              (c): c is { type: string; text?: string } =>
+                typeof c === "object" && c !== null && (c as { type: unknown }).type === "text",
+            )
+            .map((c) => (typeof c.text === "string" ? c.text : ""))
+            .filter(Boolean);
+          const contentText = textItems.length > 0 ? textItems.join("\n") : null;
+          const details =
+            result && typeof result === "object" && "details" in result
+              ? (result as { details: unknown }).details
+              : undefined;
+          const hasUsefulDetails =
+            details != null &&
+            !(typeof details === "object" && Object.keys(details as object).length === 0);
+
+          let uiResult: unknown = hasUsefulDetails ? details : contentText;
+          if (event.isError && contentText) uiResult = contentText;
+          if (uiResult == null) uiResult = event.isError ? "Tool execution failed" : null;
+
+          enqueue({
+            type: "tool_end",
+            toolCallId: event.toolCallId,
+            name: event.toolName,
+            result: uiResult,
+            isError: event.isError,
+          });
+          break;
         }
-        break;
+        case "agent_end": {
+          enqueue({ type: "done" });
+          break;
+        }
       }
-      case "tool_execution_start": {
-        enqueue({
-          type: "tool_start",
-          toolCallId: event.toolCallId,
-          name: event.toolName,
-          args: event.args,
-        });
-        break;
-      }
-      case "tool_execution_end": {
-        // Combine content and details into a single UI result.
-        // Some tools put useful data in content, others only in details.
-        const result = event.result;
-        const textItems = ((result.content ?? []) as { type: string; text?: string }[])
-          .filter((c) => c.type === "text")
-          .map((c) => c.text ?? "")
-          .filter(Boolean);
-        const contentText = textItems.length > 0 ? textItems.join("\n") : null;
-        const details = result.details;
-        const hasDetails =
-          details !== undefined &&
-          !(details && typeof details === "object" && Object.keys(details).length === 0);
-
-        let uiResult: unknown = hasDetails ? details : contentText;
-        if (event.isError && contentText) uiResult = contentText;
-        if (uiResult === undefined) uiResult = event.isError ? "Tool execution failed" : null;
-
-        enqueue({
-          type: "tool_end",
-          toolCallId: event.toolCallId,
-          name: event.toolName,
-          result: uiResult,
-          isError: event.isError,
-        });
-        break;
-      }
-      case "agent_end": {
-        enqueue({ type: "done" });
-        break;
-      }
+    } catch (err) {
+      // Prevent unhandled promise rejections from crashing the agent loop.
+      // The agent library does not wrap listener calls in try/catch.
+      console.error("[fractal-agent] subscribe callback error:", err);
     }
   });
 
@@ -259,17 +287,40 @@ export const POST: APIRoute = async ({ request }) => {
           messages?: PriorMessage[];
         };
 
-        const allMessages = body.messages ?? [];
+        const rawMessages = body.messages;
+        if (!Array.isArray(rawMessages)) {
+          enqueue({ type: "error", message: "Invalid request: messages must be an array" });
+          try {
+            controller.close();
+          } catch {
+            /* may already be closed */
+          }
+          return;
+        }
+        const allMessages = rawMessages as PriorMessage[];
         if (allMessages.length === 0) {
           enqueue({ type: "error", message: "No messages provided" });
-          controller.close();
+          try {
+            controller.close();
+          } catch {
+            /* may already be closed */
+          }
           return;
         }
 
         const lastMsg = allMessages[allMessages.length - 1];
-        if (lastMsg.role !== "user" || !lastMsg.content?.trim()) {
+        if (
+          !lastMsg ||
+          typeof lastMsg !== "object" ||
+          lastMsg.role !== "user" ||
+          !lastMsg.content?.trim()
+        ) {
           enqueue({ type: "error", message: "Last message must be a non-empty user message." });
-          controller.close();
+          try {
+            controller.close();
+          } catch {
+            /* may already be closed */
+          }
           return;
         }
 
