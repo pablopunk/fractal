@@ -993,6 +993,7 @@ export default function Board() {
   }
 
   async function deletePrompt(id: string, force = false) {
+    if (!force && !confirm("Remove this card from Fractal?")) return;
     try {
       await api(`/api/prompts/${id}`, {
         method: "DELETE",
