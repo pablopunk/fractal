@@ -1715,6 +1715,13 @@ html[data-glass="true"] .column.column-compact {
   border-color: var(--success);
   color: var(--success);
 }
+.pr-badge-ready {
+  min-width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
 
 .pr-badge.green .pr-badge-dot {
   background: var(--success);

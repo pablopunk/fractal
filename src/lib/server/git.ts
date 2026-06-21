@@ -183,7 +183,7 @@ export type PrFullStatus = {
   state: "OPEN" | "CLOSED" | "MERGED";
   mergeable: "MERGEABLE" | "CONFLICTING" | "UNKNOWN";
   ciStatus: "pass" | "fail" | "pending" | null;
-  reviewCommentCount: number;
+  unresolvedReviewCommentCount: number;
   mergedAt: string | null;
   closedAt: string | null;
 };
@@ -204,6 +204,42 @@ export function classifyGhError(err: unknown): GhErrorCategory {
   return "unknown";
 }
 
+async function getUnresolvedReviewCommentCount(repoPath: string, prId: string): Promise<number> {
+  let cursor: string | null = null;
+  let count = 0;
+
+  do {
+    const args = [
+      "api",
+      "graphql",
+      "-f",
+      "query=query($id: ID!, $cursor: String) { node(id: $id) { ... on PullRequest { reviewThreads(first: 100, after: $cursor) { nodes { isResolved comments(first: 1) { totalCount } } pageInfo { hasNextPage endCursor } } } } }",
+      "-F",
+      `id=${prId}`,
+    ];
+    if (cursor) args.push("-F", `cursor=${cursor}`);
+
+    const { stdout } = await exec("gh", args, { cwd: repoPath, timeoutMs: 10000 });
+    const result = JSON.parse(stdout) as {
+      data?: {
+        node?: {
+          reviewThreads?: {
+            nodes?: Array<{ isResolved?: boolean; comments?: { totalCount?: number } }>;
+            pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+          };
+        };
+      };
+    };
+    const threads = result.data?.node?.reviewThreads;
+    for (const thread of threads?.nodes ?? []) {
+      if (!thread.isResolved) count += thread.comments?.totalCount ?? 0;
+    }
+    cursor = threads?.pageInfo?.hasNextPage ? (threads.pageInfo.endCursor ?? null) : null;
+  } while (cursor);
+
+  return count;
+}
+
 export async function getPrFullStatus(
   repoPath: string,
   prNumber: number,
@@ -215,16 +251,16 @@ export async function getPrFullStatus(
       "view",
       String(prNumber),
       "--json",
-      "state,mergeable,statusCheckRollup,reviewDecision,reviews,mergedAt,closedAt",
+      "id,state,mergeable,statusCheckRollup,reviewDecision,mergedAt,closedAt",
     ],
     { cwd: repoPath, timeoutMs: 10000 },
   );
   const pr = JSON.parse(stdout) as {
+    id: string;
     state: string;
     mergeable: string;
     statusCheckRollup?: Array<{ status?: string; conclusion?: string }>;
     reviewDecision?: string | null;
-    reviews?: Array<{ state?: string; body?: string }>;
     mergedAt?: string | null;
     closedAt?: string | null;
   };
@@ -237,11 +273,7 @@ export async function getPrFullStatus(
     UNKNOWN: "UNKNOWN",
   };
 
-  // Count review comments from reviews array
-  let reviewCommentCount = 0;
-  if (Array.isArray(pr.reviews)) {
-    reviewCommentCount = pr.reviews.length;
-  }
+  const unresolvedReviewCommentCount = await getUnresolvedReviewCommentCount(repoPath, pr.id);
 
   // Derive CI status from statusCheckRollup
   let ciStatus: PrFullStatus["ciStatus"] = null;
@@ -249,7 +281,9 @@ export async function getPrFullStatus(
     const hasFail = pr.statusCheckRollup.some(
       (c) => c.conclusion === "FAILURE" || c.conclusion === "ERROR" || c.conclusion === "CANCELLED",
     );
-    const hasPending = pr.statusCheckRollup.some((c) => !c.conclusion && c.status !== "COMPLETED");
+    const hasPending = pr.statusCheckRollup.some(
+      (c) => !c.conclusion && c.status != null && c.status !== "COMPLETED",
+    );
     if (hasFail) {
       ciStatus = "fail";
     } else if (hasPending) {
@@ -263,7 +297,7 @@ export async function getPrFullStatus(
     state,
     mergeable: mergeableMap[pr.mergeable] ?? "UNKNOWN",
     ciStatus,
-    reviewCommentCount,
+    unresolvedReviewCommentCount,
     mergedAt: pr.mergedAt ?? null,
     closedAt: pr.closedAt ?? null,
   };

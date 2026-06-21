@@ -11,7 +11,7 @@ import {
 import { getProject, listPrompts, updatePrompt } from "./store.js";
 import { killSession } from "./tmux.js";
 
-const FRACTAL_PR_POLL_MS = Number(process.env.FRACTAL_PR_POLL_MS) || 120_000;
+const FRACTAL_PR_POLL_MS = Number(process.env.FRACTAL_PR_POLL_MS) || 30_000;
 
 let started = false;
 let nextTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -150,7 +150,7 @@ async function pollReviewCards() {
       for (const { prompt } of group) {
         updatePrompt(prompt.id, {
           prCiStatus: status.ciStatus,
-          prReviewCount: status.reviewCommentCount,
+          prReviewCount: status.unresolvedReviewCommentCount,
           prHasConflicts: conflictVal,
         } as never);
       }
