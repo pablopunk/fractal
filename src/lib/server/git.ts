@@ -158,9 +158,7 @@ export async function getPrDetails(
   branch: string,
 ): Promise<{ number: number; url: string } | null> {
   if (!(await isGhAuthenticated())) {
-    throw new Error(
-      "GitHub CLI (gh) is not authenticated. Run 'gh auth login' to get started.",
-    );
+    throw new Error("GitHub CLI (gh) is not authenticated. Run 'gh auth login' to get started.");
   }
 
   try {
