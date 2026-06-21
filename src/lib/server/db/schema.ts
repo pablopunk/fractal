@@ -54,9 +54,20 @@ export const settings = sqliteTable("settings", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+export const agentSessions = sqliteTable("agent_sessions", {
+  id: text("id").primaryKey(),
+  provider: text("provider").notNull(),
+  modelId: text("model_id").notNull(),
+  messagesJson: text("messages_json").notNull().default("[]"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export type Project = typeof projects.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
 export type Setting = typeof settings.$inferSelect;
+export type AgentSession = typeof agentSessions.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type NewPrompt = typeof prompts.$inferInsert;
 export type NewSetting = typeof settings.$inferInsert;
+export type NewAgentSession = typeof agentSessions.$inferInsert;

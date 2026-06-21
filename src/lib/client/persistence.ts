@@ -18,6 +18,20 @@ export const BOARD_LAYOUT_KEY = "fractal:boardLayout";
 export const LAST_PROJECT_ID_KEY = "fractal:lastProjectId";
 export const LAST_TERMINAL_BY_PROJECT_KEY = "fractal:lastTerminalByProject";
 export const UI_STATE_KEY = "fractal:uiState";
+const FRACTAL_AGENT_SESSION_ID_KEY = "fractal:agentSessionId";
+
+export function getFractalAgentSessionId(): string | null {
+  return storageGet(FRACTAL_AGENT_SESSION_ID_KEY);
+}
+
+export function setFractalAgentSessionId(id: string): void {
+  storageSet(FRACTAL_AGENT_SESSION_ID_KEY, id);
+}
+
+export function clearFractalAgentSessionId(): void {
+  storageRemove(FRACTAL_AGENT_SESSION_ID_KEY);
+}
+
 export type ThemeMode = "system" | "light" | "dark";
 export type GlassSettings = { enabled: boolean; opacity: number; blur: number; version?: number };
 export type TerminalThemeName = "fractal" | "catppuccin" | "tokyo-night" | "solarized";
