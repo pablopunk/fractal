@@ -1,0 +1,9 @@
+allowBuilds:
+  '@google/genai': false
+  better-sqlite3: false
+  electron: false
+  electron-winstaller: false
+  esbuild: false
+  node-pty: false
+  protobufjs: false
+  sharp: false
