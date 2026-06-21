@@ -1398,6 +1398,7 @@ export default function Board() {
       });
       setProjects((p) => p.map((x) => (x.id === project.id ? project : x)));
       if (!keepOpen) setProjectSettingsOpen(false);
+      return project;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }

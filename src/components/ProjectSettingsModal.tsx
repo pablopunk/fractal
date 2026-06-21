@@ -7,7 +7,7 @@ export default function ProjectSettingsModal(props: {
   project: Project;
   presets: AgentPreset[];
   onClose: () => void;
-  onSave: (patch: Record<string, unknown>, keepOpen?: boolean) => Promise<void>;
+  onSave: (patch: Record<string, unknown>, keepOpen?: boolean) => Promise<Project | void>;
 }) {
   const [defaultPresetId, setDefaultPresetId] = useState(props.project.defaultPresetId ?? "");
   const [githubRepo, setGithubRepo] = useState(props.project.githubRepo ?? "");
@@ -24,7 +24,12 @@ export default function ProjectSettingsModal(props: {
 
   function detectGithub() {
     setDetectingGithub(true);
-    void props.onSave({ detectGithub: true }, true).finally(() => setDetectingGithub(false));
+    void props
+      .onSave({ detectGithub: true }, true)
+      .then((project) => {
+        if (project) setGithubRepo(project.githubRepo ?? "");
+      })
+      .finally(() => setDetectingGithub(false));
   }
 
   return (
