@@ -289,28 +289,34 @@ export default function Board() {
     () => boardCompact || COLUMNS.every((col) => collapsed[col.id]),
     [boardCompact, collapsed, COLUMNS],
   );
-  const tabBelongsToProject = (tab: TerminalTab, project: Project): boolean => {
-    if (tab.projectId) return tab.projectId === project.id;
-    if (tab.promptId === project.id) return true;
-    const prompt = prompts.find((p) => p.id === tab.promptId);
-    if (prompt) return prompt.projectId === project.id;
-    return tab.cwd === project.path;
-  };
+  const tabBelongsToProject = useCallback(
+    (tab: TerminalTab, project: Project): boolean => {
+      if (tab.projectId) return tab.projectId === project.id;
+      if (tab.promptId === project.id) return true;
+      const prompt = prompts.find((p) => p.id === tab.promptId);
+      if (prompt) return prompt.projectId === project.id;
+      return tab.cwd === project.path;
+    },
+    [prompts],
+  );
   const filteredTerminalTabs = useMemo(() => {
     if (!activeProject) return [];
     return terminalTabs.filter((tab) => tabBelongsToProject(tab, activeProject));
   }, [activeProject, terminalTabs, tabBelongsToProject]);
-  const decorateTerminalTab = (tab: TerminalTab): DecoratedTerminalTab => {
-    const prompt = prompts.find((p) => p.id === tab.promptId);
-    const label = prompt?.summary?.trim() || prompt?.text?.trim();
-    const accent =
-      prompt?.column === "RUN_IN_PLACE"
-        ? "in-place"
-        : prompt?.column === "RUN_IN_WORKTREE"
-          ? "worktree"
-          : undefined;
-    return { ...tab, title: label ? truncate(label, 80) : tab.title, accent };
-  };
+  const decorateTerminalTab = useCallback(
+    (tab: TerminalTab): DecoratedTerminalTab => {
+      const prompt = prompts.find((p) => p.id === tab.promptId);
+      const label = prompt?.summary?.trim() || prompt?.text?.trim();
+      const accent =
+        prompt?.column === "RUN_IN_PLACE"
+          ? "in-place"
+          : prompt?.column === "RUN_IN_WORKTREE"
+            ? "worktree"
+            : undefined;
+      return { ...tab, title: label ? truncate(label, 80) : tab.title, accent };
+    },
+    [prompts],
+  );
   const terminalPaneTabs = useMemo(
     () => filteredTerminalTabs.map(decorateTerminalTab),
     [filteredTerminalTabs, decorateTerminalTab],
@@ -364,26 +370,32 @@ export default function Board() {
     theme,
   ]);
 
-  function rememberCommandRecent(kind: CommandRecent["kind"], id: string) {
+  const rememberCommandRecent = useCallback((kind: CommandRecent["kind"], id: string) => {
     setCommandRecents((items) =>
       [
         { kind, id, at: Date.now() },
         ...items.filter((item) => item.kind !== kind || item.id !== id),
       ].slice(0, 20),
     );
-  }
+  }, []);
 
-  function selectProject(id: string) {
-    setActiveView({ kind: "project", id });
-    setSidebarOpen(false);
-    rememberCommandRecent("project", id);
-  }
+  const selectProject = useCallback(
+    (id: string) => {
+      setActiveView({ kind: "project", id });
+      setSidebarOpen(false);
+      rememberCommandRecent("project", id);
+    },
+    [rememberCommandRecent],
+  );
 
-  const activateTerminal = (id: string) => {
-    setActiveTerminalId(id);
-    setTerminalFocusKey((key) => key + 1);
-    rememberCommandRecent("tab", id);
-  };
+  const activateTerminal = useCallback(
+    (id: string) => {
+      setActiveTerminalId(id);
+      setTerminalFocusKey((key) => key + 1);
+      rememberCommandRecent("tab", id);
+    },
+    [rememberCommandRecent],
+  );
 
   const selectProjectTab = (projectId: string, tabId: string) => {
     if (activeView && activeView.id !== projectId) {
@@ -393,32 +405,35 @@ export default function Board() {
     setSidebarOpen(false);
   };
 
-  function applyUiState(uiState: UiState) {
-    const normalized = normalizeUiState(uiState);
-    const projectId = getProjectIdFromUrl() ?? (normalized.lastProjectId || activeProjectId);
-    const nextCollapsed =
-      normalized.collapsedColumns[projectId || "global"] ?? normalized.collapsedColumns.global;
-    setSidebarWidth(normalized.sidebarWidth);
-    pendingCollapsedProjectId.current = projectId;
-    pendingCollapsedValue.current = nextCollapsed;
-    setCollapsed(nextCollapsed);
-    setTerminalTabs(normalized.terminalTabs);
-    setActiveTerminalId(normalized.activeTerminalTabId);
-    setLastTerminalByProject(normalized.lastTerminalByProject);
-    setTerminalWidth(normalized.terminalWidth);
-    setTerminalHeight(normalized.terminalHeight);
-    setTerminalPosition(normalized.terminalPosition);
-    setTheme(normalized.theme);
-    setTerminalThemeName(normalized.terminalTheme);
-    setGlassSettings(normalized.glassSettings);
-    setCommandRecents(normalized.commandRecents);
-    setBoardLayout(normalized.boardLayout);
-    if (!getProjectIdFromUrl() && normalized.lastProjectId) {
-      setActiveView(
-        normalized.lastProjectId ? { kind: "project", id: normalized.lastProjectId } : null,
-      );
-    }
-  }
+  const applyUiState = useCallback(
+    (uiState: UiState) => {
+      const normalized = normalizeUiState(uiState);
+      const projectId = getProjectIdFromUrl() ?? (normalized.lastProjectId || activeProjectId);
+      const nextCollapsed =
+        normalized.collapsedColumns[projectId || "global"] ?? normalized.collapsedColumns.global;
+      setSidebarWidth(normalized.sidebarWidth);
+      pendingCollapsedProjectId.current = projectId;
+      pendingCollapsedValue.current = nextCollapsed;
+      setCollapsed(nextCollapsed);
+      setTerminalTabs(normalized.terminalTabs);
+      setActiveTerminalId(normalized.activeTerminalTabId);
+      setLastTerminalByProject(normalized.lastTerminalByProject);
+      setTerminalWidth(normalized.terminalWidth);
+      setTerminalHeight(normalized.terminalHeight);
+      setTerminalPosition(normalized.terminalPosition);
+      setTheme(normalized.theme);
+      setTerminalThemeName(normalized.terminalTheme);
+      setGlassSettings(normalized.glassSettings);
+      setCommandRecents(normalized.commandRecents);
+      setBoardLayout(normalized.boardLayout);
+      if (!getProjectIdFromUrl() && normalized.lastProjectId) {
+        setActiveView(
+          normalized.lastProjectId ? { kind: "project", id: normalized.lastProjectId } : null,
+        );
+      }
+    },
+    [activeProjectId],
+  );
 
   const resizeSidebar = (width: number) => {
     saveSidebarWidth(width);
@@ -620,6 +635,44 @@ export default function Board() {
         : (filteredTerminalTabs[0]?.id ?? null);
     if (restored !== activeTerminalId) setActiveTerminalId(restored);
   }, [activeProject, activeTerminalId, filteredTerminalTabs, lastTerminalByProject]);
+
+  const openProjectTerminal = useCallback(
+    async (project: Project) => {
+      if (isOpeningProjectTerminal) return;
+      setIsOpeningProjectTerminal(true);
+      try {
+        const { session, title } = await api<{ session: string; title: string }>(
+          `/api/projects/${project.id}/terminal`,
+          { method: "POST" },
+        );
+        const existing = terminalTabs.find((tab) => tab.id === session);
+        if (existing) {
+          if (!existing.cwd) {
+            setTerminalTabs((tabs) =>
+              tabs.map((tab) => (tab.id === existing.id ? { ...tab, cwd: project.path } : tab)),
+            );
+          }
+          activateTerminal(existing.id);
+          return;
+        }
+        const tab: TerminalTab = {
+          id: session,
+          promptId: project.id,
+          projectId: project.id,
+          session,
+          title,
+          cwd: project.path,
+        };
+        setTerminalTabs((tabs) => (tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]));
+        activateTerminal(tab.id);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setIsOpeningProjectTerminal(false);
+      }
+    },
+    [activateTerminal, isOpeningProjectTerminal, terminalTabs],
+  );
 
   useEffect(() => {
     const updateProjectShortcuts = (event: KeyboardEvent | MouseEvent | FocusEvent) => {
@@ -830,7 +883,7 @@ export default function Board() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [applyUiState]);
 
   useEffect(() => {
     void refresh();
@@ -854,41 +907,6 @@ export default function Board() {
       setShowSidebarPicker(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  async function openProjectTerminal(project: Project) {
-    if (isOpeningProjectTerminal) return;
-    setIsOpeningProjectTerminal(true);
-    try {
-      const { session, title } = await api<{ session: string; title: string }>(
-        `/api/projects/${project.id}/terminal`,
-        { method: "POST" },
-      );
-      const existing = terminalTabs.find((tab) => tab.id === session);
-      if (existing) {
-        if (!existing.cwd) {
-          setTerminalTabs((tabs) =>
-            tabs.map((tab) => (tab.id === existing.id ? { ...tab, cwd: project.path } : tab)),
-          );
-        }
-        activateTerminal(existing.id);
-        return;
-      }
-      const tab: TerminalTab = {
-        id: session,
-        promptId: project.id,
-        projectId: project.id,
-        session,
-        title,
-        cwd: project.path,
-      };
-      setTerminalTabs((tabs) => (tabs.some((t) => t.id === tab.id) ? tabs : [...tabs, tab]));
-      activateTerminal(tab.id);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIsOpeningProjectTerminal(false);
     }
   }
 
@@ -1409,18 +1427,22 @@ export default function Board() {
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
   }, []);
 
+  const activeIssueProjectId = activeProject?.id ?? null;
+  const activeIssueProjectGithubRepo = activeProject?.githubRepo ?? "";
+  const activeIssueProjectShowsLinear = activeProject?.showLinearIssues ?? false;
+
   const refreshIssues = useCallback(async () => {
-    if (!activeProject) return;
+    if (!activeIssueProjectId) return;
     setLoadingIssues(true);
     try {
       const [gh, li] = await Promise.all([
-        activeProject.githubRepo
-          ? api<{ issues: GithubIssue[] }>(`/api/projects/${activeProject.id}/github-issues`)
+        activeIssueProjectGithubRepo
+          ? api<{ issues: GithubIssue[] }>(`/api/projects/${activeIssueProjectId}/github-issues`)
               .then((d) => d.issues)
               .catch(() => [] as GithubIssue[])
           : Promise.resolve([] as GithubIssue[]),
-        activeProject.showLinearIssues
-          ? api<{ issues: LinearIssue[] }>(`/api/projects/${activeProject.id}/linear-issues`)
+        activeIssueProjectShowsLinear
+          ? api<{ issues: LinearIssue[] }>(`/api/projects/${activeIssueProjectId}/linear-issues`)
               .then((d) => d.issues)
               .catch(() => [] as LinearIssue[])
           : Promise.resolve([] as LinearIssue[]),
@@ -1431,17 +1453,17 @@ export default function Board() {
     } finally {
       setLoadingIssues(false);
     }
-  }, [activeProjectId, activeProject?.githubRepo, activeProject?.showLinearIssues]);
+  }, [activeIssueProjectId, activeIssueProjectGithubRepo, activeIssueProjectShowsLinear]);
 
   useEffect(() => {
-    if (!activeProject) {
+    if (!activeIssueProjectId) {
       setGithubIssues([]);
       setLinearIssues([]);
       setHiddenIssueIds(new Set());
       return;
     }
     void refreshIssues();
-  }, [activeProject?.id, activeProject?.githubRepo, activeProject?.showLinearIssues]);
+  }, [activeIssueProjectId, refreshIssues]);
 
   const linkedIssueRefs = useMemo(() => {
     const refs = new Set<string>();
