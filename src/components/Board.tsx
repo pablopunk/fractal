@@ -1714,14 +1714,6 @@ export default function Board() {
                           ? archivedPrompts
                           : projectPrompts.filter((p) => p.column === col.id);
                       const isIssueCol = col.id === "GITHUB" || col.id === "LINEAR";
-                      const colItemCount =
-                        col.id === "GITHUB"
-                          ? githubBoardIssues.length
-                          : col.id === "LINEAR"
-                            ? linearBoardIssues.length
-                            : colPrompts.length;
-                      const colEmpty =
-                        colItemCount === 0 && col.id !== "PROMPTS" && col.id !== "REVIEW";
                       return (
                         <ColumnView
                           key={col.id}
@@ -1742,9 +1734,9 @@ export default function Board() {
                           home={home}
                           activeId={activeDragId}
                           overId={overId}
-                          collapsed={colEmpty ? false : !!collapsed[col.id]}
+                          collapsed={!!collapsed[col.id]}
                           compact={boardCompact}
-                          onToggleCollapse={colEmpty ? undefined : () => toggleCollapse(col.id)}
+                          onToggleCollapse={() => toggleCollapse(col.id)}
                           isArchivedCol={col.id === "ARCHIVED"}
                           onClearDone={col.id === "ARCHIVED" ? clearDonePrompts : undefined}
                           isClearingDone={col.id === "ARCHIVED" ? isClearingDone : false}
