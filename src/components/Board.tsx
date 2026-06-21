@@ -1128,7 +1128,13 @@ export default function Board() {
     if (doneActionPending) return;
     setDoneActionPending(action);
     const prev = prompts;
+    const oldSession = prompts.find((x) => x.id === id)?.tmuxSession;
     setPrompts((p) => p.map((x) => (x.id === id ? { ...x, isArchived: true } : x)));
+    if (oldSession) closeTerminal(oldSession);
+    if (action === "discard") {
+      setDoneActionInfo(null);
+      setDoneDiscardConfirm(false);
+    }
     try {
       const { prompt } = await api<{ prompt: Prompt }>(`/api/prompts/${id}/archive`, {
         method: "POST",
@@ -1136,10 +1142,10 @@ export default function Board() {
       });
       setPrompts((p) => p.map((x) => (x.id === id ? prompt : x)));
       if (!prompt.summary) void refreshPromptSummary(id);
-      const oldSession = prompts.find((x) => x.id === id)?.tmuxSession;
-      if (oldSession) closeTerminal(oldSession);
-      setDoneActionInfo(null);
-      setDoneDiscardConfirm(false);
+      if (action !== "discard") {
+        setDoneActionInfo(null);
+        setDoneDiscardConfirm(false);
+      }
     } catch (e) {
       setPrompts(prev);
       toast.error(e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
