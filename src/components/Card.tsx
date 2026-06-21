@@ -436,35 +436,9 @@ export function Card({
             </Tooltip>
           </div>
         </div>
-        {(prompt.branch ||
-          prompt.tmuxSession ||
-          prompt.worktreePath ||
-          prompt.column === "REVIEW" ||
-          prompt.isRunning) && (
+        {prompt.column === "REVIEW" && (
           <div className="card-meta">
-            {prompt.column === "REVIEW" ? (
-              <PrStatusBadges prompt={prompt} />
-            ) : (
-              <>
-                {prompt.isRunning && <span className="tag accent">running</span>}
-                {prompt.tmuxSession && (
-                  <Tooltip content={`Copy ${prompt.tmuxSession}`}>
-                    <button
-                      type="button"
-                      className="tag tag-button"
-                      aria-label={`Copy ${prompt.tmuxSession}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyWorktreeName();
-                      }}
-                    >
-                      {prompt.tmuxSession}
-                    </button>
-                  </Tooltip>
-                )}
-              </>
-            )}
+            <PrStatusBadges prompt={prompt} />
           </div>
         )}
       </div>
