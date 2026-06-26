@@ -283,12 +283,6 @@ export default function Board() {
     });
   }, [activeProject?.githubRepo, activeProject?.showLinearIssues]);
   const boardRows = isMobile || boardLayout === "rows" || (boardLayout === "auto" && autoBoardRows);
-  const boardCompact =
-    !isMobile && (boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact));
-  const boardSnug = useMemo(
-    () => boardCompact || COLUMNS.every((col) => collapsed[col.id]),
-    [boardCompact, collapsed, COLUMNS],
-  );
   const tabBelongsToProject = useCallback(
     (tab: TerminalTab, project: Project): boolean => {
       if (tab.projectId) return tab.projectId === project.id;
@@ -303,6 +297,14 @@ export default function Board() {
     if (!activeProject) return [];
     return terminalTabs.filter((tab) => tabBelongsToProject(tab, activeProject));
   }, [activeProject, terminalTabs, tabBelongsToProject]);
+  const boardCompact =
+    !isMobile &&
+    filteredTerminalTabs.length > 0 &&
+    (boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact));
+  const boardSnug = useMemo(
+    () => boardCompact || COLUMNS.every((col) => collapsed[col.id]),
+    [boardCompact, collapsed, COLUMNS],
+  );
   const decorateTerminalTab = useCallback(
     (tab: TerminalTab): DecoratedTerminalTab => {
       const prompt = prompts.find((p) => p.id === tab.promptId);
