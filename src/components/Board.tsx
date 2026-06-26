@@ -284,7 +284,9 @@ export default function Board() {
   }, [activeProject?.githubRepo, activeProject?.showLinearIssues]);
   const boardRows = isMobile || boardLayout === "rows" || (boardLayout === "auto" && autoBoardRows);
   const boardCompact =
-    !isMobile && (boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact));
+    !isMobile &&
+    terminalTabs.length > 0 &&
+    (boardLayout === "compact" || (boardLayout === "auto" && autoBoardCompact));
   const boardSnug = useMemo(
     () => boardCompact || COLUMNS.every((col) => collapsed[col.id]),
     [boardCompact, collapsed, COLUMNS],
